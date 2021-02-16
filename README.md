@@ -36,4 +36,3 @@ One important step in that guide is the ability to obtain a free sandbox / test 
 ## Questions
 Cloud 1001, LLC provides this software under the above license and is the only consulting firm that you should pay to assit you with this software.  That's the point of the license - to make it free to anyone to obtain, use and modify - for their OWN purposes...  if another consulting group or individual is asking to be paid to in any way modify or assit with this software - they are in violation of the license.<br/>
 Feel free to [reach out to us](https://www.gocloud1001.com "reach out to us") if you have any questions!
-
