@@ -1,0 +1,44 @@
+<plugintype scriptid="customscript_sac_txn_mgr_pi">
+  <deploymentmodel>ALLOW_SINGLE</deploymentmodel>
+  <description></description>
+  <documentationfile></documentationfile>
+  <isinactive>F</isinactive>
+  <loglevel>DEBUG</loglevel>
+  <name>SuiteAuthConnect Decision Manager</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_PI.js]</scriptfile>
+  <status>RELEASED</status>
+  <methods>
+    <method>
+      <description>Sales Order -&amp;gt; Cash Sale</description>
+      <method>testCSfromSO</method>
+    </method>
+    <method>
+      <description>Sales Order</description>
+      <method>testSO</method>
+    </method>
+    <method>
+      <description>Cash Sale</description>
+      <method>testCSStandalone</method>
+    </method>
+    <method>
+      <description>Customer Deposit</description>
+      <method>testCD</method>
+    </method>
+    <method>
+      <description>Customer Payment</description>
+      <method>testCP</method>
+    </method>
+    <method>
+      <description>Cash Refund</description>
+      <method>testCashR</method>
+    </method>
+    <method>
+      <description>Customer Refund</description>
+      <method>testCustR</method>
+    </method>
+  </methods>
+</plugintype>

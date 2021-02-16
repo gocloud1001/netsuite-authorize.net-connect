@@ -1,0 +1,24 @@
+<scheduledscript scriptid="customscript_sac_svc_mgr">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>SuiteAuthConnect Services Manager</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>F</notifyowner>
+  <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_SS.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_sac_svc_mgr">
+      <isdeployed>T</isdeployed>
+      <loglevel>DEBUG</loglevel>
+      <status>NOTSCHEDULED</status>
+      <title>SuiteAuthConnect Services Manager</title>
+      <recurrence>
+        <single>
+          <repeat></repeat>
+          <startdate>2017-12-12</startdate>
+          <starttime>23:00:00Z</starttime>
+        </single>
+      </recurrence>
+    </scriptdeployment>
+  </scriptdeployments>
+</scheduledscript>

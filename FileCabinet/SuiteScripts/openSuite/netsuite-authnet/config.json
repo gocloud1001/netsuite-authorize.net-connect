@@ -1,0 +1,8 @@
+{
+  "packages": [
+  ],
+  "paths": {
+    "moment": "../lib/moment.min.js",
+    "lodash": "../lib/lodash.min.js"
+  }
+}

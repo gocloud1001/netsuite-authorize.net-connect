@@ -1,0 +1,32 @@
+<manifest projecttype="ACCOUNTCUSTOMIZATION">
+  <projectname>c9-sac</projectname>
+  <frameworkversion>1.0</frameworkversion>
+  <dependencies>
+    <features>
+      <feature required="true">CUSTOMRECORDS</feature>
+      <feature required="false">WEBSTORE</feature>
+      <feature required="false">ADVRECEIVING</feature>
+      <feature required="false">OPPORTUNITIES</feature>
+      <feature required="false">PAYCHECKJOURNAL</feature>
+      <feature required="false">WORKORDERS</feature>
+      <feature required="true">SERVERSIDESCRIPTING</feature>
+      <feature required="false">MULTILANGUAGE</feature>
+      <feature required="false">CREATESUITEBUNDLES</feature>
+      <feature required="false">EXTREMELIST</feature>
+      <feature required="false">ASSEMBLIES</feature>
+      <feature required="false">INVENTORY</feature>
+      <feature required="false">CUSTOMTRANSACTIONS</feature>
+      <feature required="false">CUSTOMSEGMENTS</feature>
+      <feature required="false">PAYABLES</feature>
+      <feature required="false">MAILMERGE</feature>
+      <feature required="false">RECEIVABLES</feature>
+      <feature required="false">EXPREPORTS</feature>
+      <feature required="false">MULTILOCINVT</feature>
+      <feature required="false">ACCOUNTING</feature>
+      <feature required="false">CRM</feature>
+      <feature required="false">WMSSYSTEM</feature>
+    </features>
+    <files>
+      </files>
+  </dependencies>
+</manifest>

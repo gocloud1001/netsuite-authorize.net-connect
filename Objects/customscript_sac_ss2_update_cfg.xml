@@ -1,0 +1,24 @@
+<scheduledscript scriptid="customscript_sac_ss2_update_cfg">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>SuiteAuthConnect Update Configuration</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>F</notifyowner>
+  <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/ANet-POSTINSTALL-UPGRADE.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_sac_ss2_update_cfg_o">
+      <isdeployed>T</isdeployed>
+      <loglevel>DEBUG</loglevel>
+      <status>NOTSCHEDULED</status>
+      <title>SuiteAuthConnect Update Configuration (OnDemand)</title>
+      <recurrence>
+        <single>
+          <repeat></repeat>
+          <startdate>2017-12-12</startdate>
+          <starttime>23:00:00Z</starttime>
+        </single>
+      </recurrence>
+    </scriptdeployment>
+  </scriptdeployments>
+</scheduledscript>

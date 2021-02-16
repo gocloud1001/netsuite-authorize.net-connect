@@ -1,0 +1,19 @@
+<centercategory scriptid="custcentercategory_cld9_sac">
+  <center>BASIC</center>
+  <centertab>[scriptid=custcentertab_cld9_tab]</centertab>
+  <label>SuiteAuthConnect</label>
+  <links>
+    <link>
+      <linklabel>SuiteAuthConnect Configuration</linklabel>
+      <linkobject>[scriptid=customscript_c9_authnet_screen_svc.customdeploy_c9_authnet_screen_svc]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+    <link>
+      <linklabel>Authorize.Net History Records</linklabel>
+      <linkobject>[scriptid=customsearch_anet_history_search]</linkobject>
+      <linktasktype>SRCH_RSLT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
+  </links>
+</centercategory>

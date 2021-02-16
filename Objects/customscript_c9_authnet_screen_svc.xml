@@ -1,0 +1,25 @@
+<suitelet scriptid="customscript_c9_authnet_screen_svc">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>SuiteAuthConnect Error Portal</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_SL.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_c9_authnet_screen_svc">
+      <allemployees>T</allemployees>
+      <allpartners>F</allpartners>
+      <allroles>F</allroles>
+      <audslctrole></audslctrole>
+      <eventtype></eventtype>
+      <isdeployed>T</isdeployed>
+      <isonline>F</isonline>
+      <loglevel>DEBUG</loglevel>
+      <runasrole>ADMINISTRATOR</runasrole>
+      <status>RELEASED</status>
+      <title>SuiteAuthConnect Error Portal</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</suitelet>
