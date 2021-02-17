@@ -12,7 +12,7 @@ SuiteCloud Development Framework (SDF)<br/>
 You also need to install the NetSuite provided “SuiteCloud Development Integration” (bundle id 245955)
 
 ## Installation
-Install and configure a supported IDE per the NetSuite SDF (SuiteCloud Development Framework) configuration to allow you to push a SDF project including all scripts, custom fields, custom records and other configuration onjects into your environment.<br/>
+Install and configure a supported IDE per the NetSuite SDF (SuiteCloud Development Framework) configuration to allow you to push a SDF project including all scripts, custom fields, custom records and other configuration objects into your environment.<br/>
 Here are some resources for this step - it's easier than it sounds!<br/>
 [Google Links with YouTube](https://www.google.com/search?q=how+to+configure+eclipse+for+sdf "Google Links with YouTube")<br/>
 [Super Helpful guide by Oracle](https://docs.oracle.com/cloud/latest/netsuitecs_gs/NSIDE/NSIDE.pdf "Super Helpful guide by Oracle")<br/>
