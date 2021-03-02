@@ -44,7 +44,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache','moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, moment, _, codes) {
-    exports.VERSION = '3.0.8';
+    exports.VERSION = '3.0.9';
 
     //all the fields that are custbody_authnet_ prefixed
     exports.AUTHCAP = [];//'accounttype', 'description', 'responsecode', 'capture_failed', 'capture_reason'

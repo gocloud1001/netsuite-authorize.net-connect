@@ -384,11 +384,13 @@
           <id>RECORDACTIVEWORKFLOWS</id>
           <label>Active Workflows</label>
           <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
         </subList>
         <subList>
           <id>RECORDWORKFLOWHISTORY</id>
           <label>Workflow History</label>
           <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
         </subList>
       </subItems>
     </tab>
@@ -400,6 +402,22 @@
         <defaultFieldGroup/>
       </fieldGroups>
       <subItems/>
+    </tab>
+    <tab>
+      <id>RECORDTRANSLATION</id>
+      <label>Translation</label>
+      <visible>F</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDTRANSLATIONS</id>
+          <label>Translation</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
     </tab>
   </tabs>
   <actionbar>

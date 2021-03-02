@@ -702,10 +702,11 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         } else {
                             //EXTERNAL AUTH LOGIC HERE
+                            //log.debug(o_config2.custrecord_an_external_auth_allowed.val, context.newRecord.getValue(o_config2.custrecord_an_external_fieldid.val))
                             if (context.type === context.UserEventType.CREATE && o_config2.custrecord_an_external_auth_allowed.val && !_.isEmpty(context.newRecord.getValue(o_config2.custrecord_an_external_fieldid.val))){ //runtime.executionContext !== 'USERINTERFACE'
                                 if (o_config2.custrecord_an_external_auth_allowed.val){
                                     if (context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId : 'custbody_authnet_refid'})) {
-                                        log.debug('the field is ' + o_config2.custrecord_an_external_fieldid.val, context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}));
+                                        //log.debug('the field is ' + o_config2.custrecord_an_external_fieldid.val, context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}));
                                         var b_continue = authNet.makeIntegrationHistoryRec(context.newRecord, o_config2);
                                         if (b_continue) {
                                             if (o_config2.custrecord_an_cim_auto_generate.val) {
