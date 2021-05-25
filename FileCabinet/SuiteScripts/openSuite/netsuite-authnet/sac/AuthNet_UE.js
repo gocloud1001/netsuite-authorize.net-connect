@@ -592,7 +592,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             if (_.isEmpty(context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}))){
                                 context.newRecord.setValue({fieldId:'custbody_authnet_authcode', value : '(IMPORTED)'});
                             }
-                            if (o_config2.custrecord_an_make_deposit.val){custbody_authnet_datetime
+                            if (o_config2.custrecord_an_make_deposit.val){
                                 context.newRecord.setValue({fieldId:'paymentmethod', value: ''});
                             } else {
                                 context.newRecord.setValue({fieldId:'paymentmethod', value: o_config2.custrecord_an_paymentmethod.val});
