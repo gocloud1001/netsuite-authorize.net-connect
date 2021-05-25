@@ -403,22 +403,6 @@
       </fieldGroups>
       <subItems/>
     </tab>
-    <tab>
-      <id>RECORDTRANSLATION</id>
-      <label>Translation</label>
-      <visible>F</visible>
-      <fieldGroups>
-        <defaultFieldGroup/>
-      </fieldGroups>
-      <subItems>
-        <subList>
-          <id>RECORDTRANSLATIONS</id>
-          <label>Translation</label>
-          <visible>T</visible>
-          <neverEmpty>F</neverEmpty>
-        </subList>
-      </subItems>
-    </tab>
   </tabs>
   <actionbar>
     <menu>

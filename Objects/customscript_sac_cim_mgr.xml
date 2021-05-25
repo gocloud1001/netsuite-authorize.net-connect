@@ -9,13 +9,13 @@
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_UE_tokenRecord.js]</scriptfile>
   <scriptdeployments>
     <scriptdeployment scriptid="customdeploy_sac_cim_mgr">
-      <allemployees>F</allemployees>
+      <allemployees>T</allemployees>
       <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
-      <allroles>F</allroles>
+      <allroles>T</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|CLIENT|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PORTLET|RECORDACTION|RESTLET|RESTWEBSERVICES|SCHEDULED|SDFINSTALLATION|SUITELET|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WEBSTORE|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>[scriptid=customrecord_authnet_tokens]</recordtype>

@@ -592,7 +592,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             if (_.isEmpty(context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}))){
                                 context.newRecord.setValue({fieldId:'custbody_authnet_authcode', value : '(IMPORTED)'});
                             }
-                            if (o_config2.custrecord_an_make_deposit.val){
+                            if (o_config2.custrecord_an_make_deposit.val){custbody_authnet_datetime
                                 context.newRecord.setValue({fieldId:'paymentmethod', value: ''});
                             } else {
                                 context.newRecord.setValue({fieldId:'paymentmethod', value: o_config2.custrecord_an_paymentmethod.val});
@@ -723,7 +723,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                     //todo remove the second or statment - validate this as well
                                                     //differne between status and type i nthe response - type == "transactionType": "authOnlyTransaction",
                                                     //         "transactionStatus": "authorizedPendingCapture",
-                                                    if (o_status.transactionStatus === 'authCaptureTransaction' || o_status.transactionStatus === 'authorizedPendingCapture') {
+                                                    if (o_status.transactionStatus === 'authCaptureTransaction' || o_status.transactionStatus === 'capturedPendingSettlement') {
                                                         var rec_deposit = record.create({
                                                             type: record.Type.CUSTOMER_DEPOSIT,
                                                             isDynamic: true,
@@ -742,10 +742,20 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_datetime', value: moment(context.newRecord.getValue({fieldId: 'custbody_authnet_datetime'})).toDate()});
                                                         rec_deposit.setValue({fieldId:'memo', value: 'WebStore Auth+Capture Deposit'});
                                                         rec_deposit.save();
-                                                    } else {
+                                                    }
+                                                    else if (o_status.transactionStatus === 'authorizedPendingCapture')
+                                                    {
                                                         throw error.create({
-                                                            name : ''
-                                                        })
+                                                            name : 'NOT CAPTURED',
+                                                            message : o_status.transactionStatus + ' is not a capture fow webstore order '+context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val})
+                                                        });
+                                                    }
+                                                    else
+                                                    {
+                                                        throw error.create({
+                                                            name : 'Unknown / UnMapped Response',
+                                                            message : o_status.transactionStatus + ' is not mapped for the deposit generation logic!'
+                                                        });
                                                     }
                                                 } catch (ex) {
                                                     log.error('DEPOSIT failed for imported transaction '+ context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}), ex.name + " :: " + ex.message);

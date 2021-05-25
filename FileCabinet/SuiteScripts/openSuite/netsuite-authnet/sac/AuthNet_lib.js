@@ -44,7 +44,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache','moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, moment, _, codes) {
-    exports.VERSION = '3.0.9';
+    exports.VERSION = '3.0.10';
 
     //all the fields that are custbody_authnet_ prefixed
     exports.AUTHCAP = [];//'accounttype', 'description', 'responsecode', 'capture_failed', 'capture_reason'
@@ -499,15 +499,20 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         log.debug('getCIM. calling AUTH.Net', 'getCIM()');
         var o_profile = mngCustomerProfile.createProfileFromTxn(txn, config);
         if (o_profile.success){
-            mngCustomerProfile.getProfile(o_profile, config);
+            mngCustomerProfile.getAndBuildProfile(o_profile, config);
         }
         return true;
     };
 
     exports.makeToken = function (o_profile, config) {
         log.debug('makeToken. building AUTH.Net', 'makeToken()');
-        mngCustomerProfile.getProfile(o_profile, config);
+        mngCustomerProfile.getAndBuildProfile(o_profile, config);
         return true;
+    };
+
+    exports.importCIMToken = function (o_importedJSON) {
+        log.debug('importCIMToken. building AUTH.Net', 'importCIMToken()');
+        return mngCustomerProfile.importProfile(o_importedJSON);
     };
 
     exports.doSettlement = function (txn, settlementType) {
@@ -644,141 +649,33 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             }
             a_cachedConfigs.push(o_response);
         });
+        log.audit('The Authorize.Net Cache has been refreshed', 'This data should remain in cache for about an hour');
         return a_cachedConfigs;
     };
 
     //GET AND LOAD THE CACHE AS NEEDED FOR THE CONFIG
-    exports.getConfigFromCache = function() {
-        return JSON.parse(
-            cache.getCache({
-                name: 'config',
-                scope: cache.Scope.PROTECTED
-            }).get({
+    exports.getConfigFromCache = function(configId) {
+        var o_cache =cache.getCache({
+            name: 'config',
+            scope: cache.Scope.PROTECTED
+        });
+        var o_cacheKey = o_cache.get({
                 key: 'config',
                 loader: this.cacheActiveConfig,
                 ttl : 3600
-            })
-        )[0];
+            });
+        var o_fullCache = JSON.parse(o_cacheKey);
+        //log.debug(configId, o_fullCache);
+        if (configId){
+            return _.find(o_fullCache, {id:configId});
+        }
+        else
+        {
+            return o_fullCache[0];
+        }
         //note the [0] above returns only one of the custom records - this is for multiple configs in the future
     };
 
-    //just expose the config sooner in the process for things line external auth
-    exports.getActiveConfigX = function(txn){
-        var o_response = {};
-        var rec = getConfig(txn).rec;
-        var a_allFields = rec.getFields();
-        _.forEach(a_allFields, function(fld){
-            o_response[fld] = {
-                val : rec.getValue(fld),
-                txt : rec.getText(fld)
-            }
-        });
-        return getConfig(txn);
-    };
-    getConfigX = function (txn) {
-        var authNetConfig, o_config = {auth : {}};
-        //walk the list of all departments for the correct config setup for the gateay
-        if (_.isUndefined(txn) || +txn.getValue('custbody_authnet_cim_token') === 0 ){
-           //var i_sub = txn.getValue('subsidiary');
-            //exports.homeSysLog('i_sub', i_sub);
-            //if subsidiary is balnk - then find one without sub custrecord_an_sub
-            var a_filters = [
-                ['isinactive', 'is', 'F'],
-                "AND",
-                ['custrecord_an_all_sub', 'is', 'T']
-            ];
-
-            /*if (_.isUndefined(i_sub)){
-                a_filters.push(['custrecord_an_sub', 'anyof', '@NONE@'])
-            } else {
-                a_filters.push(['custrecord_an_sub', 'anyof', i_sub])
-            }*/
-            //log.debug('anet.getConfig a_filters', a_filters)
-            var authnetconfig = search.create({
-                type: 'customrecord_authnet_config',
-                //filters: a_filters,
-                filters: a_filters,
-                columns: [
-                    {name: 'internalid', sort: search.Sort.DESC}
-                ]
-            }).run();
-            var i_configRecId;
-            authnetconfig.each(function (result) {
-                i_configRecId = result.getValue('internalid');
-                //this will only return the first one
-                return false;
-            });
-            //log.debug('anet.getConfig i_configRecId', i_configRecId)
-            if (false) {
-                //in the future we may enable a switch here to support additional gateway selection logic
-                //like from a company pref
-            } else {
-                try {
-                    authNetConfig = record.load({
-                        type: 'customrecord_authnet_config',
-                        id: i_configRecId,
-                        isDynamic: false
-                    });
-                } catch (ex) {
-                    log.error('NO CONFIG FOUND', 'GENERATING DEFAULT CONFIGURATION');
-                    /*throw error.create({
-                        name: 'Authorize.Net Configuration Record Is Invalid',
-                        message: 'The Authorize.Net Configuration record for this business / subsidiary is incorrectly configured or missing!',
-                        notifyOff: false
-                    });*/
-                    authNetConfig = record.create({
-                        type: 'customrecord_authnet_config',
-                        isDynamic: true
-                    });
-                    authNetConfig.setValue({fieldId : 'name', value: 'Default Configuration'});
-                    authNetConfig.save({ignoreMandatoryFields: true});
-                }
-            }
-        } else {
-            //if there is a token - DEFAULT to that gateway over department gateways
-            var o_token = record.load({
-                type: 'customrecord_authnet_tokens',
-                id: txn.getValue('custbody_authnet_cim_token')
-            });
-            authNetConfig = record.load({
-                type: 'customrecord_authnet_config',
-                id: o_token.getValue('custrecord_an_token_gateway'),
-                isDynamic: false
-            });
-            o_config.token = o_token;
-        }
-        //added to support multiple gateway configs
-        //o_config.type = +authNetConfig.getValue('custrecord_an_type');
-
-        //var test_solution = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
-        var live_solution = 'AAA175381';
-       // var s_companyId = _.toUpper(config.load({ type: config.Type.COMPANY_INFORMATION }).getValue({ fieldId: 'companyid' }));
-        var s_companyId = _.toUpper(authNetConfig.getValue({fieldId : 'custrecord_an_instanceid'}));
-        o_config.solutionId = {id : live_solution};
-        if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !authNetConfig.getValue('custrecord_an_islive'))
-        {
-            o_config.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
-        }
-
-        o_config.type = 1;
-        o_config.rec = authNetConfig;
-        switch (o_config.type){
-            case 1: //Auth.Net
-            default:
-                if (runtime.envType === 'PRODUCTION' && authNetConfig.getValue('custrecord_an_islive')){
-                    o_config.auth.name = authNetConfig.getValue('custrecord_an_login');
-                    o_config.auth.transactionKey = authNetConfig.getValue('custrecord_an_trankey');
-                    o_config.authSvcUrl = authNetConfig.getValue('custrecord_an_url');
-                } else {
-                    o_config.auth.name = authNetConfig.getValue('custrecord_an_login_sb');
-                    o_config.auth.transactionKey = authNetConfig.getValue('custrecord_an_trankey_sb');
-                    o_config.authSvcUrl = authNetConfig.getValue('custrecord_an_url_sb');
-                }
-                break;
-        }
-        //exports.homeSysLog('CONFIG OBJECT', o_config);
-        return o_config;
-    };
     cleanAuthNet = function (txn, doAll){
         var fields = exports.ALLAUTH;
         if (_.includes(['customerdeposit', 'customerpayment'], txn.type)){
@@ -1994,6 +1891,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         }
         return o_createProfileResponse;
     };
+
     mngCustomerProfile.getProfile = function(o_profile, o_ccAuthSvcConfig) {
         exports.homeSysLog('getProfile(o_profile.customerProfileId & o_profile.customerPaymentProfileIdList)', o_profile.customerProfileId + ' :: ' + o_profile.customerPaymentProfileIdList);
         //var o_createProfileResponse = {success:true, customerProfileId:null, txn : txn};
@@ -2007,7 +1905,44 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             });
             exports.homeSysLog('getCIM(getCustomerProfileRequest) request', exports.AuthNetGetCustomerProfileRequest);
             exports.homeSysLog('getCIM(getCustomerProfileRequest) response.body', response.body);
-            var profileResponse = JSON.parse(response.body.replace('\uFEFF', ''));
+            return  JSON.parse(response.body.replace('\uFEFF', ''));
+        } catch (e) {
+            log.error(e.name, e.message);
+            log.error(e.name, e.stack);
+            //o_createProfileResponse.success = false;
+        } finally {
+            //rec_response.save()
+        }
+    };
+
+    mngCustomerProfile.importProfile = function(o_profile_JSON) {
+        exports.homeSysLog('importProfile(o_profile_JSON)', o_profile_JSON);
+        //get the config value from cache that we are looking for
+        var o_ccAuthSvcConfig = exports.getConfigFromCache(+o_profile_JSON.fields.custrecord_an_token_gateway);
+        exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
+        exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.customerProfileId = o_profile_JSON.fields.custrecord_an_token_customerid ;
+        try {
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: o_ccAuthSvcConfig.authSvcUrl,
+                body: JSON.stringify(exports.AuthNetGetCustomerProfileRequest)
+            });
+            exports.homeSysLog('getCIM(getCustomerProfileRequest) request', exports.AuthNetGetCustomerProfileRequest);
+            exports.homeSysLog('getCIM(getCustomerProfileRequest) response.body', response.body);
+            return  JSON.parse(response.body.replace('\uFEFF', ''));
+        } catch (e) {
+            log.error(e.name, e.message);
+            log.error(e.name, e.stack);
+            //o_createProfileResponse.success = false;
+        } finally {
+            //rec_response.save()
+        }
+    };
+
+    mngCustomerProfile.getAndBuildProfile = function(o_profile, o_ccAuthSvcConfig) {
+        exports.homeSysLog('getAndBuildProfile(o_profile.customerProfileId & o_profile.customerPaymentProfileIdList)', o_profile.customerProfileId + ' :: ' + o_profile.customerPaymentProfileIdList);
+        try{
+            var profileResponse = mngCustomerProfile.getProfile(o_profile, o_ccAuthSvcConfig);
             //rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
             //log.debug('response.body.messages', profileResponse.messages);
             exports.homeSysLog('profileResponse.profile.paymentProfiles', profileResponse.profile.paymentProfiles);
@@ -2023,7 +1958,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             exports.homeSysLog('a_usedProfiles', a_usedProfiles);
             _.forEach(a_usedProfiles, function(profile){
                 var b_makeToken = exports.findExistingProfile(o_profile.nsEntityId, profileResponse.profile.customerProfileId, profile.customerPaymentProfileId);
-                //todo - double check for config allowing token creation
                 if (b_makeToken){
                     var rec_cimProfile = record.create({type: 'customrecord_authnet_tokens', isDynamic: true});
                     rec_cimProfile.setValue({fieldId: 'custrecord_an_token_gateway', value: o_ccAuthSvcConfig.id});
