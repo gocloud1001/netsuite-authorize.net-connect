@@ -30,35 +30,11 @@
 define(['N/record', 'N/encode', 'N/runtime', 'N/crypto', 'N/error', 'N/ui/message', 'lodash', './AuthNet_lib'],
     function (record, encode, runtime, crypto, error, message, _, authNet) {
 
-        function buildHash(thisRec){
-            var s_rawData =
-                thisRec.id +
-                thisRec.getValue({fieldId : 'custrecord_an_token_entity'})+
-                thisRec.getValue({fieldId : 'custrecord_an_token_customerid'})+
-                thisRec.getValue({fieldId : 'custrecord_an_token_token'})+
-                thisRec.getValue({fieldId : 'custrecord_an_token_type'})+
-                thisRec.getValue({fieldId : 'custrecord_an_token_last4'})+
-                thisRec.getValue({fieldId : 'custrecord_an_token_expdate'})+
-                thisRec.getValue({fieldId : 'custrecord_an_token_gateway'})+
-                JSON.stringify(thisRec.getValue({fieldId : 'custrecord_tt_linked'}));
-            s_rawData = s_rawData.replace(/\s/g, "");
-            //log.debug('s_rawData', s_rawData)
-
-            var hashObj = crypto.createHash({
-                algorithm: crypto.HashAlg.SHA512
-            });
-            hashObj.update({
-                input: s_rawData
-            });
-            return hashObj.digest({
-                outputEncoding: encode.Encoding.HEX
-            });
-        }
-
         function beforeLoad(context) {
             //when loading validate the hash and throw an alert if it's invalid
+
             if (!_.includes(['delete', 'create'], context.type)){
-                if (context.newRecord.getValue({fieldId : 'custrecord_an_token_pblkchn_tampered'}) || (buildHash(context.newRecord) !== context.newRecord.getValue({fieldId : 'custrecord_an_token_pblkchn'}))){
+                if (context.newRecord.getValue({fieldId : 'custrecord_an_token_pblkchn_tampered'}) || (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.newRecord.getValue({fieldId : 'custrecord_an_token_pblkchn'}))){
                     log.error('hash mismatch!', context.newRecord.getValue({fieldId : 'custrecord_an_token_pblkchn'}))
                     context.form.addPageInitMessage({
                         type: message.Type.ERROR,
@@ -74,7 +50,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/crypto', 'N/error', 'N/ui/messag
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception
             if (!_.includes(['delete', 'create'], context.type)){
-                if (buildHash(context.newRecord) !== context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'})) {
+                if (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'})) {
                     context.newRecord.setValue({fieldId : 'custrecord_an_token_pblkchn_tampered', value : true });
                 }
             }
@@ -104,7 +80,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/crypto', 'N/error', 'N/ui/messag
                                } else {
                                    rec_cimProfile.setValue({fieldId: 'name', value :importedProfile.profile.description});
                                }
-                               rec_cimProfile.setValue({fieldId: 'custrecord_an_token_pblkchn', value: buildHash(rec_cimProfile)});
+                               rec_cimProfile.setValue({fieldId: 'custrecord_an_token_pblkchn', value: authNet.mkpblkchain(rec_cimProfile, rec_cimProfile.id)});
                                rec_cimProfile.save();
                            }
                            else
@@ -120,7 +96,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/crypto', 'N/error', 'N/ui/messag
                                } else {
                                    rec_cimProfileNew.setValue({fieldId: 'name', value :importedProfile.profile.description});
                                }
-                               rec_cimProfileNew.setValue({fieldId: 'custrecord_an_token_pblkchn', value: buildHash(rec_cimProfileNew)});
+                               rec_cimProfileNew.setValue({fieldId: 'custrecord_an_token_pblkchn', value: authNet.mkpblkchain(rec_cimProfileNew, rec_cimProfileNew.id)});
                                rec_cimProfileNew.save();
                            }
                            //increment the counter to start building more profiles
@@ -143,7 +119,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/crypto', 'N/error', 'N/ui/messag
                         type: context.newRecord.type,
                         id: context.newRecord.id,
                         values: {
-                            custrecord_an_token_pblkchn: buildHash(context.newRecord)
+                            custrecord_an_token_pblkchn: authNet.mkpblkchain(context.newRecord, context.newRecord.id)
                         },
                         options: {
                             enableSourcing: false,

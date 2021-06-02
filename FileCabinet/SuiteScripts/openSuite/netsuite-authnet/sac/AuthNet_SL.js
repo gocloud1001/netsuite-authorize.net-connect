@@ -310,6 +310,25 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         container: 'grpauthin'
                     });
 
+                    //external auth record test
+                    var grp_validAuth = form.addFieldGroup({
+                        id: 'grpauthcheck',
+                        label: 'Get the status of an auth event by tranid'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'getStatusCheck()',
+                        source: 'getstatus',
+                        container: 'grpauthcheck'
+                    });
+
+                    form.addField({
+                        id: 'custpage_tranrefid',
+                        type: ui.FieldType.TEXT,
+                        label: 'tranrefid',
+                        container: 'grpauthcheck'
+                    });
 
                     //external auth record test
                     var grp_authout = form.addFieldGroup({
@@ -492,6 +511,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                 var o_config2 = authNet.getConfigFromCache();
                 var o_response = {'OK':null};
                 switch (o_params.custpage_test){
+                    case 'getstatus':
+                        o_response.OK = true;
+                        o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
+                        break;
+
                     case 'makeso':
                         //make the so and set all the fields and save...
                         var testSo = record.create({

@@ -27,8 +27,8 @@
  */
 
 
-define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/cache', 'lodash', 'moment', './AuthNet_lib'],
-    function (record, runtime, redirect, ui, cache, _, moment, authNet) {
+define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'lodash', 'moment', './AuthNet_lib'],
+    function (record, runtime, redirect, ui, message, cache, task, _, moment, authNet) {
 
         function beforeLoad(context) {
             //log.debug('parameters', _.keys(context))
@@ -113,7 +113,25 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/cache', '
                     makeAlertField(context, o_testResult);
                 }
             }
-
+            if (context.newRecord.getValue({fieldId :'custrecord_an_version'}) !== authNet.VERSION) {
+                try {
+                    context.form.addPageInitMessage({
+                        type: message.Type.INFORMATION,
+                        title: 'SYSTEM IS UPDATING CONFIGURATION',
+                        message: 'Your configuration is updating, please refresh this page until this message is gone before making any changes.',
+                    });
+                    var scriptTask = task.create({
+                        taskType: task.TaskType.SCHEDULED_SCRIPT,
+                        scriptId: 'customscript_sac_ss2_update_cfg',
+                        deploymentId: 'customdeploy_sac_ss2_update_cfg_o'
+                    });
+                    var scriptTaskId = scriptTask.submit();
+                    //log.debug('scriptTaskId', scriptTaskId)
+                    log.audit('Process for intial setup is running ', task.checkStatus(scriptTaskId));
+                } catch (ex) {
+                    log.emergency(ex.name, ex.message);
+                }
+            }
 
         }
         function beforeSubmit(context) {

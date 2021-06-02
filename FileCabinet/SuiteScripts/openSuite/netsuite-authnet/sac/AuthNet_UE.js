@@ -719,11 +719,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             if (o_config2.custrecord_an_make_deposit.val) {
                                                 try {
                                                     var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
-                                                    log.debug('o_status', o_status)
-                                                    //todo remove the second or statment - validate this as well
-                                                    //differne between status and type i nthe response - type == "transactionType": "authOnlyTransaction",
+                                                    //log.debug('o_status', o_status)
+                                                    //differne between status and type in the response - type == "transactionType": "authOnlyTransaction",
                                                     //         "transactionStatus": "authorizedPendingCapture",
-                                                    if (o_status.transactionStatus === 'authCaptureTransaction' || o_status.transactionStatus === 'capturedPendingSettlement') {
+                                                    if (o_status.transactionStatus === 'capturedPendingSettlement') {
                                                         var rec_deposit = record.create({
                                                             type: record.Type.CUSTOMER_DEPOSIT,
                                                             isDynamic: true,
@@ -734,7 +733,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                         });
                                                         //todo - make a deposit config in the config
                                                         rec_deposit.setValue({fieldId: 'undepfunds', value: 'T'});
-                                                        rec_deposit.setValue({fieldId:'payment', value: context.newRecord.getValue({fieldId:'total'})});
+                                                        rec_deposit.setValue({fieldId:'payment', value: o_status.fullResponse.settleAmount});
+                                                        //rec_deposit.setValue({fieldId:'payment', value: context.newRecord.getValue({fieldId:'total'})});
                                                         rec_deposit.setValue({fieldId:'paymentmethod', value: o_config2.custrecord_an_paymentmethod.val});
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_use', value: true});
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_refid', value: context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})});
@@ -746,8 +746,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                     else if (o_status.transactionStatus === 'authorizedPendingCapture')
                                                     {
                                                         throw error.create({
-                                                            name : 'NOT CAPTURED',
-                                                            message : o_status.transactionStatus + ' is not a capture fow webstore order '+context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val})
+                                                            name : 'NOT CAPTURED IN WEBSTORE - DEPOSIT NOT MADE - CONFIGURATION ISSUE!',
+                                                            message : o_status.transactionStatus + ' is not a capture for the webstore order '+context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val})
                                                         });
                                                     }
                                                     else
