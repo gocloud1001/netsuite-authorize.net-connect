@@ -4,12 +4,12 @@ NetSuite <> Authorize.Net Integration as a SDF project that runs completely insi
 ## READ THIS BEFORE PROCEEDING
 Although the FAQ's make this as clear as we can make it - it needs to be reiterated : **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In**, because it is not allowed to. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.
 Here's a checklist and grades of things it does and does not do:
-[**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, Shopify, WooCommerce, BigCommerce, etc* inside of NetSuite
-[**A+**] Allows for direct processing of authorizations or authorizations+captures inside of NetSuite on the appropriate transaction type following native card processing logic
-[**A+**] Storage of card data using Authorize.Net CIM for PCI complaint tokens and no raw card data
-[**F**] SuiteCommerce will not work with this solution because it is not a Gateway Plugin
-[**D-**] Customer Center "self pay" has not been tested, may or may not work, likely will not
-[**F**] The new(ish) "Pay Now" link functionality in NetSuite is not supported as that uses NetSuite Payment Instruments which is part of their Payment Gateway, which this is not part of
+ - [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, Shopify, WooCommerce, BigCommerce, etc* inside of NetSuite
+ - [**A+**] Allows for direct processing of authorizations or authorizations+captures inside of NetSuite on the appropriate transaction type following native card processing logic
+ - [**A+**] Storage of card data using Authorize.Net CIM for PCI complaint tokens and no raw card data
+ - [**F**] SuiteCommerce will not work with this solution because it is not a Gateway Plugin
+ - [**D-**] Customer Center "self pay" has not been tested, may or may not work, likely will not
+ - [**F**] The new(ish) "Pay Now" link functionality in NetSuite is not supported as that uses NetSuite Payment Instruments which is part of their Payment Gateway, which this is not part of
 
 ## PRE-Installation
 There is a PDF in the codebase that offers additional information about prerequisite components needed in your NetSuite account to support the installation. To enable these you will need to navigate in your NetSuite account, while in the Administrator role, to Setup > Company > Enable Features >> SuiteCloud and enable the following:<br/>
@@ -53,4 +53,5 @@ Really wish we had a better answer here - but the folks at Oracle do not provide
 ## Questions
 Cloud 1001, LLC provides this software under the above license and is the only consulting firm that you should pay to assist you with this software.  That's the point of the license - to make it free to anyone to obtain, use and modify - for their OWN purposes...  if another consulting group or individual is asking to be paid to in any way modify or assist with this software - they are in violation of the license.<br/>
 Feel free to [reach out to us](https://www.gocloud1001.com "reach out to us") if you have any questions!
+
 
