@@ -71,6 +71,88 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
                 window.location = output;
             }
         }
+        function doApprove(scriptContext) {
+            window.Ext.MessageBox.show({
+                title: 'Approving',
+                msg: '<span>Approving this authorization... </span>',
+                width: 400,
+                icon: Ext.MessageBox.PROGRESS,
+                closable: false
+            });
+            window.jQuery("#custpage_approveauth").attr("disabled", true);
+            window.jQuery("#custpage_declineauth").attr("disabled", true);
+
+            //console.log('done')
+            //return;
+            var curr_rec = currentRecord.get();
+            var rec_id = curr_rec.id;
+            //call a the suitelet to void this
+            var domain_url = 'https://';
+            domain_url += url.resolveDomain({
+                hostType: url.HostType.APPLICATION,
+            });
+            var suitelet_url = domain_url + url.resolveScript({
+                scriptId: 'customscript_c9_authnet_screen_svc',
+                deploymentId: 'customdeploy_c9_authnet_screen_svc'
+            }) + '&_id='+rec_id+'&fraudAuthApprove=approve&_type='+curr_rec.type;
+            //then redirect to the record as voided
+            var response = https.get({
+                url: suitelet_url
+            });
+            console.log(response)
+            console.log(response.body)
+            //alert(suitelet_url);
+            var o_response = JSON.parse(response.body)
+            if (o_response.status){
+                var output = url.resolveRecord({
+                    recordType: 'salesorder',
+                    recordId: o_response.txn.id
+                });
+                console.log(output)
+                window.location = output;
+            }
+        }
+        function doDecline(scriptContext) {
+            window.Ext.MessageBox.show({
+                title: 'Declining',
+                msg: '<span>Declining this authorization... </span>',
+                width: 400,
+                icon: Ext.MessageBox.PROGRESS,
+                closable: false
+            });
+            window.jQuery("#custpage_approveauth").attr("disabled", true);
+            window.jQuery("#custpage_declineauth").attr("disabled", true);
+
+            //console.log('done')
+            //return;
+            var curr_rec = currentRecord.get();
+            var rec_id = curr_rec.id;
+            //call a the suitelet to void this
+            var domain_url = 'https://';
+            domain_url += url.resolveDomain({
+                hostType: url.HostType.APPLICATION,
+            });
+            var suitelet_url = domain_url + url.resolveScript({
+                scriptId: 'customscript_c9_authnet_screen_svc',
+                deploymentId: 'customdeploy_c9_authnet_screen_svc'
+            }) + '&_id='+rec_id+'&fraudAuthApprove=decline&_type='+curr_rec.type;
+            //then redirect to the record as voided
+            var response = https.get({
+                url: suitelet_url
+            });
+            console.log(response)
+            console.log(response.body)
+            //alert(suitelet_url);
+            var o_response = JSON.parse(response.body)
+            if (o_response.status){
+                var output = url.resolveRecord({
+                    recordType: 'salesorder',
+                    recordId: o_response.txn.id
+                });
+                console.log(output)
+                window.location = output;
+            }
+        }
 
         function getCIM(scriptContext) {
             window.Ext.MessageBox.show({
@@ -117,6 +199,8 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             pageInit: pageInit,
             setAuthVoid: setAuthVoid,
             getCIM: getCIM,
+            doDecline : doDecline,
+            doApprove : doApprove,
         };
 
     });

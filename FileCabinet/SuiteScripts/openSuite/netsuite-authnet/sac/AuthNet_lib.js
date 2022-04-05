@@ -44,7 +44,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache','moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, moment, _, codes) {
-    exports.VERSION = '3.0.12';
+    exports.VERSION = '3.0.13';
 
     //all the fields that are custbody_authnet_ prefixed
     exports.AUTHCAP = [];//'accounttype', 'description', 'responsecode', 'capture_failed', 'capture_reason'
@@ -57,7 +57,12 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES);//exports.AUTHCAP,exports.VOIDS,exports.REFUNDS,
     exports.SERVICE_CREDENTIAL_FIELDS = ['custrecord_an_login', 'custrecord_an_login_sb', 'custrecord_an_trankey', 'custrecord_an_trankey_sb'];
 
-    //exports.INSTANCE = config.load({ type: config.Type.COMPANY_INFORMATION });
+    var RESPONSE_CODES = {
+        "1" : "Approved",
+        "2" : "Declined",
+        "3" : "Error",
+        "4" : "Held for Review",
+    }
     exports.o_callResponse = {
             success : false,
             record :{},
@@ -85,6 +90,16 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 "merchantAuthentication": {},
                 "refId": null,
                 "transactionRequest": {}
+            }
+        }
+    };
+
+    exports.AuthNetFraudUpdate = {
+        "updateHeldTransactionRequest": {
+            "merchantAuthentication": {},
+            "heldTransactionRequest": {
+                "action": null,
+                "refTransId": null
             }
         }
     };
@@ -294,8 +309,10 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             if (_.isObject(historyRec)) {
                 o_parsedHistory = {
                     isValid: _.toUpper(historyRec.getValue({fieldId: 'custrecord_an_response_status'})) === 'OK',
+                    historyId : historyRec.id,
                     status: historyRec.getValue({fieldId: 'custrecord_an_response_status'}),
                     responseCode: historyRec.getValue({fieldId: 'custrecord_an_response_code'}),
+                    responseCodeText : RESPONSE_CODES[historyRec.getValue({fieldId: 'custrecord_an_response_code'})],
                     errorCode: historyRec.getValue({fieldId: 'custrecord_an_error_code'}),
                     message: ''
                 };
@@ -444,6 +461,14 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         var o_ccAuthSvcConfig = this.getConfigFromCache();
         log.debug('doVoid.getConfig is ', o_ccAuthSvcConfig.type);
         return callVoid[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
+    };
+
+    exports.doFraudApprove = function (historyRec, txn, s_approval) {
+        log.debug('doFraudApprove. 3rd Party Call', 'doFraudApprove()');
+        //var o_ccAuthSvcConfig = getConfig(txn);
+        var o_ccAuthSvcConfig = this.getConfigFromCache();
+        log.debug('doFraudApprove.getConfig is ', o_ccAuthSvcConfig.type);
+        return callFraud[o_ccAuthSvcConfig.type](historyRec, txn, o_ccAuthSvcConfig, s_approval);
     };
     exports.getAuth = function (txn) {
         log.debug('getAuth. 3rd Party AUTH Call', 'getAuth()');
@@ -655,7 +680,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
     //GET AND LOAD THE CACHE AS NEEDED FOR THE CONFIG
     exports.getConfigFromCache = function(configId) {
-        var o_cache =cache.getCache({
+        var o_cache = cache.getCache({
             name: 'config',
             scope: cache.Scope.PROTECTED
         });
@@ -1361,6 +1386,49 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             rec_response.setValue({fieldId: 'custrecord_an_customer',  value: _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer')});
             rec_response.setValue({fieldId: 'custrecord_an_call_type',  value: exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType});
             rec_response.setValue({fieldId: 'custrecord_an_amount',  value: getBaseCurrencyTotal(txn)});
+
+            var realTxn = txn ;
+            //realTxn.setValue({fieldId:'custbody_authnet_reqrefid', value: txn.id.toString()});
+
+            var parsed = parseANetResponse(rec_response, realTxn, response);
+            parsed.fromId = txn.id;
+            //log.debug('parsed.status', parsed.status);
+            //log.debug('parsed.history', parsed.history);
+            //log.debug('parsed.txn', parsed.txn);
+
+        } catch (e) {
+            log.error(e);
+            if (parsed){
+                parsed.status = false;
+            }
+        } finally {
+            parsed.historyId = parsed.history.save();
+            delete parsed.history;
+        }
+        return parsed;
+    };
+
+    var callFraud = {};
+    callFraud[1] = function(histRec, txn, o_ccAuthSvcConfig, s_fraudStatus){
+        var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
+        exports.AuthNetFraudUpdate.updateHeldTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
+        //note the order of how this object is built is critical
+        exports.AuthNetFraudUpdate.updateHeldTransactionRequest.heldTransactionRequest.action = s_fraudStatus;
+        exports.AuthNetFraudUpdate.updateHeldTransactionRequest.heldTransactionRequest.refTransId = histRec.getValue('custrecord_an_refid');
+        //now ensure all the prior auth data is GONE!
+        var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
+        try {
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: authSvcUrl,
+                body: JSON.stringify(exports.AuthNetFraudUpdate)
+            });
+            log.debug('response.body', response.body);
+            rec_response.setValue({fieldId: 'custrecord_an_txn', value: histRec.getValue('custrecord_an_txn')});
+            rec_response.setValue({fieldId: 'custrecord_an_calledby',  value: histRec.getValue('custrecord_an_calledby')});
+            rec_response.setValue({fieldId: 'custrecord_an_customer',  value: histRec.getValue('custrecord_an_customer')});
+            rec_response.setValue({fieldId: 'custrecord_an_call_type',  value: histRec.getValue('custrecord_an_call_type')});
+            rec_response.setValue({fieldId: 'custrecord_an_amount',  value: histRec.getValue('custrecord_an_amount')});
 
             var realTxn = txn ;
             //realTxn.setValue({fieldId:'custbody_authnet_reqrefid', value: txn.id.toString()});

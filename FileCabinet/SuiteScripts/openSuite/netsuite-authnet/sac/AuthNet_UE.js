@@ -126,6 +126,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'})
                             || (context.newRecord.getValue({fieldId: 'paymentmethod'}) === o_config2.custrecord_an_paymentmethod.val);
                     //authNet.homeSysLog('history parsed', o_history);
+                    log.debug('history parsed', o_history);
                     //authNet.homeSysLog('b_isAuthNet', b_isAuthNet);
                     //authNet.homeSysLog('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
                     //authNet.homeSysLog('b_responseFailure', b_responseFailure);
@@ -216,8 +217,17 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: false});
                                     //context.newRecord.setValue({fieldId :'memo', value :'hi there - big time'});
                                     s_field = s_field.replace(/%TYPE%/g, 'error');
-                                    s_field = s_field.replace('%TITLE%', s_paymentVehicle + ' Payment Error');
-                                    s_field = s_field.replace('%DESCR%', o_history.message);
+                                    if (+o_history.responseCode === 4)
+                                    {
+                                        s_field = s_field.replace('%TITLE%', 'Payment Error - Suspected Fraud');
+                                        s_field = s_field.replace('%DESCR%', o_history.responseCodeText + '<br/> Review the Authorize.net History record to approve or decline this pending authorization.');
+                                    }
+                                    else
+                                    {
+                                        s_field = s_field.replace('%TITLE%', s_paymentVehicle + ' Payment Error');
+                                        s_field = s_field.replace('%DESCR%', o_history.message);
+                                    }
+
                                     //fldWarning.setDefaultValue(s_field);
                                     fldWarning.defaultValue = s_field;
                                     //do not allow approval as SO does not have captured funds

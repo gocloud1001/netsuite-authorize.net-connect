@@ -195,6 +195,23 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     context.response.write(JSON.stringify(o_parsed))
                     //call the auth to see if we can void it
                 }
+                else if (o_params.fraudAuthApprove)
+                {
+                    var historyRecord = record.load({
+                        type: o_params._type,
+                        id: o_params._id,
+                        isDynamic : true
+                    });
+                    //either approve and get the new record or decline and that's that.
+                    var txn = record.load({
+                        type: historyRecord.getValue({fieldId: 'custrecord_an_calledby'}),
+                        id: historyRecord.getValue({fieldId: 'custrecord_an_txn'}),
+                        isDynamic : true
+                    });
+                    var o_parsed = authNet.doFraudApprove(historyRecord, txn, o_params.fraudAuthApprove);
+                    context.response.write(JSON.stringify(o_parsed))
+                    //call the auth to see if we can void it
+                }
                 else if (o_params.getCIM)
                 {
                     var historyRecord = record.load({
