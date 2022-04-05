@@ -33,7 +33,7 @@ Once you have the SuiteCloud IDE Plug-in installed into your IDE (again we can't
 Download the full directory structure into a NetSuite supported IDE (WebStorm) after configuring for connecting to you account (you can use git features for retrieving the code - but unless you are going to be actively developing against the code, it's usually easier if you are not familiar with git, to just download the whole project)<br/>
 Deploy the code to your account
 
-## First Step after Installation or any update is applied
+## First Step after Installation OR after ANY update is applied
 
  1. Type "SuiteAuthConnect Update Configuration" into the Global Search Box in NetSuite<br/> 
  3. Select "Page: SuiteAuthConnect Update Configuration"<br/> 
@@ -54,4 +54,7 @@ Really wish we had a better answer here - but the folks at Oracle do not provide
 Cloud 1001, LLC provides this software under the above license and is the only consulting firm that you should pay to assist you with this software.  That's the point of the license - to make it free to anyone to obtain, use and modify - for their OWN purposes...  if another consulting group or individual is asking to be paid to in any way modify or assist with this software - they are in violation of the license.<br/>
 Feel free to [reach out to us](https://www.gocloud1001.com "reach out to us") if you have any questions!
 
+## Roadmap
+3.1 is coming very soon which includes eCheck support (ACH) using Authorize.net, default payments by customer and sets the stage for "pay by link" logic to let people pay their invoices directly!
 
+    This readme is made pretty by https://stackedit.io
