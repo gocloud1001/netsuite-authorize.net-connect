@@ -9,7 +9,6 @@
   <allowquickadd>F</allowquickadd>
   <allowquicksearch>F</allowquicksearch>
   <allowuiaccess>T</allowuiaccess>
-  <customsegment></customsegment>
   <description></description>
   <enabledle>F</enabledle>
   <enablekeywords>F</enablekeywords>
@@ -74,6 +73,162 @@
       <searchlevel>2</searchlevel>
       <selectrecordtype>-2</selectrecordtype>
       <showinlist>T</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_default">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>CHECKBOX</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help>This is the default Payment Method for this customer</help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Default Payment Method</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>T</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_entity_email">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>EMAIL</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Email</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_customer_type">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Customer Type</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_paymenttype">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection>[scriptid=customlist_anet_paymenttype.val_61797_t1273352_459]</defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>SELECT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Payment Type</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete>NO_ACTION</onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype>[scriptid=customlist_anet_paymenttype]</selectrecordtype>
+      <showinlist>F</showinlist>
       <sourcefilterby></sourcefilterby>
       <sourcefrom></sourcefrom>
       <sourcelist></sourcelist>
@@ -178,7 +333,7 @@
       <isformula>F</isformula>
       <ismandatory>F</ismandatory>
       <isparent>F</isparent>
-      <label>Card Type</label>
+      <label>Type</label>
       <linktext></linktext>
       <maxlength></maxlength>
       <maxvalue></maxvalue>
@@ -236,7 +391,7 @@
       <storevalue>T</storevalue>
       <subtab></subtab>
     </customrecordcustomfield>
-    <customrecordcustomfield scriptid="custrecord_an_token_expdate">
+    <customrecordcustomfield scriptid="custrecord_an_token_cardnumber">
       <accesslevel>2</accesslevel>
       <allowquickadd>F</allowquickadd>
       <applyformatting>F</applyformatting>
@@ -256,7 +411,85 @@
       <isformula>F</isformula>
       <ismandatory>F</ismandatory>
       <isparent>F</isparent>
-      <label>Expiration Date</label>
+      <label>Card Number</label>
+      <linktext></linktext>
+      <maxlength>16</maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>F</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_cardcode">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>CCV</label>
+      <linktext></linktext>
+      <maxlength>4</maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>F</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_expdate">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help>Format is 2 number month and 2 number year.  So if a card expires in March of 2027, you would enter 0327</help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Expiration Date (MMYY)</label>
       <linktext></linktext>
       <maxlength></maxlength>
       <maxvalue></maxvalue>
@@ -386,6 +619,279 @@
       <searchlevel>2</searchlevel>
       <selectrecordtype></selectrecordtype>
       <showinlist>T</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_bank_accounttype">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Bank Account Type</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_bank_routingnumber">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Routing Number</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_bank_accountnumber">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Account Number</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>F</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_bank_nameonaccount">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Name On Account</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_bank_bankname">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Bank Name</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_bank_echecktype">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>ACH Type</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_token_uuid">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>HIDDEN</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>TEXT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>UUID</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
       <sourcefilterby></sourcefilterby>
       <sourcefrom></sourcefrom>
       <sourcelist></sourcelist>

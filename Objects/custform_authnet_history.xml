@@ -452,11 +452,13 @@
           <id>RECORDACTIVEWORKFLOWS</id>
           <label>Active Workflows</label>
           <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
         </subList>
         <subList>
           <id>RECORDWORKFLOWHISTORY</id>
           <label>Workflow History</label>
           <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
         </subList>
       </subItems>
     </tab>
@@ -469,48 +471,62 @@
       </fieldGroups>
       <subItems/>
     </tab>
+    <tab>
+      <id>RECORDTRANSLATION</id>
+      <label>Translation</label>
+      <visible>F</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDTRANSLATIONS</id>
+          <label>Translation</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
+    </tab>
   </tabs>
-  <quickViewFields/>
   <actionbar>
-    <buttons/>
     <menu>
       <menuitem>
-        <id>delete</id>
+        <id>DELETE</id>
         <label>Delete</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>makecopy</id>
+        <id>MAKECOPY</id>
         <label>Make Copy</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>new</id>
+        <id>NEW</id>
         <label>New</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>print</id>
+        <id>PRINT</id>
         <label>Print</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>submitcopy</id>
+        <id>SUBMITCOPY</id>
         <label>Save &amp; Copy</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>submitnew</id>
+        <id>SUBMITNEW</id>
         <label>Save &amp; New</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>submitnext</id>
+        <id>SUBMITNEXT</id>
         <label>Save &amp; Next</label>
         <visible>F</visible>
       </menuitem>
       <menuitem>
-        <id>submitas</id>
+        <id>SUBMITAS</id>
         <label>Save As</label>
         <visible>F</visible>
       </menuitem>

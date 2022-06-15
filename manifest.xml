@@ -24,7 +24,6 @@
       <feature required="false">MULTILOCINVT</feature>
       <feature required="false">ACCOUNTING</feature>
       <feature required="false">CRM</feature>
-      <feature required="false">WMSSYSTEM</feature>
     </features>
     <files>
       </files>

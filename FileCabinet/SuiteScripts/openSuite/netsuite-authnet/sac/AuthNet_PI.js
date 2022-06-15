@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2021 Cloud 1001, LLC
+ * @copyright 2022 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
+ * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+ *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
  * @NApiVersion 2.0
@@ -26,7 +29,8 @@ define(['exports', 'N/log', 'lodash', './AuthNet_lib'],
 function(exports, log, _, SAC) {
 
     function testPaymentPresent(record){
-        return (!_.isInteger(record.getValue({ fieldId:'custbody_authnet_ccnumber'}) || record.getValue({ fieldId:'custbody_authnet_cim_token'})));
+        //return (!_.isInteger(record.getValue({ fieldId:'custbody_authnet_ccnumber'}) || (record.getValue({ fieldId:'custbody_authnet_cim_token'}) && +record.getValue({ fieldId:'custbody_authnet_cim_token_type'}) !== 2)));
+        return ( (record.getValue({ fieldId:'custbody_authnet_cim_token'}) && +record.getValue({ fieldId:'custbody_authnet_cim_token_type'}) !== 2));
     }
 
     //this is the test for a Sales Order
@@ -34,10 +38,13 @@ function(exports, log, _, SAC) {
         SAC.pi_response.process = (
             !record.getValue({fieldId:'custbody_authnet_override'}) &&
             !record.getValue({ fieldId:'custbody_authnet_authcode'}) &&
-            record.getValue({ fieldId:'custbody_authnet_use'})  &&
-            testPaymentPresent(record)
+            record.getValue({ fieldId:'custbody_authnet_use'})  //&&
+            //testPaymentPresent(record)
             //(record.getValue({ fieldId:'orderstatus'}) !== 'A') //pending approval
         );
+        if (SAC.pi_response.process){
+            SAC.pi_response.process = testPaymentPresent(record);
+        }
         log.debug('Plugin Validation - Sales Order', SAC.pi_response);
         return SAC.pi_response;
     };
@@ -45,12 +52,27 @@ function(exports, log, _, SAC) {
     //this is a test for a Cash Sale FROM a Sales Order
     exports.testCSfromSO = function (record) {
         log.debug('Plugin Validation - Cash Sale from SO');
-        SAC.pi_response.process = (
-            !record.getValue({fieldId:'custbody_authnet_override'}) &&
+        if ((!record.getValue({fieldId:'custbody_authnet_override'}) &&
             record.getValue({fieldId: 'custbody_authnet_refid'}) &&
             record.getValue({fieldId: 'createdfrom'}) &&
-            !_.isDate(record.getValue({fieldId: 'custbody_authnet_datetime'}))
-        );
+            !_.isDate(record.getValue({fieldId: 'custbody_authnet_datetime'})))){
+            SAC.pi_response.process = true;
+            SAC.pi_response.type = 'doCapture';
+        }
+        else if (
+            !record.getValue({fieldId: 'custbody_authnet_refid'}) &&
+            record.getValue({fieldId: 'createdfrom'}) &&
+            record.getValue({fieldId: 'custbody_authnet_cim_token'}) &&
+            +record.getValue({fieldId: 'custbody_authnet_cim_token_type'}) === 2
+        )
+        {
+            SAC.pi_response.process = true;
+            SAC.pi_response.type = 'getAuthCapture';
+        }
+        else
+        {
+            SAC.pi_response.process = false;
+        }
         //log.debug('Plugin Validation - !record.getValue({fieldId:\'custbody_authnet_override\'})', !record.getValue({fieldId:'custbody_authnet_override'}));
         //log.debug('Plugin Validation - record.getValue({fieldId: \'custbody_authnet_refid\'})', record.getValue({fieldId: 'custbody_authnet_refid'}));
         //log.debug('Plugin Validation - record.getValue({fieldId: \'createdfrom\'})', record.getValue({fieldId: 'createdfrom'}));

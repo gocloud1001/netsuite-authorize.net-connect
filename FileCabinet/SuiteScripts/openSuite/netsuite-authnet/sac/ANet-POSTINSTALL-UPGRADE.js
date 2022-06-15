@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2021 Cloud 1001, LLC
+ * @copyright 2022 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
@@ -36,10 +39,9 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             email: companyInfo.getValue({ fieldId: 'email' })
         };
         var s_notesString = '';
-        var i_pmtMethod;
+        var i_pmtMethod, i_achMethod;
         //add the mandatory payment method
         try {
-            var i_pmtMethod;
             search.create({
                 type: 'paymentmethod',
                 filters: [['name', 'is','Authorize.Net' ]],
@@ -58,6 +60,30 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 });
                 o_pmtRecord.setValue({fieldId: 'name', value: 'Authorize.Net'});
                 i_pmtMethod = o_pmtRecord.save({ignoreMandatoryFields: true});
+            }
+        } catch (e){
+            s_notesString += e.name + ' : ' + e.message;
+        }
+
+        try {
+            search.create({
+                type: 'paymentmethod',
+                filters: [['name', 'is','Authorize.Net (eCheck)' ]],
+                columns: [
+                    {name: 'internalid', sort: search.Sort.DESC}
+                ]
+            }).run().each(function (result) {
+                i_achMethod = result.getValue('internalid');
+                //this will only return the first one
+                return false;
+            });
+            if (!i_achMethod) {
+                var o_pmtRecord = record.create({
+                    type: 'paymentmethod',
+                    isDynamic: true
+                });
+                o_pmtRecord.setValue({fieldId: 'name', value: 'Authorize.Net (eCheck)'});
+                i_achMethod = o_pmtRecord.save({ignoreMandatoryFields: true});
             }
         } catch (e){
             s_notesString += e.name + ' : ' + e.message;
@@ -106,6 +132,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 }
 
                 try {
+                    //todo to allow multi sub
                     if (!o_configRecord.getValue({fieldId: 'custrecord_an_all_sub'})) {
                         o_configRecord.setValue({fieldId: 'custrecord_an_all_sub', value: true});
                     }
@@ -114,7 +141,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 }
             }
             o_configRecord.setValue({fieldId : 'custrecord_an_version', value: authNet.VERSION});
-
+            //todo for multi sub
             if (!o_configRecord.getValue({fieldId : 'custrecord_an_all_sub'})){
                 o_configRecord.setValue({fieldId : 'custrecord_an_all_sub', value: true});
             }
@@ -139,16 +166,37 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             } catch (ex){
                 s_notesString += ex.name + ' : ' + ex.message + '<br>';
             }
+            try {
+                if (!o_configRecord.getValue({fieldId: 'custrecord_an_paymentmethod_echeck'})) {
+                    o_configRecord.setValue({fieldId: 'custrecord_an_paymentmethod_echeck', value: i_achMethod});
+                }
+            } catch (ex){
+                s_notesString += ex.name + ' : ' + ex.message + '<br>';
+            }
+            o_configRecord.setValue({fieldId: 'custrecord_an_cim_allow_tokens', value: true});
+            o_configRecord.setValue({fieldId: 'custrecord_an_skip_on_save', value: true});
             o_configRecord.save({ignoreMandatoryFields: true});
         } catch (e){
             s_notesString += e.name + ' : ' + e.message;
         }
-        //this can obviously be removed - but it's nice to let us know who is installing and who is updating
+        if (s_notesString){
+            log.audit('Upgraded', s_notesString)
+        }
+        //this can obviously be removed - but it's nice to let us know who is installing and who is updating so we have some idea!
+        //we currently do NOT do anything with this information aside from count the number of times things are happening
+        //if Cloud 1001, LLC choese to add any sort of future notification of releases or anything -
+        // we will provide an opt-in to this at installation time
+        var o_user = runtime.getCurrentUser();
+        var s_toEmail = 'Company : '+installationInfo.companyname +'<br />' +
+            'Admin Email : ' + installationInfo.email+'<br />' +
+            'Installed By : ' + o_user.name+'<br />' +
+            'Installed By Email : ' + o_user.email+'<br />' +
+            s_notesString;
         email.send({
             author: -5,
             recipients: 'suiteauthconnect@gocloud1001.com',
             subject: 'UPDATE SuiteAuthConnect SDF Config '+ s_oldVersionNumber + ' >> '+ authNet.VERSION,
-            body: JSON.stringify(installationInfo)+ '<br>'+ s_notesString
+            body: s_toEmail
         });
     }
 

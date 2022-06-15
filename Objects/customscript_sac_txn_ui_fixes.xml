@@ -4,17 +4,31 @@
   <name>SuiteAuthConnect Client</name>
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
-  <notifyowner>T</notifyowner>
+  <notifyowner>F</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_CL.js]</scriptfile>
   <scriptdeployments>
-    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cd">
+    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cs">
       <allemployees>T</allemployees>
+      <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
       <allroles>F</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
+      <isdeployed>T</isdeployed>
+      <loglevel>DEBUG</loglevel>
+      <recordtype>CASHSALE</recordtype>
+      <status>RELEASED</status>
+    </scriptdeployment>
+    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cd">
+      <allemployees>T</allemployees>
+      <alllocalizationcontexts>T</alllocalizationcontexts>
+      <allpartners>F</allpartners>
+      <allroles>F</allroles>
+      <audslctrole></audslctrole>
+      <eventtype></eventtype>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>CUSTOMERDEPOSIT</recordtype>
@@ -22,35 +36,25 @@
     </scriptdeployment>
     <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cp">
       <allemployees>T</allemployees>
+      <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
       <allroles>F</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>CUSTOMERPAYMENT</recordtype>
       <status>RELEASED</status>
     </scriptdeployment>
-    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cs">
-      <allemployees>T</allemployees>
-      <allpartners>F</allpartners>
-      <allroles>F</allroles>
-      <audslctrole></audslctrole>
-      <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
-      <isdeployed>T</isdeployed>
-      <loglevel>DEBUG</loglevel>
-      <recordtype>CASHSALE</recordtype>
-      <status>RELEASED</status>
-    </scriptdeployment>
     <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cref">
       <allemployees>T</allemployees>
+      <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
       <allroles>F</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>CUSTOMERREFUND</recordtype>
@@ -58,11 +62,12 @@
     </scriptdeployment>
     <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_so">
       <allemployees>T</allemployees>
+      <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
       <allroles>F</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>SALESORDER</recordtype>

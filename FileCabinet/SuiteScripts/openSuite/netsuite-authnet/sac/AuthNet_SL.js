@@ -1,7 +1,7 @@
 /**
  * @exports XXX
  *
- * @copyright 2021 Cloud 1001, LLC
+ * @copyright 2022 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
@@ -33,8 +36,9 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
             if (context.request.method === 'GET'){
                 var o_config2 = authNet.getConfigFromCache();
                 var o_params = context.request.parameters, o_history, o_anResponse;
-                //log.debug('context.request.parameters', o_params);
-                if (o_params.historyId) {
+                //log.debug('o_config2', o_config2);
+                if (o_params.historyId)
+                {
                     o_history = record.load({
                         type: 'customrecord_authnet_history',
                         id: o_params.historyId,
@@ -124,6 +128,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 context.response.write(template);
                                 break;
                             case 'cashrefund':
+                            case 'depositapplication':
                                 log.debug('object o_anResponse', o_anResponse);
                                 var error_string = '';
                                 if (o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})){
@@ -154,7 +159,9 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         log.error(ex.name, ex.message)
                         o_anResponse = o_history.getValue('custrecord_an_response');
                     }
-                } else if (o_params.csissue) {
+                }
+                else if (o_params.csissue)
+                {
                     template = template.replace(/%%MESSAGES%%/g, 'This cash sale was not processed - no capture was generated becasue the conditions of this cash sale did not pass the plugin logic you have configured for processing cash sales');
                     template = template.replace(/%%ERROR%%/g, 'This transaction did not pass the SuiteAuthConnect Plugin Logic for Processing');
                     template = template.replace(/%%CODE%%/g, 'Funds Not Captured / Order not billed');
@@ -312,7 +319,33 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'Array of field key : value pairs',
                         container: 'grpgeneric'
                     });
+                    form.addField({
+                        id: 'orderjson',
+                        type: ui.FieldType.TEXTAREA,
+                        label: 'Fake Order Body JSON',
+                        container: 'grpgeneric'
+                    });
 
+
+                    //unit testing
+                    var grp_authin = form.addFieldGroup({
+                        id: 'grpunit',
+                        label: 'Some Unit Testing'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'AUTH.useFakeOrderBodyJSON()',
+                        source: 'fakeauthso',
+                        container: 'grpunit'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'AUTHCAP.useFakeOrderBodyJSON()',
+                        source: 'fakeauthcapso',
+                        container: 'grpunit'
+                    });
 
                     //auth - UI
                     var grp_authin = form.addFieldGroup({
@@ -482,6 +515,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         context.response.write(e.name + ' :: '+e.message);
                     }
                 }
+                else if (o_params.purgecache === 'true')
+                {
+                    authNet.purgeCache();
+                    context.response.write('Cache Purged');
+                }
                 else
                 {
                 /*template = template.replace(/%%MESSAGES%%/g, 'TRANSACTION HAS BEEN CHARGED - CAN NOT DELETE');
@@ -528,6 +566,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                 var o_config2 = authNet.getConfigFromCache();
                 var o_response = {'OK':null};
                 switch (o_params.custpage_test){
+                    case 'fakeauthcapso':
+                        o_response.OK = true;
+                        o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
+                        break;
+
                     case 'getstatus':
                         o_response.OK = true;
                         o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);

@@ -4,7 +4,7 @@
   <name>SuiteAuthConnect Configuration Manager</name>
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
-  <notifyowner>T</notifyowner>
+  <notifyowner>F</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_UE_configRecord.js]</scriptfile>
   <scriptdeployments>
@@ -12,10 +12,10 @@
       <allemployees>T</allemployees>
       <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
-      <allroles>F</allroles>
+      <allroles>T</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>[scriptid=customrecord_authnet_config]</recordtype>

@@ -1,0 +1,19 @@
+<customlist scriptid="customlist_anet_paymenttype">
+  <description>List of the 2 Payment Types Authorize.Net currently supports</description>
+  <isinactive>F</isinactive>
+  <ismatrixoption>F</ismatrixoption>
+  <isordered>T</isordered>
+  <name>Authorize.Net Payment Type</name>
+  <customvalues>
+    <customvalue scriptid="val_61797_t1273352_459">
+      <abbreviation>C</abbreviation>
+      <isinactive>F</isinactive>
+      <value>Credit Card</value>
+    </customvalue>
+    <customvalue scriptid="val_61798_t1273352_861">
+      <abbreviation>e</abbreviation>
+      <isinactive>F</isinactive>
+      <value>eCheck (ACH)</value>
+    </customvalue>
+  </customvalues>
+</customlist>

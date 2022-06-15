@@ -92,6 +92,15 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
+          <id>[scriptid=customrecord_authnet_config.custrecord_an_paymentmethod_echeck]</id>
+          <label>Authorize.Net Payment Method (eCheck)</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
           <id>[scriptid=customrecord_authnet_config.custrecord_an_marketype]</id>
           <label>Market Type Id</label>
           <visible>T</visible>
@@ -402,6 +411,22 @@
         <defaultFieldGroup/>
       </fieldGroups>
       <subItems/>
+    </tab>
+    <tab>
+      <id>RECORDTRANSLATION</id>
+      <label>Translation</label>
+      <visible>F</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDTRANSLATIONS</id>
+          <label>Translation</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
     </tab>
   </tabs>
   <actionbar>

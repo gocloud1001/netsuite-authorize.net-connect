@@ -4,7 +4,7 @@
   <name>SuiteAuthConnect Token Manager</name>
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
-  <notifyowner>T</notifyowner>
+  <notifyowner>F</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_UE_tokenRecord.js]</scriptfile>
   <scriptdeployments>
@@ -15,11 +15,11 @@
       <allroles>T</allroles>
       <audslctrole></audslctrole>
       <eventtype></eventtype>
-      <executioncontext>ACTION|CLIENT|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DEBUGGER|EMAILCAPTURE|MAPREDUCE|OTHER|PORTLET|RECORDACTION|RESTLET|RESTWEBSERVICES|SCHEDULED|SDFINSTALLATION|SUITELET|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WEBSTORE|WORKFLOW</executioncontext>
+      <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <recordtype>[scriptid=customrecord_authnet_tokens]</recordtype>
-      <runasrole></runasrole>
+      <runasrole>ADMINISTRATOR</runasrole>
       <status>RELEASED</status>
     </scriptdeployment>
   </scriptdeployments>

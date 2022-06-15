@@ -3,7 +3,7 @@
  *
  * @exports XXX
  *
- * @copyright 2021 Cloud 1001, LLC
+ * @copyright 2022 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
@@ -33,34 +36,6 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/messag
         function beforeLoad(context) {
             //log.debug('parameters', _.keys(context))
             //log.debug('context.requet', _.keys(context.request))
-
-            function makeAlertField(context, o_builderObject){
-                var test_fld = context.form.addField({
-                    id: 'custpage_c9_'+o_builderObject.type,
-                    type: ui.FieldType.INLINEHTML,
-                    label: 'WARNING'
-                });
-
-                if (o_builderObject.isValid){
-                    o_builderObject.duration = 5000;
-                }
-                var html = '<script>';
-                html += 'require([\'N/ui/message\'], function (message){'; // Loads the N/ui/message module
-                html += 'var onViewMessage = message.create({'; // Creates a message
-                html += 'title: "%%TITLE%%", '; // Sets message title
-                html += 'message: "%%MESSAGE%%", '; // Sets the message content
-                html += 'type: message.Type.%%LEVEL%%'; // Sets the type of the message using enum
-                html += '}); ';
-                html += 'onViewMessage.show(%%DURATION%%);'; // Sets the amount of time (in ms) to show the message
-                html += '})';
-                html += '</script>';
-
-                html = html.replace(/%%LEVEL%%/g, o_builderObject.level);
-                html = html.replace('%%TITLE%%', o_builderObject.title);
-                html = html.replace('%%MESSAGE%%', o_builderObject.message);
-                html = html.replace('%%DURATION%%', _.isUndefined(o_builderObject.duration) ? '' : o_builderObject.duration);
-                test_fld.defaultValue = html;
-            }
             
             //when loading validate the hash and throw an alert if it's invalid
             if (_.includes(['view', 'edit', 'create'], context.type)){
@@ -89,13 +64,25 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/messag
                             transactionKey : context.newRecord.getValue({fieldId : 'custrecord_an_trankey'})
                         }
                     });
-                    makeAlertField(context, o_testResult);
-                    if (!o_testResult.isValid){
+                    //log.debug('PROD o_testResult', o_testResult)
+                    context.form.addPageInitMessage({
+                        type: o_testResult.level,
+                        title: o_testResult.title,
+                        message: o_testResult.message,
+                        //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                    });
+
+                    if (!o_testResult.isValid
+                    &&
+                        context.newRecord.setValue({fieldId: 'custrecord_an_islive'}) === 'T'
+                    ){
+                        log.audit('Disabling the Production Credentials', 'They failed to authenticate!');
                         record.submitFields({
                             type: context.newRecord.type,
                             id : context.newRecord.id,
                             values : {
-                                'custrecord_an_islive' : false
+                                'custrecord_an_islive' : false,
+                                'custrecord_an_skip_on_save':true
                             }
                         });
                     }
@@ -110,26 +97,42 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/messag
                             transactionKey : context.newRecord.getValue({fieldId : 'custrecord_an_trankey_sb'})
                         }
                     });
-                    makeAlertField(context, o_testResult);
+                    //log.debug('SB o_testResult', o_testResult)
+                    context.form.addPageInitMessage({
+                        type: o_testResult.level,
+                        title: o_testResult.title,
+                        message: o_testResult.message,
+                        //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                    });
                 }
             }
-            if (context.newRecord.getValue({fieldId :'custrecord_an_version'}) !== authNet.VERSION) {
-                try {
-                    context.form.addPageInitMessage({
-                        type: message.Type.INFORMATION,
-                        title: 'SYSTEM IS UPDATING CONFIGURATION',
-                        message: 'Your configuration is updating, please refresh this page until this message is gone before making any changes.',
-                    });
-                    var scriptTask = task.create({
-                        taskType: task.TaskType.SCHEDULED_SCRIPT,
-                        scriptId: 'customscript_sac_ss2_update_cfg',
-                        deploymentId: 'customdeploy_sac_ss2_update_cfg_o'
-                    });
-                    var scriptTaskId = scriptTask.submit();
-                    //log.debug('scriptTaskId', scriptTaskId)
-                    log.audit('Process for intial setup is running ', task.checkStatus(scriptTaskId));
-                } catch (ex) {
-                    log.emergency(ex.name, ex.message);
+            if (context.newRecord.getValue({fieldId :'custrecord_an_version'}) !== authNet.VERSION
+            &&
+                !_.includes(['xedit', 'delete'], context.type)
+            )
+            {
+                if (!context.newRecord.getValue({fieldId: 'custrecord_an_skip_on_save'})) {
+                    try {
+                        context.form.addPageInitMessage({
+                            type: message.Type.INFORMATION,
+                            title: 'SYSTEM IS UPDATING CONFIGURATION',
+                            message: 'Your configuration is updating, please refresh this page until this message is gone before making any changes.',
+                        });
+                        var scriptTask = task.create({
+                            taskType: task.TaskType.SCHEDULED_SCRIPT,
+                            scriptId: 'customscript_sac_ss2_update_cfg',
+                            deploymentId: 'customdeploy_sac_ss2_update_cfg_o'
+                        });
+                        var scriptTaskId = scriptTask.submit();
+                        //log.debug('scriptTaskId', scriptTaskId)
+                        log.audit('Process for intial setup is running ', task.checkStatus(scriptTaskId));
+                    } catch (ex) {
+                        log.emergency(ex.name, ex.message);
+                    }
+                }
+                else
+                {
+                    log.audit('Updated by upgrade script this one time!', 'Not tryint to re-upgrade!');
                 }
             }
 
@@ -143,8 +146,12 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/messag
 
         }
         function afterSubmit(context) {
-            //log.debug('aftersubmit', context.type)
-            if (_.includes(['create', 'edit', 'xedit'], context.type)) {
+            log.debug('aftersubmit', context.type)
+            if (_.includes(['create', 'edit', 'xedit'], context.type)
+            &&
+                !context.newRecord.getValue({fieldId: 'custrecord_an_skip_on_save'})
+            )
+            {
                 var daCache = cache.getCache(
                     {
                         name: 'config',
@@ -167,7 +174,7 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/messag
 
         return {
             beforeLoad: beforeLoad,
-            beforeSubmit: beforeSubmit,
+            //beforeSubmit: beforeSubmit,
             afterSubmit: afterSubmit
         };
     });

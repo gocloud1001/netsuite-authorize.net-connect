@@ -1,0 +1,422 @@
+<entryForm scriptid="custform_anet_cim_record" standard="STANDARDCUSTOMRECORD_AUTHNET_TOKENSFORM">
+  <name>Authorize.Net Customer Payment Profiles Form</name>
+  <recordType>[scriptid=customrecord_authnet_tokens]</recordType>
+  <inactive>F</inactive>
+  <preferred>T</preferred>
+  <storedWithRecord>F</storedWithRecord>
+  <mainFields>
+    <fieldGroup scriptid="fieldgroup_2_t1273352_241">
+      <label>Type</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>NAME</id>
+          <label>Name</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity]</id>
+          <label>Entity</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_gateway]</id>
+          <label>Issuing Gateway</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_paymenttype]</id>
+          <label>Payment Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_default]</id>
+          <label>Default Payment Method</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
+    <fieldGroup scriptid="fieldgroup_3_t1273352_533">
+      <label>CIM Info</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_customerid]</id>
+          <label>Customer / Profile ID</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_token]</id>
+          <label>customerPaymentProfileId / Token</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>CREATED</id>
+          <label>Date Created</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>LASTMODIFIED</id>
+          <label>Last Modified</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
+    <fieldGroup scriptid="fieldgroup_4_t1273352_714">
+      <label>Method Details</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_echecktype]</id>
+          <label>ACH Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_bankname]</id>
+          <label>Bank Name</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_accountnumber]</id>
+          <label>Account Number</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_nameonaccount]</id>
+          <label>Name On Account</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_routingnumber]</id>
+          <label>Routing Number</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_type]</id>
+          <label>Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_last4]</id>
+          <label>Last 4</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_cardnumber]</id>
+          <label>Card Number</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_expdate]</id>
+          <label>Expiration Date</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_cardcode]</id>
+          <label>CCV</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_email]</id>
+          <label>Email</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_customer_type]</id>
+          <label>Customer Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_accounttype]</id>
+          <label>Bank Account Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
+    <fieldGroup scriptid="fieldgroup_5_t1273352_512">
+      <label>Security</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_pblkchn_tampered]</id>
+          <label>Tampered</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_pblkchn]</id>
+          <label>PBlkChain</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>DISABLED</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>ISINACTIVE</id>
+          <label>Inactive</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
+    <defaultFieldGroup>
+      <fields position="MIDDLE">
+        <field>
+          <id>CUSTOMFORM</id>
+          <label>Custom Form</label>
+          <visible>F</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>RECORDID</id>
+          <label>ID</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>INLINETEXT</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>OWNER</id>
+          <label>Owner</label>
+          <visible>F</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>PARENT</id>
+          <label>Parent</label>
+          <visible>F</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </defaultFieldGroup>
+  </mainFields>
+  <tabs>
+    <tab>
+      <id>RECORDNOTES</id>
+      <label>Notes</label>
+      <visible>T</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDUSERNOTES</id>
+          <label>User Notes</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+        <subList>
+          <id>RECORDSYSTEMNOTES</id>
+          <label>System Notes</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
+    </tab>
+    <tab>
+      <id>RECORDTRANSLATION</id>
+      <label>Translation</label>
+      <visible>F</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDTRANSLATIONS</id>
+          <label>Translation</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
+    </tab>
+    <tab>
+      <id>RECORDWORKFLOW</id>
+      <label>Workflow</label>
+      <visible>F</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDACTIVEWORKFLOWS</id>
+          <label>Active Workflows</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+        <subList>
+          <id>RECORDWORKFLOWHISTORY</id>
+          <label>Workflow History</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
+    </tab>
+    <tab>
+      <id>RECORDCUSTOM</id>
+      <label>Custom</label>
+      <visible>F</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems/>
+    </tab>
+  </tabs>
+  <actionbar>
+    <menu>
+      <menuitem>
+        <id>DELETE</id>
+        <label>Delete</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>MAKECOPY</id>
+        <label>Make Copy</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>NEW</id>
+        <label>New</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>PRINT</id>
+        <label>Print</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>SUBMITCOPY</id>
+        <label>Save &amp; Copy</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>SUBMITNEW</id>
+        <label>Save &amp; New</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>SUBMITNEXT</id>
+        <label>Save &amp; Next</label>
+        <visible>T</visible>
+      </menuitem>
+      <menuitem>
+        <id>SUBMITAS</id>
+        <label>Save As</label>
+        <visible>T</visible>
+      </menuitem>
+    </menu>
+  </actionbar>
+  <editingInList>F</editingInList>
+</entryForm>

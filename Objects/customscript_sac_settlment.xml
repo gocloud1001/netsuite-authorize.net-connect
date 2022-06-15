@@ -4,7 +4,7 @@
   <name>SuiteAuthConnect Settlement Reporter</name>
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
-  <notifyowner>T</notifyowner>
+  <notifyowner>F</notifyowner>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_MR_settlement.js]</scriptfile>
   <scriptdeployments>
     <scriptdeployment scriptid="customdeploy_sac_settlment">
@@ -19,7 +19,6 @@
       <yieldaftermins>60</yieldaftermins>
       <recurrence>
         <daily>
-          <enddate></enddate>
           <everyxdays>1</everyxdays>
           <repeat></repeat>
           <startdate>2019-04-11</startdate>

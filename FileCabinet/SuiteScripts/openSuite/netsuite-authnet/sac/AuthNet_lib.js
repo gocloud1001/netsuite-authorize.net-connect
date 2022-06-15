@@ -1,7 +1,7 @@
 
 /**
  *
- * @copyright 2021 Cloud 1001, LLC
+ * @copyright 2022 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
@@ -42,31 +45,29 @@
  *
  */
 
-define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache','moment', 'lodash', './anlib/AuthorizeNetCodes'],
-    function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, moment, _, codes) {
-    exports.VERSION = '3.0.13';
+define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
+    function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
+    exports.VERSION = '3.1.1';
 
     //all the fields that are custbody_authnet_ prefixed
-    exports.AUTHCAP = [];//'accounttype', 'description', 'responsecode', 'capture_failed', 'capture_reason'
-    exports.VOIDS = [];//'voided', 'voided_tran', 'voided_msg', 'voidedtime', 'voided_responsecode'
-    exports.REFUNDS = [];//'refunded', 'refunded_tran', 'refunded_msg','refundedtime', 'refunded_responsecode'
     exports.TOKEN = ['cim_token'];
+    //exports.TOKEN = ['cim_token'];
     exports.CCFIELDS = ['ccnumber', 'ccexp', 'ccv'];
     exports.CCENTRY = _.concat(exports.TOKEN,exports.CCFIELDS);
     exports.CODES = ['datetime','authcode', 'refid', 'error_status', 'done'];
     exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES);//exports.AUTHCAP,exports.VOIDS,exports.REFUNDS,
     exports.SERVICE_CREDENTIAL_FIELDS = ['custrecord_an_login', 'custrecord_an_login_sb', 'custrecord_an_trankey', 'custrecord_an_trankey_sb'];
 
-    var RESPONSE_CODES = {
+    var RESPONSECODES = {
         "1" : "Approved",
         "2" : "Declined",
         "3" : "Error",
         "4" : "Held for Review",
     }
     exports.o_callResponse = {
-            success : false,
-            record :{},
-            authResponse : {}
+        success : false,
+        record :{},
+        authResponse : {}
     };
     exports.pi_response = {
         process : false
@@ -93,7 +94,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             }
         }
     };
-
     exports.AuthNetFraudUpdate = {
         "updateHeldTransactionRequest": {
             "merchantAuthentication": {},
@@ -103,7 +103,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             }
         }
     };
-
     exports.AuthNetTest = {
         "authenticateTestRequest": {
             "merchantAuthentication": {}
@@ -128,6 +127,18 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         createCustomerProfileFromTransactionRequest: {
             "merchantAuthentication": {},
             "transId": null
+        }
+    };
+    //create NEW profile from card / bank data
+    exports.AuthNetGetNewProfile = function(o_ccAuthSvcConfig) {
+        return {
+            createCustomerProfileRequest: {
+                "merchantAuthentication": o_ccAuthSvcConfig.auth,
+                "profile": {
+                    "merchantCustomerId": ''
+                },
+                "validationMode": "testMode" //liveMode
+            }
         }
     };
     //get payment profile
@@ -164,6 +175,12 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         return o_rechMap[type];
     };
 
+    exports.buildUUID = function(){
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+                return v.toString(16);
+            });
+        }
 
     exports.homeSysLog = function(name, body)
     {
@@ -242,6 +259,12 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             cimRec.getValue({fieldId : 'custrecord_an_token_expdate'})+
             cimRec.getValue({fieldId : 'custrecord_an_token_gateway'})+
             JSON.stringify(cimRec.getValue({fieldId : 'custrecord_tt_linked'}));
+        if (cimRec.getValue({fieldId : 'custrecord_an_token_bank_routingnumber'})){
+            s_rawData += cimRec.getValue({fieldId : 'custrecord_an_token_bank_routingnumber'})
+        }
+        if (cimRec.getValue({fieldId : 'custrecord_an_token_bank_echecktype'})){
+            s_rawData += cimRec.getValue({fieldId : 'custrecord_an_token_bank_echecktype'})
+        }
         s_rawData = s_rawData.replace(/\s/g, "");
         //log.debug('s_rawData', s_rawData)
 
@@ -268,10 +291,10 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         var a_filters = [
             ['custrecord_an_token_entity', search.Operator.ANYOF, customerId],
             "AND",
-            ['custrecord_an_token_customerid', search.Operator.IS, profileId],
-            "AND",
-            ['custrecord_an_token_token', search.Operator.IS, paymentId],
-            "AND",
+            //['custrecord_an_token_customerid', search.Operator.IS, profileId],
+            //"AND",
+            //['custrecord_an_token_token', search.Operator.IS, paymentId],
+            //"AND",
             ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, false]
         ];
 
@@ -280,26 +303,34 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             filters: a_filters,
             columns: [
                 {name: 'internalid'},
-                {name: 'name'}
+                {name: 'name'},
+                {name: 'custrecord_an_token_default'},
+                {name: 'custrecord_an_token_customerid'},
+                {name: 'custrecord_an_token_token'},
             ]
         }).run();
-        var b_recentCall= true;
+        var b_hasDefault = false, i_numMethods = 0, b_thisOneExists = false;
         history.each(function (result) {
-            b_recentCall = false;
-            return false;
+            if (result.getValue('custrecord_an_token_default')){
+                b_hasDefault = true;
+            }
+            if (result.getValue('custrecord_an_token_customerid') === profileId
+            &&
+                result.getValue('custrecord_an_token_token') === paymentId
+            ){
+                //this one exists
+                b_thisOneExists = true;
+            }
+            i_numMethods++;
+            return true;
         });
-        return b_recentCall;
+        //this has evolved and could be cleaned up
+        return {exits : b_thisOneExists, number : i_numMethods, hasDefault : b_hasDefault};
     };
-
-    /*exports.validateLicence2 = function () {
-        //log.debug('authnet licence validation');
-        return C9.validateLicense(C9.coreProducts.SAC);
-    };*/
-
 
     exports.parseHistory = function (txnid, txntype) {
         var o_parsedHistory = {isValid : false, status : 'ERROR', message : ''};
-        //would be undefined on a create that triggers this due to logic issue or on a copy or ther transformation where there is no history bu the reocrd has some field set indicating there MIGHT be history
+        //would be undefined on a create that triggers this due to logic issue or on a copy or the transformation where there is no history but the record has some field set indicating there MIGHT be history
         this.homeSysLog(txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype));
         if (_.isNull(txnid) || _.isNull(txntype)){
             o_parsedHistory.isValid = true;
@@ -312,7 +343,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                     historyId : historyRec.id,
                     status: historyRec.getValue({fieldId: 'custrecord_an_response_status'}),
                     responseCode: historyRec.getValue({fieldId: 'custrecord_an_response_code'}),
-                    responseCodeText : RESPONSE_CODES[historyRec.getValue({fieldId: 'custrecord_an_response_code'})],
+                    responseCodeText : RESPONSECODES[historyRec.getValue({fieldId: 'custrecord_an_response_code'})],
                     errorCode: historyRec.getValue({fieldId: 'custrecord_an_error_code'}),
                     message: ''
                 };
@@ -425,7 +456,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             ]
         }).run();
         authNetRecs.each(function (result) {
-
             var o_aNet = {
                 txnId : +result.getValue('custrecord_an_txn'),
                 refid : result.getValue('custrecord_an_refid'),
@@ -436,6 +466,24 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             exports.homeSysLog('authNetRecs.each', o_aNet);
             var i_idx = _.findIndex(a_toProcess, {'anetRefId':o_aNet.refid});
             if (i_idx !== -1){
+                //if there is no credit card information to factor into the refund due to how the transaction was created
+                //go back to authorize.net to get the card information based off the transaction id
+                if (!o_aNet.cardnum && o_aNet.refid) {
+                    var live_txnLookup = exports.getStatusCheck(o_aNet.refid);
+                    if (live_txnLookup.fullResponse.payment.creditCard)
+                    {
+                        o_aNet.cardnum = live_txnLookup.fullResponse.payment.creditCard.cardNumber;
+                        o_aNet.card = live_txnLookup.fullResponse.payment.creditCard.cardType;
+                    }//also do this for echeck!
+                    else if(live_txnLookup.fullResponse.payment.bankAccount)
+                    {
+                        o_aNet.cardnum = live_txnLookup.fullResponse.payment.bankAccount.accountNumber;
+                        o_aNet.card = live_txnLookup.fullResponse.payment.bankAccount.accountType;
+                    }
+                    //o_aNet.cardnum = live_txnLookup.fullResponse.payment.creditCard.cardNumber;
+                    //o_aNet.card = live_txnLookup.fullResponse.payment.creditCard.cardType;
+                }
+                //add to the array of things to be processed
                 a_toProcess[i_idx].anet = o_aNet;
             }
             return true;
@@ -462,7 +510,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         log.debug('doVoid.getConfig is ', o_ccAuthSvcConfig.type);
         return callVoid[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
-
     exports.doFraudApprove = function (historyRec, txn, s_approval) {
         log.debug('doFraudApprove. 3rd Party Call', 'doFraudApprove()');
         //var o_ccAuthSvcConfig = getConfig(txn);
@@ -527,6 +574,11 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             mngCustomerProfile.getAndBuildProfile(o_profile, config);
         }
         return true;
+    };
+
+    exports.createNewProfile = function (o_profile, config) {
+        log.debug('requestNewToken. building AUTH.Net', 'requestNewToken()');
+        return mngCustomerProfile.createNewProfile(o_profile, config);
     };
 
     exports.makeToken = function (o_profile, config) {
@@ -678,6 +730,16 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         return a_cachedConfigs;
     };
 
+        exports.purgeCache = function() {
+            var o_cache = cache.getCache({
+                name: 'config',
+                scope: cache.Scope.PROTECTED
+            });
+            o_cache.remove({
+                key: 'config'
+            });
+        };
+
     //GET AND LOAD THE CACHE AS NEEDED FOR THE CONFIG
     exports.getConfigFromCache = function(configId) {
         var o_cache = cache.getCache({
@@ -692,7 +754,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         var o_fullCache = JSON.parse(o_cacheKey);
         //log.debug(configId, o_fullCache);
         if (configId){
-            return _.find(o_fullCache, {id:configId});
+            return _.find(o_fullCache, {id:+configId});
         }
         else
         {
@@ -922,7 +984,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         return result;
     };
 
-    generateANetTransactionRequestJSON = function (txn, b_isToken, request) {
+    exports.generateANetTransactionRequestJSON = function (txn, b_isToken, request) {
         request.order = {};
         request.order.invoiceNumber = txn.getValue({fieldId: 'tranid'});
         if (txn.getValue({fieldId : 'salesorder'})){
@@ -953,9 +1015,10 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             var b_taxableItem = (+txn.getSublistValue({sublistId: 'item', fieldId: 'taxrate1', line: i}) > 0);
 
             //log.debug(( +txn.getSublistValue({sublistId: 'item', fieldId: 'taxrate1', line : i}) > 0));
-            //adding logic for item type becasue negative discounts casue an issue whe nthe rate is a percent
-            //these things have no quanityt - whihc matters later too
-            var b_isItem = !_.isEmpty(txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString());
+            //adding logic for item type because negative discounts cause an issue when the rate is a percent
+            //these things have no quantity - which matters later too
+            var _lineQty = txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString();
+            var b_isItem = !_.isEmpty(_lineQty);
             var unitPrice = '0', s_lineQuantity = '1';
             if (b_isItem){
                 unitPrice = (txn.getSublistValue({sublistId: 'item', fieldId: 'rate', line: i})) ?
@@ -965,7 +1028,9 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                         fieldId: 'amount',
                         line: i
                     });
-                s_lineQuantity = _.isEmpty(txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString()) ? '1' : txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString();
+                //why so weird, because Oracle NetSuite - that's why!
+                //without this - BAD bug if a line on a SO is an item - but quantity is 0
+                s_lineQuantity = (_lineQty === '0' || _lineQty === '' || _lineQty === ' ') ? '1' : _lineQty;
             }
 
             var obj = {
@@ -1114,20 +1179,20 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 if (o_body.messages.resultCode === 'Ok'){
                     o_authTestObj.isValid = true;
                     o_authTestObj.title = _.toUpper(o_test.type) + ' Authorize.Net connection successful';
-                    o_authTestObj.level = 'CONFIRMATION';
+                    o_authTestObj.level = message.Type.CONFIRMATION;
                     o_authTestObj.message = 'Successfully connects to Authorize.Net in '+ _.toUpper(o_test.type) + ' mode.';
                 } else {
                     o_authTestObj.message = o_body.messages.message[0].text + ' ('+o_body.messages.message[0].code+')';
-                    o_authTestObj.level = 'ERROR';
+                    o_authTestObj.level = message.Type.ERROR;
                 }
             } else {
                 o_authTestObj.message = JSON.stringify(o_body);
-                o_authTestObj.level = 'ERROR';
+                o_authTestObj.level = message.Type.ERROR;
             }
         } catch (e) {
             log.error(e);
             o_authTestObj.message = e.name + ' : '+ e.message;
-            o_authTestObj.level = 'ERROR';
+            o_authTestObj.level = message.Type.ERROR;
         }
         return o_authTestObj;
     };
@@ -1232,30 +1297,9 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                     o_summaryStatus.isValidAuth = false;
                 }
                 //anything can be added ro the response as this is used more
-
-                /*
-                rec_response.setValue({fieldId: 'custrecord_an_call_type', value : o_body.transaction.transactionType});
-                rec_response.setValue({fieldId: 'custrecord_an_amount', value : o_body.transaction.authAmount});
-                rec_response.setValue({fieldId: 'custrecord_an_error_code', value : o_body.transaction.responseReasonCode});
-                rec_response.setValue({fieldId: 'custrecord_an_response_code', value : o_body.transaction.responseCode});
-                rec_response.setValue({fieldId: 'custrecord_an_avsresultcode', value : o_body.transaction.AVSResponse});
-                rec_response.setValue({fieldId: 'custrecord_an_cvvresultcode', value : o_body.transaction.cardCodeResponse});
-                rec_response.setValue({fieldId: 'custrecord_an_card_type', value : o_body.transaction.payment.cardType});
-                rec_response.setValue({fieldId: 'custrecord_an_cardnum', value : o_body.transaction.payment.cardNumber});
-                rec_response.setValue({fieldId: 'custrecord_an_response_message', value : o_body.transaction.transactionStatus });
-                rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value : o_body.transaction.responseReasonDescription });
-*/
             } else {
                 if (o_body.messages) {
                     o_summaryStatus.isValidAuth = false;
-                    /*
-                    rec_response.setValue({fieldId: 'custrecord_an_response_status', value: o_body.messages.resultCode});
-                    rec_response.setValue({fieldId: 'custrecord_an_error_code', value: o_body.messages.message[0].code});
-                    rec_response.setValue({fieldId: 'custrecord_an_response_message', value: 'This Authorize.Net transaction ID is not valid or associated with your gateway account : '+txn.getValue({fieldId : 'custbody_authnet_refid'})});
-                    rec_response.setValue({fieldId: 'custrecord_an_response_ig_advice', value : 'Validate that this is a Authorize.Net transaction in your merchant gateway.'});
-                    rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value : o_body.messages.message[0].text});
-
-                     */
                 }
             }
         } catch (e) {
@@ -1287,7 +1331,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         }
         exports.AuthNetRequest.authorize.createTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         //note the order of how this object is built is critical
-        exports.AuthNetRequest.authorize.createTransactionRequest.refId = txn.id.toString();
+        exports.AuthNetRequest.authorize.createTransactionRequest.refId = txn.id;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = '';
         var f_authTotal = getBaseCurrencyTotal(txn);
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
@@ -1301,6 +1345,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.profile = o_profile;
         } else {
+            //this section is irrelevant in echeck world
             var o_creditCard = {};
             o_creditCard.cardNumber = txninMem.getValue({ fieldId:'custbody_authnet_ccnumber'});
             o_creditCard.expirationDate = txninMem.getValue({ fieldId:'custbody_authnet_ccexp'});
@@ -1308,7 +1353,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = {'creditCard' : o_creditCard};
         }
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.solution = o_ccAuthSvcConfig.solutionId;
-        exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest = generateANetTransactionRequestJSON(txn, b_isToken, exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest);
+        exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest = exports.generateANetTransactionRequestJSON(txn, b_isToken, exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest);
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.retail = {
             'marketType' : o_ccAuthSvcConfig.custrecord_an_marketype.val ? o_ccAuthSvcConfig.custrecord_an_marketype.val : 2,//default to 2 if blank
             'deviceType' : o_ccAuthSvcConfig.custrecord_an_devicetype.val ? o_ccAuthSvcConfig.custrecord_an_devicetype.val : 5 //defaults to 5
@@ -1530,6 +1575,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             o_profile.paymentProfile.paymentProfileId = o_token.getValue('custrecord_an_token_token');
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.profile = o_profile;
         } else {
+            //this section is irrelevant in eCheck world
             var o_creditCard = {};
             o_creditCard.cardNumber = txn.getValue({ fieldId:'custbody_authnet_ccnumber'});
             o_creditCard.expirationDate = txn.getValue({ fieldId:'custbody_authnet_ccexp'});
@@ -1542,8 +1588,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         //added 9/3/2019 to provide more details on this transaction
 
         //now build the whole order like you do for an auth -
-        exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest = generateANetTransactionRequestJSON(txn, b_isToken, exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest);
-
+        exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest = exports.generateANetTransactionRequestJSON(txn, b_isToken, exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest);
         //now ensure all the prior auth data is GONE!
         txn = cleanAuthNet(txn, true);
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
@@ -1610,13 +1655,36 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             i_createdFrom = txn.getValue('createdfrom');
             s_createdfromType = _.toLower(o_createdFrom.type[0].value)
         }
-        var o_createdFromHistory = exports.getHistory({txnid : i_createdFrom, txntype : s_createdfromType, isOK : true, mostrecent : false});
-        exports.homeSysLog('callRefund.o_createdFromHistory', o_createdFromHistory)
-        var o_creditCard = {};
-        var s_cardString = _.isNull(o_createdFromHistory) ? '1111' : o_createdFromHistory.getValue('custrecord_an_cardnum');
-        o_creditCard.cardNumber = s_cardString.substring(s_cardString.length - 4, s_cardString.length);
-        o_creditCard.expirationDate = 'XXXX';
-        exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = {'creditCard' : o_creditCard};
+        //var o_createdFromHistory = exports.getHistory({txnid : i_createdFrom, txntype : s_createdfromType, isOK : true, mostrecent : false});
+        //exports.homeSysLog('callRefund.o_createdFromHistory', o_createdFromHistory);
+
+        //GET the original transaction details
+        var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, txn.getValue('custbody_authnet_refid'));
+        var o_paymentMethod = {}
+        if (o_orgTxnResponse.fullResponse.payment.creditCard)
+        {
+            o_paymentMethod = {creditCard : {
+                cardNumber : o_orgTxnResponse.fullResponse.payment.creditCard.cardNumber,
+                expirationDate : o_orgTxnResponse.fullResponse.payment.creditCard.expirationDate,
+                }
+            }
+        }//also do this for echeck!
+        else if(o_orgTxnResponse.fullResponse.payment.bankAccount)
+        {
+            o_paymentMethod = {bankAccount : {
+                    accountType : o_orgTxnResponse.fullResponse.payment.bankAccount.accountType,
+                    routingNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.routingNumber,
+                    accountNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.accountNumber,
+                    nameOnAccount : o_orgTxnResponse.fullResponse.payment.bankAccount.nameOnAccount,
+                    echeckType : o_orgTxnResponse.fullResponse.payment.bankAccount.echeckType,
+                }
+            }
+        }
+
+        //var s_cardString = _.isNull(o_createdFromHistory) ? '1111' : o_createdFromHistory.getValue('custrecord_an_cardnum');
+        //o_creditCard.cardNumber = s_cardString.substring(s_cardString.length - 4, s_cardString.length);
+        //o_creditCard.expirationDate = 'XXXX';
+        exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = o_paymentMethod;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = txn.getValue('custbody_authnet_refid');
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order = {};
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = txn.getValue('tranid');
@@ -1626,18 +1694,34 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.lineItems = {lineItem : []};
         var i_numLine = +txn.getLineCount({sublistId: 'item' }) > 29 ? 29 : +txn.getLineCount({sublistId: 'item' });
         for (var i = 0; i < i_numLine; i++){
-            var unitPrice = (txn.getSublistValue({sublistId: 'item', fieldId: 'rate', line : i})) ?
-                (txn.getSublistValue({sublistId: 'item', fieldId: 'rate', line : i})) :
-                ((txn.getSublistValue({sublistId: 'item', fieldId: 'amount', line : i})) / txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line : i}));
-
+            var b_skipLine = false;
             var obj = {
                 'itemId': (i + 1).toString(),
                 'name': txn.getSublistValue({sublistId: 'item', fieldId: 'item', line: i}).substring(0, 29),
                 'description': txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}).substring(0, 29),
-                'quantity': txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString(),
-                'unitPrice': unitPrice.toString()
+                'quantity': txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}) ? txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString() : '1',
             };
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.lineItems.lineItem.push(obj);
+            //ensure we are not sending over discount and subtotal lines incorrectly
+            var unitPrice = 0;
+            if (txn.getSublistValue({sublistId: 'item', fieldId: 'itemtype', line : i}) === 'Discount')
+            {
+                //unitPrice = txn.getSublistValue({sublistId: 'item', fieldId: 'amount', line : i});
+            }
+            else if (txn.getSublistValue({sublistId: 'item', fieldId: 'itemtype', line : i}) === 'Subtotal')
+            {
+                log.audit('No Refund on a', 'Subtotal line!');
+                b_skipLine = true;
+            }
+            else
+            {
+                unitPrice = (txn.getSublistValue({sublistId: 'item', fieldId: 'rate', line : i})) ?
+                    (txn.getSublistValue({sublistId: 'item', fieldId: 'rate', line : i})) :
+                    ((txn.getSublistValue({sublistId: 'item', fieldId: 'amount', line : i})) / txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line : i}));
+            }
+            obj.unitPrice = unitPrice.toString();
+            if (!b_skipLine) {
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.lineItems.lineItem.push(obj);
+            }
         }
         if (+txn.getValue('shippingcost') > 0) {
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.shipping = {
@@ -1698,7 +1782,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         _.forEach(a_toProcess, function(toRefund){
             //{"id":8791,"type":"DepAppl","created":"5/29/2018 11:31 am","anetTxnId":8524,"amount":0.35,"anet":{"refid":"40011619623","card":"Visa","timestamp":"3/19/2018 4:19 pm"}}
             exports.homeSysLog('bulkrefund (toRefund)', toRefund);
-
             exports.AuthNetRequest.authorize.createTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
             //note the order of how this object is built is critical
 
@@ -1709,11 +1792,39 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
 
             //log.debug('o_createdFromHistory', o_createdFromHistory)
+
+            //GET the original transaction details
+            var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, toRefund.anet.refid);
+            var o_paymentMethod = {}
+            if (o_orgTxnResponse.fullResponse.payment.creditCard)
+            {
+                o_paymentMethod = {creditCard : {
+                        cardNumber : o_orgTxnResponse.fullResponse.payment.creditCard.cardNumber,
+                        expirationDate : o_orgTxnResponse.fullResponse.payment.creditCard.expirationDate,
+                    }
+                }
+            }//also do this for echeck!
+            else if(o_orgTxnResponse.fullResponse.payment.bankAccount)
+            {
+                o_paymentMethod = {bankAccount : {
+                        accountType : o_orgTxnResponse.fullResponse.payment.bankAccount.accountType,
+                        routingNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.routingNumber,
+                        accountNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.accountNumber,
+                        nameOnAccount : o_orgTxnResponse.fullResponse.payment.bankAccount.nameOnAccount,
+                        echeckType : o_orgTxnResponse.fullResponse.payment.bankAccount.echeckType,
+                    }
+                }
+            }
+
+            /*
             var o_creditCard = {};
             var s_cardString = toRefund.anet.cardnum;
             o_creditCard.cardNumber = s_cardString.substring(s_cardString.length - 4, s_cardString.length);
             o_creditCard.expirationDate = 'XXXX';
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = {'creditCard' : o_creditCard};
+            */
+
+            //exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = {'creditCard' : o_creditCard};
+            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = o_paymentMethod;
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = toRefund.anet.refid;
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order = {};
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = toRefund.nsTxnId;
@@ -1824,14 +1935,27 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             //if the response is good
             if (response.code === 200) {
                 if (!_.isUndefined(o_body.transaction)) {
-                    rec_response.setValue({
-                        fieldId: 'custrecord_an_card_type',
-                        value: o_body.transaction.payment.creditCard.cardType
-                    });
-                    rec_response.setValue({
-                        fieldId: 'custrecord_an_cardnum',
-                        value: o_body.transaction.payment.creditCard.cardNumber
-                    });
+                    if (o_body.transaction.payment.creditCard) {
+                        rec_response.setValue({
+                            fieldId: 'custrecord_an_card_type',
+                            value: o_body.transaction.payment.creditCard.cardType
+                        });
+                        rec_response.setValue({
+                            fieldId: 'custrecord_an_cardnum',
+                            value: o_body.transaction.payment.creditCard.cardNumber
+                        });
+                    }
+                    else if (o_body.transaction.payment.bankAccount)
+                    {
+                        rec_response.setValue({
+                            fieldId: 'custrecord_an_card_type',
+                            value: o_body.transaction.payment.bankAccount.accountType
+                        });
+                        rec_response.setValue({
+                            fieldId: 'custrecord_an_cardnum',
+                            value: o_body.transaction.payment.bankAccount.accountNumber
+                        });
+                    }
                     rec_response.setValue({fieldId: 'custrecord_an_txn', value: txn.id});
                     rec_response.setValue({fieldId: 'custrecord_an_reqrefid', value: o_body.transrefId});
                 }
@@ -1856,7 +1980,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                         fieldId: 'custbody_authnet_settle_amount',
                         value: o_body.transaction.settleAmount
                     });
-                    if (o_body.transaction.transactionStatus === 'settledSuccessfully') {
+                    if (_.includes(['refundSettledSuccessfully','settledSuccessfully'], o_body.transaction.transactionStatus)) {
                         var d_settlementDate = moment(o_body.transaction.batch.settlementTimeLocal);
                         txn.setValue({
                             fieldId: 'custbody_authnet_settle_date', value: format.parse({
@@ -1912,6 +2036,110 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
 
     var mngCustomerProfile = {};
+    mngCustomerProfile.createNewProfile = function(o_profile, o_ccAuthSvcConfig) {
+        var o_createNewProfileResponse = {success:true, histId:null};
+        var o_newProfileRequest = exports.AuthNetGetNewProfile(o_ccAuthSvcConfig);
+
+        o_newProfileRequest.createCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
+        o_newProfileRequest.createCustomerProfileRequest.profile.merchantCustomerId = 'NSeId-'+o_profile.getValue({fieldId: 'custrecord_an_token_entity'});
+        if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'})) {
+            o_newProfileRequest.createCustomerProfileRequest.profile.email = o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'});
+        }
+        else
+        {
+            o_newProfileRequest.createCustomerProfileRequest.profile.description = 'Key at : ' + o_profile.getValue({fieldId: 'custrecord_an_token_uuid'});
+        }
+        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles = {};
+        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType = o_profile.getValue({fieldId: 'custrecord_an_token_customer_type'});
+        var o_paymentProfile = {};
+        if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1) {
+
+            o_paymentProfile.creditCard = {};
+            o_paymentProfile.creditCard.cardNumber = o_profile.getValue({fieldId: 'custrecord_an_token_cardnumber'});
+            o_paymentProfile.creditCard.expirationDate = o_profile.getValue({fieldId: 'custrecord_an_token_expdate'});
+            o_paymentProfile.creditCard.cardCode = o_profile.getValue({fieldId: 'custrecord_an_token_cardcode'});
+        }
+        else {
+            /*set these 2 only because - refunds!
+            CCD	businessChecking	yes	yes	no	yes
+            PPD	checking or savings	yes	yes	no*/
+            o_paymentProfile.bankAccount = {};
+            o_paymentProfile.bankAccount.accountType = o_profile.getValue({fieldId: 'custrecord_an_token_bank_accounttype'});
+            o_paymentProfile.bankAccount.routingNumber = o_profile.getValue({fieldId: 'custrecord_an_token_bank_routingnumber'});
+            o_paymentProfile.bankAccount.accountNumber = o_profile.getValue({fieldId: 'custrecord_an_token_bank_accountnumber'});
+            o_paymentProfile.bankAccount.nameOnAccount = o_profile.getValue({fieldId: 'custrecord_an_token_bank_nameonaccount'});
+            o_paymentProfile.bankAccount.echeckType = o_profile.getValue({fieldId: 'custrecord_an_token_bank_echecktype'});
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_bank_bankname'})){
+                o_paymentProfile.bankAccount.bankName = o_profile.getValue({fieldId: 'custrecord_an_token_bank_bankname'});
+            }
+
+        }
+        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.payment = o_paymentProfile;
+
+        var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
+        rec_response.setValue({fieldId: 'custrecord_an_cim_iscim', value: true});
+        try {
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: o_ccAuthSvcConfig.authSvcUrl,
+                body: JSON.stringify(o_newProfileRequest)
+            });
+            log.debug('getCIM(createNewProfile) request', o_newProfileRequest);
+            log.debug('getCIM(createNewProfile) response.body', response.body);
+            var profileResponse = JSON.parse(response.body.replace('\uFEFF', ''));
+            rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
+            log.debug('response.body.messages', profileResponse.messages)
+
+            rec_response.setValue({fieldId: 'custrecord_an_response_status', value : profileResponse.messages.resultCode});
+
+            rec_response.setValue({fieldId: 'custrecord_an_calledby', value : 'newPaymentMethod'});
+            rec_response.setValue({fieldId: 'custrecord_an_customer', value : o_profile.getValue({fieldId: 'custrecord_an_token_entity'})});
+            rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileRequest'});
+            rec_response.setValue({fieldId: 'custrecord_an_message_code', value : profileResponse.messages.message[0].code});
+            rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text});
+
+            if (_.toUpper(profileResponse.messages.resultCode) !== 'OK'){
+                var errorObj = _.find(codes.anetCodes, {'code':profileResponse.messages.message[0].code});
+                var s_suggestion = errorObj.integration_suggestions.replace(/&amp;lt;br \/&amp;gt;/g, '<br>');
+                var s_otherSuggestions = errorObj.other_suggestions.replace(/&amp;lt;br \/&amp;gt;/g, '<br>');
+                rec_response.setValue({fieldId: 'custrecord_an_response_ig_advice', value: s_suggestion});
+                rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value: s_otherSuggestions});
+                o_createNewProfileResponse.success = false;
+                o_createNewProfileResponse.code = profileResponse.messages.message[0].code;
+                o_createNewProfileResponse.message = profileResponse.messages.message[0].text;
+            } else {
+                o_createNewProfileResponse.nsEntityId = o_profile.getValue({fieldId: 'custrecord_an_token_entity'});
+                o_createNewProfileResponse.customerProfileId = profileResponse.customerProfileId;
+                o_createNewProfileResponse.customerPaymentProfileIdList = profileResponse.customerPaymentProfileIdList;
+                var a_response = profileResponse.validationDirectResponseList[0].split(',');
+                if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1){
+                    o_createNewProfileResponse.creditCard = {
+                        cardnum : a_response[50],
+                        cardtype : a_response[51],
+                    }
+                }
+                else
+                {
+                    o_createNewProfileResponse.bankAccount = {
+                        accountNum : a_response[50],
+                        accountType : a_response[51],
+                    }
+                }
+
+                //todo - add more data from a good response here
+            }
+        } catch (e) {
+            log.emergency(e.name, e.message);
+            o_createNewProfileResponse.success = false;
+            o_createNewProfileResponse.code = '000';
+            o_createNewProfileResponse.message = e.name +' : ' + e.message;
+        } finally {
+            o_createNewProfileResponse.histId = rec_response.save()
+        }
+        log.debug('o_createNewProfileResponse', o_createNewProfileResponse);
+        return o_createNewProfileResponse;
+
+    };
     mngCustomerProfile.createProfileFromTxn = function(txn, o_ccAuthSvcConfig) {
         var o_createProfileResponse = {success:true, customerProfileId:null, txn : txn, histId:null};
         exports.AuthNetGetProfileFromTxn.createCustomerProfileFromTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
@@ -1934,6 +2162,8 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
             rec_response.setValue({fieldId: 'custrecord_an_response_status', value : profileResponse.messages.resultCode});
             rec_response.setValue({fieldId: 'custrecord_an_txn', value : txn.id});
+            //maybe enable in the future, but solved in the refund call
+            //rec_response.setValue({fieldId: 'custrecord_an_related_txnid', value : txn.getValue({fieldId: 'custbody_authnet_refid'})});
             rec_response.setValue({fieldId: 'custrecord_an_calledby', value : txn.type});
             rec_response.setValue({fieldId: 'custrecord_an_customer', value : _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer')});
             rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileFromTransactionRequest'});
@@ -2026,33 +2256,63 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             });
             exports.homeSysLog('a_usedProfiles', a_usedProfiles);
             _.forEach(a_usedProfiles, function(profile){
-                var b_makeToken = exports.findExistingProfile(o_profile.nsEntityId, profileResponse.profile.customerProfileId, profile.customerPaymentProfileId);
-                if (b_makeToken){
+                var o_currentTokenHistory = exports.findExistingProfile(o_profile.nsEntityId, profileResponse.profile.customerProfileId, profile.customerPaymentProfileId);
+                log.debug('o_currentTokenHistory', o_currentTokenHistory);
+                //{exits : b_thisOneExists, number : i_numMethods, hasDefault : b_hasDefault}
+                if (!o_currentTokenHistory.exits){
+                    log.debug('building a new profile CIM', profile);
                     var rec_cimProfile = record.create({type: 'customrecord_authnet_tokens', isDynamic: true});
                     rec_cimProfile.setValue({fieldId: 'custrecord_an_token_gateway', value: o_ccAuthSvcConfig.id});
                     rec_cimProfile.setValue({fieldId: 'custrecord_an_token_entity', value: o_profile.nsEntityId});
                     rec_cimProfile.setValue({fieldId: 'custrecord_an_token_customerid', value: profileResponse.profile.customerProfileId});
                     rec_cimProfile.setValue({fieldId: 'custrecord_an_token_token', value: profile.customerPaymentProfileId});
                     if (!_.isUndefined(profile.payment.creditCard)){
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value : 1});
                         rec_cimProfile.setValue({fieldId: 'custrecord_an_token_type', value : profile.payment.creditCard.cardType});
                         rec_cimProfile.setValue({fieldId: 'custrecord_an_token_last4', value : profile.payment.creditCard.cardNumber});
                         rec_cimProfile.setValue({fieldId: 'custrecord_an_token_expdate', value : profile.payment.creditCard.expirationDate});
                         rec_cimProfile.setValue({fieldId: 'name', value :profile.payment.creditCard.cardType +' ('+profile.payment.creditCard.cardNumber+')'});
-                    } else {
+                    }
+                    else if (profile.payment.bankAccount)
+                    {
+                        //bankAccount
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value : 2});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_type', value : profile.payment.bankAccount.accountType});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_last4', value : profile.payment.bankAccount.accountNumber});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_bank_routingnumber', value : profile.payment.bankAccount.routingNumber});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_bank_nameonaccount', value : profile.payment.bankAccount.nameOnAccount});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_expdate', value : ''});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_bank_accounttype', value : profile.payment.bankAccount.accountType});
+                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_bank_echecktype', value : profile.payment.bankAccount.echeckType});
+                        rec_cimProfile.setValue({fieldId: 'name', value :'Bank Account ('+profile.payment.bankAccount.accountNumber+')'});
+                    }
+                    else
+                    {
                         rec_cimProfile.setValue({fieldId: 'name', value :profileResponse.profile.description});
                     }
+                    if (!o_currentTokenHistory.hasDefault) {
+                        //if none of the found tokens is default, make this one default
+                        rec_cimProfile.setValue({
+                            fieldId: 'custrecord_an_token_default',
+                            value: true
+                        });
+                    }
                     var cimId = rec_cimProfile.save();
-                    record.submitFields({
-                        type: rec_cimProfile.type,
-                        id: cimId,
-                        values: {
-                            custrecord_an_token_pblkchn: exports.mkpblkchain(rec_cimProfile, cimId)
-                        },
-                        options: {
-                            enableSourcing: false,
-                            ignoreMandatoryFields: true
-                        }
-                    });
+                    exports.homeSysLog('NEW CIM ID', cimId);
+                    //becasue UE's can't call UE's - this needs to self run here, otehrwise the record will take care of itself!
+                    if (runtime.executionContext === runtime.ContextType.USER_EVENT) {
+                        record.submitFields({
+                            type: rec_cimProfile.type,
+                            id: cimId,
+                            values: {
+                                custrecord_an_token_pblkchn: exports.mkpblkchain(rec_cimProfile, cimId)
+                            },
+                            options: {
+                                enableSourcing: false,
+                                ignoreMandatoryFields: true
+                            }
+                        });
+                    }
                 }
             });
         } catch (e) {

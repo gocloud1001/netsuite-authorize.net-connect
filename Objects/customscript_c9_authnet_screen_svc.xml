@@ -4,7 +4,7 @@
   <name>SuiteAuthConnect Error Portal</name>
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
-  <notifyowner>T</notifyowner>
+  <notifyowner>F</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_SL.js]</scriptfile>
   <scriptdeployments>

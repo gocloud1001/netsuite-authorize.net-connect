@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2021 Cloud 1001, LLC
+ * @copyright 2022 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
@@ -30,7 +33,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
             sac : []
         };
 
-        exports.aNetFields = ['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv','custbody_authnet_cim_token'];
+        //exports.aNetFields = ['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv','custbody_authnet_cim_token'];
+        exports.aNetFields = ['custbody_authnet_cim_token'];
 
         exports.test = function(context){
             //if(context.currentRecord.getValue({fieldId: 'custpage_c9_test'})) {
@@ -45,6 +49,40 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
             //}
         }
 
+        function getDefaultCard(currentRecord){
+            var o_config = JSON.parse(currentRecord.getValue({fieldId: 'custpage_an_config'}));
+            var custId = currentRecord.getValue({fieldId: 'entity'}) ? currentRecord.getValue({fieldId: 'entity'}) : currentRecord.getValue({fieldId: 'customer'});
+            var a_filters = [
+                ['custrecord_an_token_entity', search.Operator.ANYOF, custId],
+                "AND",
+                ['custrecord_an_token_default', search.Operator.IS, true],
+                "AND",
+                ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, false],
+                "AND",
+                ['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id],
+                "AND",
+                ['isinactive', search.Operator.IS, false],
+                "AND",
+                ['custrecord_an_token_token', search.Operator.ISNOTEMPTY, []],
+            ];
+            log.debug('token search filters', a_filters);
+            var history = search.create({
+                type: 'customrecord_authnet_tokens',
+                filters: a_filters,
+                columns: [
+                    'name',
+                    'custrecord_an_token_paymenttype'
+                ]
+            }).run();
+            var i_defaultToken;
+            history.each(function (result) {
+                log.debug('result',result)
+                currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
+                currentRecord.setValue({fieldId: 'custbody_authnet_cim_token_type', value: result.getValue('custrecord_an_token_paymenttype')});
+                return true;
+            });
+        }
+
         function SAC_pageInit(context) {
 
             console.log('Giggity giggity - we are a GO for SuiteAuthConnect! ' + JSON.stringify(context))
@@ -54,17 +92,18 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
 
                     _.forEach(exports.aNetFields, function(field){
                         try {
-                            window.nlapiGetField(field).setDisplayType('hidden');
+
+                            if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}) && field === 'custbody_authnet_cim_token'){
+                                //skip hiding the token
+                            }
+                            else {
+                                window.nlapiGetField(field).setDisplayType('hidden');
+                            }
+
                         } catch (e){
                             log.error('issue with client hide / show . ', 'Missing field : ' + field);
                         }
                     });
-                    if (_.includes(['salesorder', 'customerdeposit'], context.currentRecord.type)) {
-                        //if this is a
-                        if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'})) {
-                            //window.nlapiDisableField('bullshitvanillialatte')
-                        }
-                    }
                 }
                 if (_.includes(['cashsale'], context.currentRecord.type)) {
                     //if this is a
@@ -89,6 +128,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
         }
 
         function SAC_postSourcing(context) {
+            var o_config = JSON.parse(context.currentRecord.getValue({fieldId: 'custpage_an_config'}));
             var fieldName = context.fieldId;
             //console.log('postSourcing ' + fieldName)
             //be smart about this special record type
@@ -131,11 +171,34 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
                         });
                     }
                 }
-
-                if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && !_.isEmpty(context.currentRecord.getValue({fieldId: 'custbody_authnet_refid'}))) {
-
+            }
+            if (fieldName === 'custbody_authnet_cim_token' && context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})){
+                console.log('o_config',o_config)
+                try {
+                    if (+context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
+                        context.currentRecord.setValue({fieldId : 'paymentmethod', value : o_config.custrecord_an_paymentmethod.val, ignoreFieldChange:true});
+                    }
+                    else
+                    {
+                        context.currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod_echeck.val, ignoreFieldChange:true});
+                    }
+                } catch (e) {
+                    log.audit('Account does not have native cc-pocessing enabled');
                 }
             }
+        }
+        function SAC_validateField(context) {
+            var b_isValid = true;
+            var currentRecord = context.currentRecord;
+            var fieldName = context.fieldId;
+            if (_.includes(['salesorder'], currentRecord.type)) {
+                switch (fieldName) {
+                    case 'custbody_authnet_cim_token':
+
+                        break;
+                }
+            }
+            return b_isValid;
         }
 
         function SAC_fieldChanged(context) {
@@ -164,6 +227,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
                                         log.error('issue with client hide / show . ', 'Missing field : ' + field);
                                     }
                                 });
+                                //search for the default card for this customer
+                                getDefaultCard(context.currentRecord);
                             } else {
                                 currentRecord.setValue({
                                     fieldId: 'custbody_authnet_use',
@@ -175,6 +240,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
                                 alert('You can not charge a customers credit card for a ' + s_status + ' transaction.  Either change the transaction to an approved state, change the Authorize.Net configuration or attempt to charge the card later.');
                             }
                             break;
+
                         case 'terms':
                             _.forEach(exports.aNetFields, function (field) {
                                 try {
@@ -213,8 +279,15 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
                 if (_.includes(['salesorder', 'cashsale', 'customerdeposit', 'customerpayment'], currentRecord.type)) {
                     if (fieldName === 'custbody_authnet_use') {
                         if (currentRecord.getValue({fieldId: 'custbody_authnet_use'})) {
+                            getDefaultCard(context.currentRecord);
                             try {
-                                currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod.val);
+                                if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
+                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod.val);
+                                }
+                                else
+                                {
+                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod_echeck.val);
+                                }
                             } catch (e) {
                                 log.audit('Account does not have native cc-pocessing enabled');
                             }
@@ -328,7 +401,17 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
                         }
 
                         if (currentRecord.getValue('custbody_authnet_use')) {
-                            currentRecord.setText('paymentmethod', 'Authorize.Net');
+                            try {
+                                if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
+                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod.val);
+                                }
+                                else
+                                {
+                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod_echeck.val);
+                                }
+                            } catch (e) {
+                                log.audit('Account does not have native cc-pocessing enabled');
+                            }
                             _.forEach(nativeFields, function (field) {
                                 try {
                                     window.nlapiGetField(field).setDisplayType('hidden');
@@ -482,7 +565,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
                 var s_error = '';
                 if (!b_goodCard) {
                     if (_.isUndefined(o_ccTypes[cardNum[0]])){
-                        s_error += 'A Credit Card or a Token has not been entered for this transaction, please review the entered payment information';
+                        s_error += 'A Credit Card or Payment Profile has not been entered for this transaction, please review the entered payment information.';
                         b_goodExp = true;
                         b_goodcvv = true;
                     } else {
@@ -515,11 +598,11 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
             //context = {"currentRecord":{"id":"8045","type":"salesorder","isDynamic":true,"prototype":{}},"mode":"edit"}
             if (_.includes(['salesorder', 'customerdeposit','customerpayment'],context.currentRecord.type) ||
                 (context.currentRecord.type === 'cashsale' && !context.currentRecord.getValue({fieldId: 'createdfrom'})) ) {
-                if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && _.isEmpty(context.currentRecord.getValue({fieldId: 'custbody_authnet_refid'}))) {
-                    b_canSave = isReady(context.currentRecord);
+                if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) &&!context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})) {
+                    //b_canSave = isReady(context.currentRecord);
+                    b_canSave = false;
                 }
             }
-
             return b_canSave;
         };
 
