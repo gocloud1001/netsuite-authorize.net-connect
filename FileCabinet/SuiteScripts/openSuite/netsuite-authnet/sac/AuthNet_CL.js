@@ -50,37 +50,48 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
         }
 
         function getDefaultCard(currentRecord){
-            var o_config = JSON.parse(currentRecord.getValue({fieldId: 'custpage_an_config'}));
-            var custId = currentRecord.getValue({fieldId: 'entity'}) ? currentRecord.getValue({fieldId: 'entity'}) : currentRecord.getValue({fieldId: 'customer'});
-            var a_filters = [
-                ['custrecord_an_token_entity', search.Operator.ANYOF, custId],
-                "AND",
-                ['custrecord_an_token_default', search.Operator.IS, true],
-                "AND",
-                ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, false],
-                "AND",
-                ['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id],
-                "AND",
-                ['isinactive', search.Operator.IS, false],
-                "AND",
-                ['custrecord_an_token_token', search.Operator.ISNOTEMPTY, []],
-            ];
-            log.debug('token search filters', a_filters);
-            var history = search.create({
-                type: 'customrecord_authnet_tokens',
-                filters: a_filters,
-                columns: [
-                    'name',
-                    'custrecord_an_token_paymenttype'
-                ]
-            }).run();
-            var i_defaultToken;
-            history.each(function (result) {
-                log.debug('result',result)
-                currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
-                currentRecord.setValue({fieldId: 'custbody_authnet_cim_token_type', value: result.getValue('custrecord_an_token_paymenttype')});
-                return true;
-            });
+            try {
+                var o_config = JSON.parse(currentRecord.getValue({fieldId: 'custpage_an_config'}));
+                var custId = currentRecord.getValue({fieldId: 'entity'}) ? currentRecord.getValue({fieldId: 'entity'}) : currentRecord.getValue({fieldId: 'customer'});
+                var a_filters = [
+                    ['custrecord_an_token_entity', search.Operator.ANYOF, custId],
+                    "AND",
+                    ['custrecord_an_token_default', search.Operator.IS, "T"],
+                    "AND",
+                    ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, "F"],
+                    "AND",
+                    ['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id.toString()],
+                    "AND",
+                    ['isinactive', search.Operator.IS, "F"],
+                    "AND",
+                    ['custrecord_an_token_token', 'isnotempty', ''],
+                ];
+                log.debug('token search filters', a_filters);
+                var history = search.create({
+                    type: 'customrecord_authnet_tokens',
+                    filters: a_filters,
+                    columns: [
+                        'name',
+                        'custrecord_an_token_paymenttype'
+                    ]
+                }).run();
+                var i_defaultToken;
+                history.each(function (result) {
+                    log.debug('result', result)
+                    currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
+                    currentRecord.setValue({
+                        fieldId: 'custbody_authnet_cim_token_type',
+                        value: result.getValue('custrecord_an_token_paymenttype')
+                    });
+                    return true;
+                });
+            }
+            catch (e)
+            {
+                log.error(e.name, e.message);
+                //log.error(e.name, e.stack);
+                alert('Unable to retrieve customer CIM profiles / card tokens - this is an error.');
+            }
         }
 
         function SAC_pageInit(context) {
@@ -89,7 +100,6 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
             //context = {"currentRecord":{"id":"8045","type":"salesorder","isDynamic":true,"prototype":{}},"mode":"edit"}
             if (_.includes(['salesorder', 'cashsale','customerdeposit','customerpayment'],context.currentRecord.type)) {
                 if (_.includes(['create', 'copy', 'edit'], context.mode)) {
-
                     _.forEach(exports.aNetFields, function(field){
                         try {
 
@@ -210,7 +220,6 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
             } else {
                 var o_config = JSON.parse(context.currentRecord.getValue({fieldId: 'custpage_an_config'}));
                 var nativeFields = ['creditcard', 'ccnumber', 'ccexpiredate', 'creditcardprocessor', 'pnrefnum', 'authcode'];
-
                 //explicitly disallow terms and auth.net on the same SO
                 if (_.includes(['salesorder'], currentRecord.type)) {
                     switch (fieldName) {
