@@ -35,12 +35,15 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 var form = context.form;
 
                 //this is temp to manage the new way of getting card data
-
+                try {
                 _.forEach(['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv'], function(fldname){
                     form.getField({id: fldname}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
                 });
+                } catch (e) {
+                    log.error('Field Not on Form', form + ' missing ' + fld)
+                }
 
                 //var b_hasNativeCC = authNet.hasNativeCC();
                 //var o_config = authNet.getActiveConfig(context.newRecord);
