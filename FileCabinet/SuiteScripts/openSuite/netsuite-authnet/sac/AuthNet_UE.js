@@ -48,6 +48,16 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 //var b_hasNativeCC = authNet.hasNativeCC();
                 //var o_config = authNet.getActiveConfig(context.newRecord);
                 var o_config2 = authNet.getConfigFromCache();
+                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+                {
+                    log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net setup has not been complete!');
+                    form.addPageInitMessage({
+                        type: message.Type.INFORMATION,
+                        title: 'AUTHORIZE.NET setup is INCOMPLETE',
+                        message: 'While this transaction may have nothing to do with Authorize.Net, the setup is incomplete and may cause unintended issues. An Administrator needs to complete the setup by navigating to Cloud 1001 > SuiteAuthConnect > SuiteAuthConnect Configuration and complete the setup.',
+                    });
+                    return;
+                }
                 var fld_config = form.addField({
                     id: 'custpage_an_config',
                     type: ui.FieldType.TEXTAREA,
@@ -651,8 +661,13 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
         function authNetBeforeSubmit(context) {
             //var o_config = authNet.getActiveConfig(context.newRecord);
             var o_config2 = authNet.getConfigFromCache();
-            //todo - check for EMPTY config on setup
-            if (o_config2.custrecord_an_enable.val) {
+            //check for EMPTY config on setup
+            if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+            {
+                log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net setup has not been complete!');
+                return;
+            }
+            else if (o_config2.custrecord_an_enable.val) {
                 log.debug('authNetBeforeSubmit via: '+runtime.executionContext, context.type +' on '+context.newRecord.type);
                 //runtime.getCurrentSession().set({name: "anetConfig", value: JSON.stringify(o_config)});
                 //manage external import of sales orders with auth
@@ -719,8 +734,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 log.debug('authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type + ' COMPLETED');
             }
         }
-
-
         function authNetAfterSubmit(context) {
             /*var licenceValidation;
             if (runtime.executionContext !== 'USERINTERFACE' ) {
@@ -741,8 +754,13 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
 
             //Is any of this turned on?
             //if (!o_config.rec.getValue({fieldId: 'custrecord_an_enable'})) {
-            if (!o_config2.custrecord_an_enable.val) {
-                log.error('SuiteAuthConnect is not Enabled', 'Authorize.Net will not be contacted as the master SAC configuration is not enabled!')
+            if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+            {
+                log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net setup has not been complete!');
+                return;
+            }
+            else if (!o_config2.custrecord_an_enable.val) {
+                log.error('SuiteAuthConnect is not Enabled', 'Authorize.Net will not be contacted as the master SAC configuration is not enabled!');
                 return;
             }
 

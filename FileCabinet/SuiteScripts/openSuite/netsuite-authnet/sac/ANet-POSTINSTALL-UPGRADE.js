@@ -27,8 +27,8 @@
  *
  */
 
-define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "N/email", './AuthNet_lib'],
-    function (require, exports, record, runtime, config, search, email,authNet) {
+define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "N/email", "N/cache", './AuthNet_lib'],
+    function (require, exports, record, runtime, config, search, email, cache, authNet) {
 
     function performConfig(){
         var companyInfo = config.load({ type: config.Type.COMPANY_INFORMATION });
@@ -175,6 +175,21 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             }
             o_configRecord.setValue({fieldId: 'custrecord_an_cim_allow_tokens', value: true});
             o_configRecord.setValue({fieldId: 'custrecord_an_skip_on_save', value: true});
+            //added becasue sometimes the cacahe gets cranky on the creation of a new record.
+            try {
+                var daCache = cache.getCache(
+                    {
+                        name: 'config',
+                        scope: cache.Scope.PROTECTED
+                    }
+                );
+                daCache.remove({
+                    key: 'config'
+                });
+            } catch (ex){
+                s_notesString += ex.name + ' : ' + ex.message + '<br>';
+            }
+
             o_configRecord.save({ignoreMandatoryFields: true});
         } catch (e){
             s_notesString += e.name + ' : ' + e.message;
