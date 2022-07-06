@@ -30,17 +30,30 @@
  */
 
 
-define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'lodash', 'moment', './AuthNet_lib'],
-    function (record, runtime, redirect, ui, message, cache, task, _, moment, authNet) {
+define(['N/record', 'N/url', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'lodash', 'moment', './AuthNet_lib'],
+    function (record, url, runtime, redirect, ui, message, cache, task, _, moment, authNet) {
 
         function beforeLoad(context) {
             //log.debug('parameters', _.keys(context))
             //log.debug('context.requet', _.keys(context.request))
-            
-            //when loading validate the hash and throw an alert if it's invalid
-            if (_.includes(['view', 'edit', 'create'], context.type)){
-                //check for license and display notice at top of page...
 
+            if (runtime.getCurrentUser().role === 3) {
+                context.form.addFieldGroup({
+                    id: 'custpage_admin',
+                    label: 'Visible in Administrator Role Only'
+                });
+                var fld_configLink = context.form.addField({
+                    id: 'custpage_configlink',
+                    type: ui.FieldType.INLINEHTML,
+                    label: 'Tool Configuration Information',
+                    container: 'custpage_admin'
+                });
+                fld_configLink.defaultValue = '<a target="_blank" href="' + url.resolveScript({
+                    scriptId: 'customscript_c9_authnet_screen_svc',
+                    deploymentId: 'customdeploy_c9_authnet_screen_svc',
+                    params: {debugger : 'totallytrue'}
+                }) + '">Debug & Testing Tool</a> (Use at your own peril!)';
+            } else if (_.includes(['view', 'edit', 'create'], context.type)){
                 //hide the URL fields
                 context.form.getField({id: 'custrecord_an_url'}).updateDisplayType({
                     displayType: ui.FieldDisplayType.HIDDEN
@@ -49,9 +62,6 @@ define(['N/record', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/messag
                     displayType: ui.FieldDisplayType.HIDDEN
                 });
             }
-
-            //log.debug('.validateLicence2', authNet.validateLicence2())
-
 
             if (context.type === 'view'){
 
