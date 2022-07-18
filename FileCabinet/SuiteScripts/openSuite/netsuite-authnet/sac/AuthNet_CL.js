@@ -27,8 +27,8 @@
  */
 
 
-define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
-    function(currentRecord, search, message, _, moment) {
+define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 'moment'],
+    function(currentRecord, search, message, dialog, _, moment) {
         var exports = {
             sac : []
         };
@@ -603,13 +603,18 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'lodash', 'moment'],
 
         function SAC_saveRecord(context){
             var b_canSave = true;
-            console.log('SuiteAuthConnect >> FORM VALIDATION on SAVE! ' + JSON.stringify(context))
+            console.log('SuiteAuthConnect >> FORM VALIDATION on SAVE! ');
             //context = {"currentRecord":{"id":"8045","type":"salesorder","isDynamic":true,"prototype":{}},"mode":"edit"}
             if (_.includes(['salesorder', 'customerdeposit','customerpayment'],context.currentRecord.type) ||
                 (context.currentRecord.type === 'cashsale' && !context.currentRecord.getValue({fieldId: 'createdfrom'})) ) {
-                if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) &&!context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})) {
+                if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && !context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})) {
                     //b_canSave = isReady(context.currentRecord);
                     b_canSave = false;
+                    if (window.confirm("Some Authorize.Net information appears missing on this transaction (no token is found).  Do you want to attempt to save and see if the missing data can be located for you?"))
+                    {
+                        b_canSave = true;
+                        console.log('Overridden? '+ b_canSave);
+                    }
                 }
             }
             return b_canSave;

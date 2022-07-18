@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.1.5';
+    exports.VERSION = '3.1.5a';
 
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
@@ -55,7 +55,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     exports.CCFIELDS = ['ccnumber', 'ccexp', 'ccv'];
     exports.CCENTRY = _.concat(exports.TOKEN,exports.CCFIELDS);
     exports.CODES = ['datetime','authcode', 'refid', 'error_status', 'done'];
-    exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES);//exports.AUTHCAP,exports.VOIDS,exports.REFUNDS,
+    exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES);
     exports.SERVICE_CREDENTIAL_FIELDS = ['custrecord_an_login', 'custrecord_an_login_sb', 'custrecord_an_trankey', 'custrecord_an_trankey_sb'];
 
     var RESPONSECODES = {
@@ -184,7 +184,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
     exports.homeSysLog = function(name, body)
     {
-        if(exports.getConfigFromCache().custrecord_an_break_pci.val)
+        if(exports.getConfigFromCache().custrecord_an_break_pci.val || runtime.envType !== runtime.EnvType.SANDBOX)
         {
             log.debug('&#10071; ' + name, body);
         }
@@ -498,7 +498,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
     exports.getRefund = function (txn) {
         log.debug('getRefund. 3rd Party Call', 'getRefund()');
-        //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache();
         log.debug('getRefund.getConfig is ', o_ccAuthSvcConfig.type);
         return callRefund[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
@@ -570,10 +569,11 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     exports.getCIM = function (txn, config) {
         log.debug('getCIM. calling AUTH.Net', 'getCIM()');
         var o_profile = mngCustomerProfile.createProfileFromTxn(txn, config);
+        var o_tokenResponse;
         if (o_profile.success){
-            mngCustomerProfile.getAndBuildProfile(o_profile, config);
+            o_tokenResponse = mngCustomerProfile.getAndBuildProfile(o_profile, config);
         }
-        return true;
+        return o_tokenResponse;
     };
 
     exports.createNewProfile = function (o_profile, config) {
@@ -1207,7 +1207,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         rec_response.setValue('custrecord_an_txn', txn.id);
         rec_response.setValue('custrecord_an_calledby', txn.type);
         rec_response.setValue('custrecord_an_refid', txn.getValue({fieldId:'custbody_authnet_refid'}));
-        rec_response.setValue('custrecord_an_reqrefid', txn.getValue({fieldId:'custbody_external_order_id'}));
+        rec_response.setValue('custrecord_an_reqrefid', txn.getValue({fieldId:o_ccAuthSvcConfig.custrecord_an_external_fieldid.val}));
         rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
         try {
             var response = https.post({
@@ -1235,7 +1235,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 rec_response.setValue({fieldId: 'custrecord_an_cardnum', value : o_body.transaction.payment.cardNumber});
                 rec_response.setValue({fieldId: 'custrecord_an_response_message', value : o_body.transaction.transactionStatus });
                 rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value : o_body.transaction.responseReasonDescription });
-
+                rec_response.setValue({fieldId: 'custrecord_an_refid', value : o_body.refId});
             } else {
                 if (o_body.messages) {
                     rec_response.setValue({fieldId: 'custrecord_an_response_status', value: o_body.messages.resultCode});
@@ -1279,7 +1279,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.transId = tranid;
-        //log.debug('calling with ', exports.AuthNetGetTxnStatus);
+        exports.homeSysLog('calling doCheckStatus with', exports.AuthNetGetTxnStatus);
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
@@ -1645,7 +1645,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         var f_authTotal = getBaseCurrencyTotal(txn);
         //txn.setValue('custbody_authnet_amount', f_authTotal);
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
-        var o_createdFrom = search.lookupFields({type : 'transaction', id:txn.getValue('createdfrom'), columns :['type', 'createdfrom', 'createdfrom.type']});
+        var o_createdFrom = search.lookupFields({type : 'transaction', id:txn.getValue('createdfrom'), columns :['type', 'createdfrom', 'createdfrom.type', 'custbody_authnet_refid']});
         //if this is from an RMA - go back to the Sales Order
         var i_createdFrom, s_createdfromType;
         if (o_createdFrom.type[0].value === 'RtnAuth'){
@@ -1659,28 +1659,29 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         //exports.homeSysLog('callRefund.o_createdFromHistory', o_createdFromHistory);
 
         //GET the original transaction details
-        var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, txn.getValue('custbody_authnet_refid'));
         var o_paymentMethod = {}
-        if (o_orgTxnResponse.fullResponse.payment.creditCard)
-        {
-            o_paymentMethod = {creditCard : {
-                cardNumber : o_orgTxnResponse.fullResponse.payment.creditCard.cardNumber,
-                expirationDate : o_orgTxnResponse.fullResponse.payment.creditCard.expirationDate,
+        var s_tranId = txn.getValue({fieldId: 'custbody_authnet_refid'}) ? txn.getValue({fieldId: 'custbody_authnet_refid'}) : o_createdFrom.custbody_authnet_refid;
+        var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, s_tranId);
+        //log.debug('callRefund().o_orgTxnResponse', o_orgTxnResponse);
+        if (o_orgTxnResponse.fullResponse.payment.creditCard) {
+            o_paymentMethod = {
+                creditCard: {
+                    cardNumber: o_orgTxnResponse.fullResponse.payment.creditCard.cardNumber,
+                    expirationDate: o_orgTxnResponse.fullResponse.payment.creditCard.expirationDate,
                 }
             }
         }//also do this for echeck!
-        else if(o_orgTxnResponse.fullResponse.payment.bankAccount)
-        {
-            o_paymentMethod = {bankAccount : {
-                    accountType : o_orgTxnResponse.fullResponse.payment.bankAccount.accountType,
-                    routingNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.routingNumber,
-                    accountNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.accountNumber,
-                    nameOnAccount : o_orgTxnResponse.fullResponse.payment.bankAccount.nameOnAccount,
-                    echeckType : o_orgTxnResponse.fullResponse.payment.bankAccount.echeckType,
+        else if (o_orgTxnResponse.fullResponse.payment.bankAccount) {
+            o_paymentMethod = {
+                bankAccount: {
+                    accountType: o_orgTxnResponse.fullResponse.payment.bankAccount.accountType,
+                    routingNumber: o_orgTxnResponse.fullResponse.payment.bankAccount.routingNumber,
+                    accountNumber: o_orgTxnResponse.fullResponse.payment.bankAccount.accountNumber,
+                    nameOnAccount: o_orgTxnResponse.fullResponse.payment.bankAccount.nameOnAccount,
+                    echeckType: o_orgTxnResponse.fullResponse.payment.bankAccount.echeckType,
                 }
             }
         }
-
         //var s_cardString = _.isNull(o_createdFromHistory) ? '1111' : o_createdFromHistory.getValue('custrecord_an_cardnum');
         //o_creditCard.cardNumber = s_cardString.substring(s_cardString.length - 4, s_cardString.length);
         //o_creditCard.expirationDate = 'XXXX';
@@ -1698,9 +1699,13 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             var obj = {
                 'itemId': (i + 1).toString(),
                 'name': txn.getSublistValue({sublistId: 'item', fieldId: 'item', line: i}).substring(0, 29),
-                'description': txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}).substring(0, 29),
                 'quantity': txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}) ? txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString() : '1',
             };
+            //not all folks use a description
+            if (txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}))
+            {
+                obj.description = txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}).substring(0, 29);
+            }
             //ensure we are not sending over discount and subtotal lines incorrectly
             var unitPrice = 0;
             if (txn.getSublistValue({sublistId: 'item', fieldId: 'itemtype', line : i}) === 'Discount')
@@ -1734,6 +1739,10 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         txn = cleanAuthNet(txn, false);
         //now ensure all the prior auth data is GONE!
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
+        var parsed = {
+            status : true,
+            fromId : txn.getValue('createdfrom')
+        };
         try {
 
             var response = https.post({
@@ -1752,7 +1761,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             //realTxn.setValue('custbody_authnet_reqrefid', txn.id.toString());
             //indicates this transaction is DONE
             realTxn.setValue('custbody_authnet_done', true);
-            var parsed = parseANetResponse(rec_response, realTxn, response);
+            parsed = parseANetResponse(rec_response, realTxn, response);
             parsed.fromId = txn.getValue('createdfrom');
             //log.debug('parsed.status', parsed.status);
             //log.debug('parsed.history', parsed.history);
@@ -1764,13 +1773,17 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 parsed.history.setValue({fieldId: 'custrecord_an_response_ig_advice', value:'Find the correct TranId / RefId value from the fund capturing transaction in this transactions lifecycle, paste it in the TranId / RefId on the Cash Refund and save using Authorize.Net to apply the refund to that transaction.'})
             }
         } catch (e) {
-            log.error(e);
+            log.error(e.name, e.message);
+            log.error(e.name, e.stack);
             if (parsed){
                 parsed.status = false;
             }
         } finally {
-            parsed.historyId = parsed.history.save();
-            delete parsed.history;
+            if (parsed.history)
+            {
+                parsed.historyId = parsed.history.save();
+                delete parsed.history;
+            }
         }
         return parsed;
     };
@@ -1895,10 +1908,25 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     var callSettlement = {};
     //1 is the ID for Authorize.net calls
     callSettlement[1] = function(txn, o_ccAuthSvcConfig) {
-        log.debug('STARTING - callSettlement[1]');
+        log.audit('STARTING - callSettlement[1]', txn.getValue({fieldId: 'tranid'}));
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
         exports.AuthNetSettle.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
-        //becasue we use differnt fields - this needs to happen
+
+        /**
+         * Inside NetSuite Integration TIP
+         * If you want to call this from a custom map/reduce for say imported transactions not flowing all the way into
+         * this code. - you can easily take whatever field has the tranid on the record you want to get settlement data on
+         * and do the following in the map reduce - using this library
+         *      txn = record.load({
+         *         type: recToChange.rectype,
+         *         id: recToChange.id
+         *       });
+         *       txn.setValue({fieldId: 'custbody_authnet_refid', value : txn.getValue({fieldId: 'custbody_WHATEVER YOUR FIELD ID IS'})});
+         *       authNet.doSettlement(txn);
+         *
+         */
+
+        //because we use different fields - this needs to happen
         if (txn.type === 'cashrefund'){
             exports.AuthNetSettle.getTransactionDetailsRequest.transId = txn.getValue({fieldId: 'custbody_authnet_refunded_tran'}) ? txn.getValue({fieldId: 'custbody_authnet_refunded_tran'}) : (txn.getValue({fieldId: 'custbody_magento_transid'}) ? txn.getValue({fieldId: 'custbody_magento_transid'}) : txn.getValue({fieldId: 'custbody_authnet_refid'}));
         } else {
@@ -1906,7 +1934,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         }
 
         try {
-            log.debug('request', exports.AuthNetSettle);
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
                 url: authSvcUrl,
@@ -1929,6 +1956,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 fieldId: 'custrecord_an_customer',
                 value: _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity') : txn.getValue('customer')
             });
+            rec_response.setValue({fieldId: 'custrecord_an_txn', value: txn.id});
             //rec_response.setValue('custrecord_an_amount', f_authTotal);
             rec_response.setValue({fieldId: 'custrecord_an_response_status', value: o_body.messages.resultCode});
             //set the request time to now
@@ -1956,7 +1984,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                             value: o_body.transaction.payment.bankAccount.accountNumber
                         });
                     }
-                    rec_response.setValue({fieldId: 'custrecord_an_txn', value: txn.id});
                     rec_response.setValue({fieldId: 'custrecord_an_reqrefid', value: o_body.transrefId});
                 }
                 if (_.toUpper(o_body.messages.resultCode) === 'OK') {
@@ -2005,10 +2032,13 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                     }
                     //txn.setValue('custbody_authnet_refid', o_body.transaction.transId);
                     rec_response.setValue({fieldId: 'custrecord_an_refid', value: o_body.transaction.transId});
-                    rec_response.setValue({
-                        fieldId: 'custrecord_an_settle_run',
-                        value: exports.getSettlmentRec().id
-                    });
+                    var o_settlementRun = exports.getSettlmentRec();
+                    if (!_.isEmpty(o_settlementRun)) {
+                        rec_response.setValue({
+                            fieldId: 'custrecord_an_settle_run',
+                            value: o_settlementRun.id
+                        });
+                    }
                 } else {
                     //deal with the error here
                     rec_response.setValue({fieldId: 'custrecord_an_refid', value: exports.AuthNetSettle.getTransactionDetailsRequest.transId});
@@ -2021,10 +2051,15 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             }
             txn.save({ignoreDefaults : true});
         } catch (e) {
-            log.error(e.name, e.message);
+            log.emergency(e.name, e.message);
+            log.emergency(e.name, e.stack);
         } finally {
             rec_response.save();
         }
+        log.audit('COMPLETING - callSettlement[1]', txn.getValue({fieldId: 'tranid'}) + ' status: '+ txn.getValue({
+            fieldId: 'custbody_authnet_settle_status'
+        }));
+
     };
 
     /*
@@ -2240,6 +2275,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
     mngCustomerProfile.getAndBuildProfile = function(o_profile, o_ccAuthSvcConfig) {
         exports.homeSysLog('getAndBuildProfile(o_profile.customerProfileId & o_profile.customerPaymentProfileIdList)', o_profile.customerProfileId + ' :: ' + o_profile.customerPaymentProfileIdList);
+        var o_profileResponse = {success : false};
         try{
             var profileResponse = mngCustomerProfile.getProfile(o_profile, o_ccAuthSvcConfig);
             //rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
@@ -2297,15 +2333,17 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                             value: true
                         });
                     }
-                    var cimId = rec_cimProfile.save();
-                    exports.homeSysLog('NEW CIM ID', cimId);
+                    o_profileResponse.id = rec_cimProfile.save();
+                    o_profileResponse.success = true;
+
+                    exports.homeSysLog('NEW CIM ID', o_profileResponse.id);
                     //becasue UE's can't call UE's - this needs to self run here, otehrwise the record will take care of itself!
                     if (runtime.executionContext === runtime.ContextType.USER_EVENT) {
                         record.submitFields({
                             type: rec_cimProfile.type,
-                            id: cimId,
+                            id: o_profileResponse.id,
                             values: {
-                                custrecord_an_token_pblkchn: exports.mkpblkchain(rec_cimProfile, cimId)
+                                custrecord_an_token_pblkchn: exports.mkpblkchain(rec_cimProfile, o_profileResponse.id)
                             },
                             options: {
                                 enableSourcing: false,
@@ -2322,6 +2360,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         } finally {
             //rec_response.save()
         }
+        return o_profileResponse;
     };
 
 

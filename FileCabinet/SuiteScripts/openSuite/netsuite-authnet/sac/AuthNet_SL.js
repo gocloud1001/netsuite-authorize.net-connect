@@ -258,7 +258,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'Customer',
                         container: 'grpgeneric'
                     });
-                    customer.defaultValue = '1647';
+                    //customer.defaultValue = '1647';
                     form.addField({
                         id: 'txnid',
                         type: ui.FieldType.TEXT,
@@ -278,28 +278,28 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'Items - in array object {qty, itemid, rate}',
                         container: 'grpgeneric'
                     });
-                    items.defaultValue = '[{"item" : "1061", "quantity" : "1", "amount": "10.12"}]';
+                    items.defaultValue = '[{"item" : "X", "quantity" : "1", "amount": "1.00"}]';
                     var ccnum = form.addField({
                         id: 'ccnum',
                         type: ui.FieldType.TEXT,
                         label: 'Card Number',
                         container: 'grpgeneric'
                     });
-                    ccnum.defaultValue = '4111111111111111';
+                    //ccnum.defaultValue = '4111111111111111';
                     var exp = form.addField({
                         id: 'ccexp',
                         type: ui.FieldType.TEXT,
                         label: 'Card Exp (MMYY)',
                         container: 'grpgeneric'
                     });
-                    exp.defaultValue = '1122';
+                    //exp.defaultValue = '1122';
                     var cvv = form.addField({
                         id: 'ccv',
                         type: ui.FieldType.TEXT,
                         label: 'CCV',
                         container: 'grpgeneric'
                     });
-                    cvv.defaultValue = '111';
+                    //cvv.defaultValue = '111';
                     form.addField({
                         id: 'tokenid',
                         type: ui.FieldType.TEXT,

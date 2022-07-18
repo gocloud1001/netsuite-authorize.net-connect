@@ -286,6 +286,8 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 
             else if (context.type === 'create' && runtime.executionContext === runtime.ContextType.USER_INTERFACE )
             {
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
+                //todo - add config object to test auth the card and then void auth as part of the token process to ensure a valid token
+                //todo - only do this is the config is set and has value and is cc token type
                 var o_newProfile = authNet.createNewProfile(context.newRecord, o_config);
                 //this is a new in in the UI entry - so we need to generate the profile!
                 if (!o_newProfile.success){

@@ -33,20 +33,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             log.audit('authNetBeforeLoad via : '+runtime.executionContext, context.type +' on '+context.newRecord.type);
             if (runtime.executionContext === 'USERINTERFACE' ) {
                 var form = context.form;
-
-                //this is temp to manage the new way of getting card data
-                try {
-                _.forEach(['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv'], function(fldname){
-                    form.getField({id: fldname}).updateDisplayType({
-                        displayType: ui.FieldDisplayType.HIDDEN
-                    });
-                });
-                } catch (e) {
-                    log.error('Field Not on Form', form + ' missing ' + fld)
-                }
-
-                //var b_hasNativeCC = authNet.hasNativeCC();
-                //var o_config = authNet.getActiveConfig(context.newRecord);
                 var o_config2 = authNet.getConfigFromCache();
                 if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
                 {
@@ -55,6 +41,15 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         type: message.Type.INFORMATION,
                         title: 'AUTHORIZE.NET setup is INCOMPLETE',
                         message: 'While this transaction may have nothing to do with Authorize.Net, the setup is incomplete and may cause unintended issues. An Administrator needs to complete the setup by navigating to Cloud 1001 > SuiteAuthConnect > SuiteAuthConnect Configuration and complete the setup.',
+                    });
+                    _.forEach(['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv'], function(fldname){
+                        try {
+                            form.getField({id: fldname}).updateDisplayType({
+                                displayType: ui.FieldDisplayType.HIDDEN
+                            });
+                        } catch (e) {
+                            log.error('Field Not on Form anyhow!', form + ' missing and authNet Field - '+fldname);
+                        }
                     });
                     return;
                 }
