@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.1.5a';
+    exports.VERSION = '3.1.5b';
 
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
@@ -184,7 +184,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
     exports.homeSysLog = function(name, body)
     {
-        if(exports.getConfigFromCache().custrecord_an_break_pci.val || runtime.envType !== runtime.EnvType.SANDBOX)
+        if(exports.getConfigFromCache().custrecord_an_break_pci.val || runtime.envType === runtime.EnvType.SANDBOX)
         {
             log.debug('&#10071; ' + name, body);
         }
