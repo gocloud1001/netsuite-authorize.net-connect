@@ -149,6 +149,17 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     authNet.homeSysLog('b_responseFailure', b_responseFailure);
                     //authNet.homeSysLog('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
 
+                    _.forEach(authNet.CCFIELDS, function (fd) {
+                        var fld = 'custbody_authnet_' + fd;
+                        try {
+                            form.getField({id: fld}).updateDisplayType({
+                                displayType: ui.FieldDisplayType.HIDDEN
+                            });
+                        } catch (e){
+                            log.error('Field Not on Form', form + ' missing ' + fld)
+                        }
+                    });
+
                     //if this is a view - make the cc fields hidden for cleanness
                     if (context.type === context.UserEventType.VIEW){
                         _.forEach(authNet.CCENTRY, function (fd) {
@@ -550,9 +561,29 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                             break;
                         case 'customerpayment':
+                            _.forEach(authNet.CCENTRY, function (fd) {
+                                var fld = 'custbody_authnet_' + fd;
+                                try {
+                                    form.getField({id: fld}).updateDisplayType({
+                                        displayType: ui.FieldDisplayType.HIDDEN
+                                    });
+                                } catch (e){
+                                    log.error('Field Not on Form', form + ' missing ' + fld)
+                                }
+                            });
                             b_doScripty = true;
                             break;
                         case 'invoice':
+                            _.forEach(authNet.CCENTRY, function (fd) {
+                                var fld = 'custbody_authnet_' + fd;
+                                try {
+                                    form.getField({id: fld}).updateDisplayType({
+                                        displayType: ui.FieldDisplayType.HIDDEN
+                                    });
+                                } catch (e){
+                                    log.error('Field Not on Form', form + ' missing ' + fld)
+                                }
+                            });
                             b_doScripty = false;
                             break;
                         case 'cashrefund':
@@ -634,16 +665,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         "});</script>";
                 } else {
                     log.debug('No Scripty!', 'Not gonna do it...')
-                    _.forEach(authNet.CCENTRY, function (fd) {
-                        var fld = 'custbody_authnet_' + fd;
-                        try {
-                            form.getField({id: fld}).updateDisplayType({
-                                displayType: ui.FieldDisplayType.HIDDEN
-                            });
-                        } catch (e){
-                            log.error('Field Not on Form', form + ' missing ' + fld)
-                        }
-                    });
+
                     //log.debug('payment options',form.getField({id:'paymentmethod'}).getSelectOptions());
 
                     //'Authorize.Net (external)'
@@ -907,6 +929,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCSStandalone(thisCS);
                             if(pluginResult.process) {
                                 //so capture from the auth - use the full record
+                                log.audit('Capturing Funds On CS', thisCS.getValue({fieldId:'tranid'}));
                                 o_response = authNet.getAuthCapture(context.newRecord);
                                 authNet.homeSysLog('CASH SALE SAVE o_response', o_response);
                                 authNet.handleResponse(o_response, context, true);

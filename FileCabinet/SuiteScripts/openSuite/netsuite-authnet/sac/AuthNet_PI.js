@@ -89,6 +89,7 @@ function(exports, log, _, SAC) {
             !record.getValue({fieldId:'custbody_authnet_override'}) &&
             !record.getValue({fieldId: 'createdfrom'}) &&
             record.getValue('custbody_authnet_use') &&
+            !record.getValue({fieldId: 'custbody_authnet_refid'}) &&
             testPaymentPresent(record)
         );
         log.debug('Plugin Validation - Cash Sale Standalone', SAC.pi_response);
@@ -100,7 +101,7 @@ function(exports, log, _, SAC) {
 
         SAC.pi_response.process = (
             !record.getValue({fieldId:'custbody_authnet_override'}) &&
-            _.isEmpty(record.getValue({ fieldId:'custbody_authnet_authcode'})) &&
+            !record.getValue({ fieldId:'custbody_authnet_authcode'}) &&
             record.getValue({ fieldId:'custbody_authnet_use'})  &&
             testPaymentPresent(record)
         );
@@ -113,7 +114,7 @@ function(exports, log, _, SAC) {
         log.debug('Plugin Validation - Customer Payment');
         SAC.pi_response.process = (
             !record.getValue({fieldId:'custbody_authnet_override'}) &&
-            _.isEmpty(record.getValue({ fieldId:'custbody_authnet_authcode'})) &&
+            !record.getValue({ fieldId:'custbody_authnet_authcode'}) &&
             record.getValue({ fieldId:'custbody_authnet_use'})  &&
             testPaymentPresent(record)
         );
