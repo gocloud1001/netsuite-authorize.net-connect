@@ -91,6 +91,17 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     });
                     return;
                 }
+                //these fields are legacy fields that should always be hidden
+                _.forEach(authNet.CCFIELDS, function (fd) {
+                    var fld = 'custbody_authnet_' + fd;
+                    try {
+                        form.getField({id: fld}).updateDisplayType({
+                            displayType: ui.FieldDisplayType.HIDDEN
+                        });
+                    } catch (e){
+                        log.error('Field Not on Form', form + ' missing ' + fld)
+                    }
+                });
 
                 //if tokens are not allowed - hide the token field!
                 if (!o_config2.custrecord_an_cim_allow_tokens.val){
