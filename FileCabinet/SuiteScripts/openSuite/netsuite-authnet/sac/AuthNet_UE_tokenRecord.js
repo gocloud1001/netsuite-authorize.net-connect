@@ -139,6 +139,15 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
             //when loading validate the hash and throw an alert if it's invalid
             log.debug(runtime.executionContext, context.type)
             if (runtime.executionContext === runtime.ContextType.USER_INTERFACE ) {
+                if (context.request.parameters.entity)
+                {
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_entity', value : context.request.parameters.entity})
+                }
+                if (context.request.parameters.customer)
+                {
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_entity', value : context.request.parameters.customer})
+                }
+
                 if (context.type === 'create' && (!context.request.parameters.entity && !context.newRecord.getValue({fieldId: 'custrecord_an_token_entity'})))
                 {
                     throw 'You can not generate a profile / token without a customer.  Either select a customer record and create a Authorize.Net Customer Payment Profile from there, or enter one from a transaction.';
