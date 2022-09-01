@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.1.5d';
+    exports.VERSION = '3.1.6';
 
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
@@ -730,15 +730,15 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         return a_cachedConfigs;
     };
 
-        exports.purgeCache = function() {
-            var o_cache = cache.getCache({
-                name: 'config',
-                scope: cache.Scope.PROTECTED
-            });
-            o_cache.remove({
-                key: 'config'
-            });
-        };
+    exports.purgeCache = function() {
+        var o_cache = cache.getCache({
+            name: 'config',
+            scope: cache.Scope.PROTECTED
+        });
+        o_cache.remove({
+            key: 'config'
+        });
+    };
 
     //GET AND LOAD THE CACHE AS NEEDED FOR THE CONFIG
     exports.getConfigFromCache = function(configId) {
@@ -1274,7 +1274,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     };
 
     var doCheckStatus = {};
-        doCheckStatus[1] = function (o_ccAuthSvcConfig, tranid){
+    doCheckStatus[1] = function (o_ccAuthSvcConfig, tranid){
         var o_summaryStatus = {isValidAuth : true};
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
@@ -2077,39 +2077,42 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
         o_newProfileRequest.createCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         o_newProfileRequest.createCustomerProfileRequest.profile.merchantCustomerId = 'NSeId-'+o_profile.getValue({fieldId: 'custrecord_an_token_entity'});
+        var s_description = o_profile.getValue({fieldId:'custrecord_an_token_name_on_card'});
+        //can we pull the customer name into o_newProfileRequest.createCustomerProfileRequest.profile.description
+        o_newProfileRequest.createCustomerProfileRequest.profile.description = (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1) ? 'CC' : 'ACH' + ' : ' + o_profile.getValue({fieldId: 'custrecord_an_token_uuid'});
         if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'})) {
             o_newProfileRequest.createCustomerProfileRequest.profile.email = o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'});
         }
-        else
-        {
-            o_newProfileRequest.createCustomerProfileRequest.profile.description = 'Key at : ' + o_profile.getValue({fieldId: 'custrecord_an_token_uuid'});
-        }
+
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles = {};
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType = o_profile.getValue({fieldId: 'custrecord_an_token_customer_type'});
+        //todo - o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {https://developer.authorize.net/api/reference/index.html#customer-profiles-create-customer-profile}
+
         var o_paymentProfile = {};
         if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1) {
-
             o_paymentProfile.creditCard = {};
             o_paymentProfile.creditCard.cardNumber = o_profile.getValue({fieldId: 'custrecord_an_token_cardnumber'});
             o_paymentProfile.creditCard.expirationDate = o_profile.getValue({fieldId: 'custrecord_an_token_expdate'});
             o_paymentProfile.creditCard.cardCode = o_profile.getValue({fieldId: 'custrecord_an_token_cardcode'});
+            //todo - o_paymentProfile.validationMode = 'liveMode' or 'testMode'
         }
         else {
             /*set these 2 only because - refunds!
             CCD	businessChecking	yes	yes	no	yes
             PPD	checking or savings	yes	yes	no*/
             o_paymentProfile.bankAccount = {};
-            o_paymentProfile.bankAccount.accountType = o_profile.getValue({fieldId: 'custrecord_an_token_bank_accounttype'});
+            o_paymentProfile.bankAccount.accountType = o_profile.getValue({fieldId: 'custpage_banktype'});
             o_paymentProfile.bankAccount.routingNumber = o_profile.getValue({fieldId: 'custrecord_an_token_bank_routingnumber'});
             o_paymentProfile.bankAccount.accountNumber = o_profile.getValue({fieldId: 'custrecord_an_token_bank_accountnumber'});
             o_paymentProfile.bankAccount.nameOnAccount = o_profile.getValue({fieldId: 'custrecord_an_token_bank_nameonaccount'});
-            o_paymentProfile.bankAccount.echeckType = o_profile.getValue({fieldId: 'custrecord_an_token_bank_echecktype'});
+            o_paymentProfile.bankAccount.echeckType = o_profile.getValue({fieldId: 'custpage_achtype'});
             if (o_profile.getValue({fieldId: 'custrecord_an_token_bank_bankname'})){
                 o_paymentProfile.bankAccount.bankName = o_profile.getValue({fieldId: 'custrecord_an_token_bank_bankname'});
             }
-
         }
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.payment = o_paymentProfile;
+        //allow setting of an actual test of a CC when tokenizing!
+        o_newProfileRequest.createCustomerProfileRequest.validationMode = o_ccAuthSvcConfig.custrecord_an_cim_live_mode.val ? 'liveMode' : 'testMode';
 
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_cim_iscim', value: true});
@@ -2131,7 +2134,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             rec_response.setValue({fieldId: 'custrecord_an_customer', value : o_profile.getValue({fieldId: 'custrecord_an_token_entity'})});
             rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileRequest'});
             rec_response.setValue({fieldId: 'custrecord_an_message_code', value : profileResponse.messages.message[0].code});
-            rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text});
+            rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text.substring(0, 300)});
 
             if (_.toUpper(profileResponse.messages.resultCode) !== 'OK'){
                 var errorObj = _.find(codes.anetCodes, {'code':profileResponse.messages.message[0].code});

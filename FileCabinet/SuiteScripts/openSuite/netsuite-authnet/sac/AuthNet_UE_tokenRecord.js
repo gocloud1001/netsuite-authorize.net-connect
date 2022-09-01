@@ -17,9 +17,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * IN NO EVENT SHALL CLOUD 1001, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+ * IN NO EVENT SHALL CLOUD 1001, LLC, LLC BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL,
+ * OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION,
+ * EVEN IF CLOUD 1001, LLC HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CLOUD 1001, LLC SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS".
+ * CLOUD 1001, LLC HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
+ *
+ * @author Andy Prior andy@gocloud1001.com
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
  * @NApiVersion 2.0
@@ -30,8 +37,8 @@
  */
 
 
-define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 'N/ui/serverWidget', 'N/ui/message', 'lodash', './AuthNet_lib'],
-    function (record, encode, runtime, search,  crypto, error, ui, message, _, authNet) {
+define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N/error', 'N/ui/serverWidget', 'N/ui/message', 'lodash', './AuthNet_lib'],
+    function (record, encode, runtime, search,  url, crypto, error, ui, message, _, authNet) {
 
 
         function setCCDisplay(context){
@@ -60,6 +67,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 
             {
                 _.forEach([
                     'custrecord_an_token_cardnumber',
+                    'custrecord_an_token_name_on_card',
                     'custrecord_an_token_cardcode',
                     'custrecord_an_token_bank_accounttype',
                     'custrecord_an_token_bank_routingnumber',
@@ -131,7 +139,10 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 
             //when loading validate the hash and throw an alert if it's invalid
             log.debug(runtime.executionContext, context.type)
             if (runtime.executionContext === runtime.ContextType.USER_INTERFACE ) {
-
+                if (context.type === 'create' && (!context.request.parameters.entity && !context.newRecord.getValue({fieldId: 'custrecord_an_token_entity'})))
+                {
+                    throw 'You can not generate a profile / token without a customer.  Either select a customer record and create a Authorize.Net Customer Payment Profile from there, or enter one from a transaction.';
+                }
                 if (!_.includes(['delete', 'create'], context.type)) {
                     if (context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn_tampered'}) || (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))) {
                         log.error('hash mismatch!', context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
@@ -190,13 +201,39 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 
                     var o_customerData = search.lookupFields({
                         type : 'customer',
                         id : i_entity,//context.newRecord.getValue({fieldId:'custrecord_an_token_entity'}),
-                        columns : ['email', 'isperson']
+                        columns : [
+                            'email',
+                            'isperson',
+                            'firstname',
+                            'lastname',
+                            'companyname',
+                            'billaddress1',
+                            'billaddress2',
+                            'billcity',
+                            'billzipcode',
+                            'billstate',
+                            'billcountry',
+                            'billcountrycode',
+                        ]
                     });
+                    //{"email":"test@test2.com","isperson":true,"firstname":"Test","lastname":"NAME","companyname":"Test 3-","billaddress1":"123 Fraud Street","billaddress2":"Aprt Code A","billcity":"Indianapolis","billzipcode":"46201","billstate":[{"value":"IN","text":"IN"}],"billcountry":[{"value":"US","text":"United States"}],"billcountrycode":"US"}
                     if (o_customerData.email){
                         context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_email', value : o_customerData.email});
                     }
                     if (o_customerData.isperson){
                         context.newRecord.setValue({fieldId: 'custrecord_an_token_customer_type', value : 'individual'});
+                        var guessedName='';
+                        if (o_customerData.firstname)
+                        {
+                            guessedName += o_customerData.firstname;
+                        }
+                        if (o_customerData.lastname)
+                        {
+                            guessedName += ' ' + o_customerData.lastname;
+                        }
+                        log.debug('guessedName',guessedName)
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_nameonaccount', value : guessedName});
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_name_on_card', value : guessedName});
                     }
                     else
                     {
@@ -254,7 +291,6 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 
                     else
                     {
                         setCCDisplay(context);
-
                     }
                 }
                 else if (context.type === 'view'){
@@ -286,23 +322,34 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/crypto', 'N/error', 
             else if (context.type === 'create' && runtime.executionContext === runtime.ContextType.USER_INTERFACE )
             {
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
-                //todo - add config object to test auth the card and then void auth as part of the token process to ensure a valid token
-                //todo - only do this is the config is set and has value and is cc token type
+                //clean the heck out of the user entered fields
+                context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_bankname', value : _.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_bankname'}))});
+                context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_accountnumber', value :_.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_accountnumber'}))});
+                context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_nameonaccount', value :_.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_nameonaccount'}))});
+                context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_routingnumber', value :_.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_routingnumber'}))});
+
                 var o_newProfile = authNet.createNewProfile(context.newRecord, o_config);
+                //log.debug('o_newProfile', o_newProfile)
                 //this is a new in in the UI entry - so we need to generate the profile!
                 if (!o_newProfile.success){
+                    //build link to the history record for reference
+                    var historyURL = url.resolveRecord({
+                        recordType: 'customrecord_authnet_history',
+                        recordId: o_newProfile.histId,
+                        isEditMode: false
+                    });
                     var s_error = 'Unable to validate payment method - error received:<br>'+
                         'CODE : '+ o_newProfile.code + '<br>' +
-                        'MESSAGE : ' +o_newProfile.message
+                        'MESSAGE : ' +o_newProfile.message + '<br>' + 'Click <a href="'+historyURL+'" target="_blank">here</a> to view the Authorize.Net Response if you need additinal inforamtion.'
                     throw s_error;
-                    //todo - build link to the history record for reference
                 }
+                //flags this haveing used liveMode upon creation - meaning it's a "better" token
+                context.newRecord.setValue({fieldId: 'custrecord_an_token_usedlivemode', value :o_config.custrecord_an_cim_live_mode.val});
+
                 if (+context.newRecord.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 2){
                     //get the 2 custom fields and set into the real fields
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_accounttype', value : context.newRecord.getValue({fieldId: 'custpage_banktype'})});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_echecktype', value : context.newRecord.getValue({fieldId: 'custpage_achtype'})});
-                    //build the name {Card Type} (XXXX{last 4})
-
                     log.debug('ACH in UE - o_newProfile', o_newProfile);
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_customerid', value : o_newProfile.customerProfileId});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_token', value : o_newProfile.customerPaymentProfileIdList[0]});

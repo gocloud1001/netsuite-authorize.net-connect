@@ -47,6 +47,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
             'custpage_banktype',
         ];
         var a_cardFields = [
+            'custrecord_an_token_name_on_card',
             'custrecord_an_token_cardnumber',
             'custrecord_an_token_cardcode',
             'custrecord_an_token_expdate',
@@ -74,7 +75,9 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
             if (show){
                 //if we are showing bank - clear all card data
                 _.forEach(a_cardFields, function(fldName) {
-                    context.currentRecord.setValue({fieldId: fldName, value :'', ignoreFieldChange:true});
+                    if (fldName !== 'custrecord_an_token_bank_nameonaccount') {
+                        context.currentRecord.setValue({fieldId: fldName, value: '', ignoreFieldChange: true});
+                    }
                 });
             }
         }
@@ -98,7 +101,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
             if (show){
                 //if we are showing card - clear all bank data
                 _.forEach(a_bankFields, function(fldName) {
-                    if (!_.includes(['custrecord_an_token_entity_email', 'custrecord_an_token_customer_type'], fldName)) {
+                    if (!_.includes(['custrecord_an_token_entity_email', 'custrecord_an_token_customer_type', 'custrecord_an_token_bank_nameonaccount'], fldName)) {
                         context.currentRecord.setValue({fieldId: fldName, value: '', ignoreFieldChange: true});
                     }
                 });

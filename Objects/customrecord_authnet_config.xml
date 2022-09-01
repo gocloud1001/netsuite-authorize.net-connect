@@ -409,7 +409,9 @@ https://api.authorize.net/xml/v1/request.api</description>
       <encryptatrest>F</encryptatrest>
       <fieldtype>CHECKBOX</fieldtype>
       <globalsearch>F</globalsearch>
-      <help>When checked the redemption of CIM profiles (tokens) is allowed as a form of payment (i.e. PCI compliant stored cards tokenized by Authorize.Net)</help>
+      <help>As of version 3.1 - all cards entered via the UI are automatically tokenized and this is not configurable anymore.&#xd;
+&#xd;
+When checked the redemption of CIM profiles (tokens) is allowed as a form of payment (i.e. PCI compliant stored cards tokenized by Authorize.Net)</help>
       <isformula>F</isformula>
       <ismandatory>F</ismandatory>
       <isparent>F</isparent>
@@ -1143,6 +1145,49 @@ This should be a UNIQUE payment method - not &quot;Visa&quot; or &quot;MaterCard
       <sourcefrom></sourcefrom>
       <sourcelist></sourcelist>
       <storevalue>F</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_cim_live_mode">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>CHECKBOX</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help>When unchecked card requests will be sent using &quot;testMode&quot;, when checked requests will be sent using &quot;liveMode&quot;&#xd;
+&#xd;
+Here&apos;s the difference!&#xd;
+&#xd;
+Use testMode to perform a Luhn mod-10 check on the card number, without further validation. Use liveMode to submit a zero-dollar or one-cent transaction (depending on card type and processor support) to confirm the card number belongs to an active credit or debit account.</help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Use &quot;livemode&quot; for profile/token generation</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
       <subtab></subtab>
     </customrecordcustomfield>
   </customrecordcustomfields>

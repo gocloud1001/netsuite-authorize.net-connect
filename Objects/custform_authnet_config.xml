@@ -237,7 +237,7 @@
           <label>Allow Tokenization of Cards</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
+          <displayType>INLINETEXT</displayType>
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
@@ -253,6 +253,15 @@
         <field>
           <id>[scriptid=customrecord_authnet_config.custrecord_an_generate_token_pend_approv]</id>
           <label>Allow Token Generation on Pending Approval Sales Orders</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_config.custrecord_an_cim_live_mode]</id>
+          <label>Use "livemode" for profile/token generation</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
