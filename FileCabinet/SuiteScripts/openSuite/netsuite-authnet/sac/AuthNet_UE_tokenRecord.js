@@ -226,6 +226,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         ]
                     });
                     //{"email":"test@test2.com","isperson":true,"firstname":"Test","lastname":"NAME","companyname":"Test 3-","billaddress1":"123 Fraud Street","billaddress2":"Aprt Code A","billcity":"Indianapolis","billzipcode":"46201","billstate":[{"value":"IN","text":"IN"}],"billcountry":[{"value":"US","text":"United States"}],"billcountrycode":"US"}
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_billaddress_json', value : JSON.stringify(o_customerData)});
                     if (o_customerData.email){
                         context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_email', value : o_customerData.email});
                     }
@@ -349,7 +350,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     });
                     var s_error = 'Unable to validate payment method - error received:<br>'+
                         'CODE : '+ o_newProfile.code + '<br>' +
-                        'MESSAGE : ' +o_newProfile.message + '<br>' + 'Click <a href="'+historyURL+'" target="_blank">here</a> to view the Authorize.Net Response if you need additinal inforamtion.'
+                        'MESSAGE : ' +o_newProfile.message + '<br>' + 'Click <a href="'+historyURL+'" target="_blank">here</a> to view the Authorize.Net Response if you need additional information.'
                     throw s_error;
                 }
                 //flags this haveing used liveMode upon creation - meaning it's a "better" token

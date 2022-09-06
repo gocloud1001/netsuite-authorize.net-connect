@@ -191,7 +191,7 @@
         </field>
         <field>
           <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_expdate]</id>
-          <label>Expiration Date</label>
+          <label>Expiration Date (MMYY)</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
           <displayType>DISABLED</displayType>

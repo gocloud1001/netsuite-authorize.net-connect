@@ -471,6 +471,20 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         container: 'grpcim'
                     });
 
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'getBy-NSeId()',
+                        source: 'cimbynseid',
+                        container: 'grpcim'
+                    });
+                    form.addField({
+                        id: 'nseid',
+                        type: ui.FieldType.TEXT,
+                        label: 'merchantCustomerId',
+                        container: 'grpcim'
+                    });
+
                     //error log parsing / display
                     var grp_history = form.addFieldGroup({
                         id: 'grphistory',
@@ -761,6 +775,10 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                             isDynamic: true });
                         //var o_config = authNet.getActiveConfig(thisRec);
                         o_response = authNet.getCIM(thisRec, o_config2);
+                        break;
+                    case 'cimbynseid':
+                        log.debug('DEBUGGER - testing CIM lookiups', o_params.nseid);
+                        authNet.getProfileByNSeId(o_params.nseid, o_config2);
                         break;
                     case 'history':
                         //load the history record - get the JSON - reparse it to test parsing logic enhancements

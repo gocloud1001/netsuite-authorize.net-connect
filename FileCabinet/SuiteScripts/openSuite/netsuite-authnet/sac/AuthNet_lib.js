@@ -47,8 +47,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.1.6';
-
+    exports.VERSION = '3.1.7';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     //exports.TOKEN = ['cim_token'];
@@ -579,6 +578,11 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     exports.createNewProfile = function (o_profile, config) {
         log.debug('requestNewToken. building AUTH.Net', 'requestNewToken()');
         return mngCustomerProfile.createNewProfile(o_profile, config);
+    };
+
+    exports.getProfileByNSeId = function (nseid, config) {
+        log.debug('requestNewToken. building AUTH.Net', 'looking for existing profile for this customer ()');
+        return mngCustomerProfile.getProfileByNSeId(nseid, config);
     };
 
     exports.makeToken = function (o_profile, config) {
@@ -2077,24 +2081,71 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
         o_newProfileRequest.createCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         o_newProfileRequest.createCustomerProfileRequest.profile.merchantCustomerId = 'NSeId-'+o_profile.getValue({fieldId: 'custrecord_an_token_entity'});
-        var s_description = o_profile.getValue({fieldId:'custrecord_an_token_name_on_card'});
         //can we pull the customer name into o_newProfileRequest.createCustomerProfileRequest.profile.description
-        o_newProfileRequest.createCustomerProfileRequest.profile.description = (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1) ? 'CC' : 'ACH' + ' : ' + o_profile.getValue({fieldId: 'custrecord_an_token_uuid'});
+        var s_description = o_profile.getValue({fieldId:'custrecord_an_token_name_on_card'}) ? o_profile.getValue({fieldId:'custrecord_an_token_name_on_card'}) : o_profile.getValue({fieldId:'custrecord_an_token_bank_nameonaccount'});
+        if (s_description.length > 0)
+        {
+            o_newProfileRequest.createCustomerProfileRequest.profile.description = s_description + (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1 ? ' (CC' : ' (ACH' )+ ' : ' + o_profile.getValue({fieldId: 'custrecord_an_token_uuid'}) + ')';
+        }
+        else
+        {
+            o_newProfileRequest.createCustomerProfileRequest.profile.description = (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1 ? '(CC' : '(ACH' )+ ' : ' + o_profile.getValue({fieldId: 'custrecord_an_token_uuid'}) + ')';
+        }
         if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'})) {
             o_newProfileRequest.createCustomerProfileRequest.profile.email = o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'});
         }
-
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles = {};
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType = o_profile.getValue({fieldId: 'custrecord_an_token_customer_type'});
-        //todo - o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {https://developer.authorize.net/api/reference/index.html#customer-profiles-create-customer-profile}
-
+        //o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {https://developer.authorize.net/api/reference/index.html#customer-profiles-create-customer-profile}
+        if (o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}))
+        {
+            //is this JSON and can we get the billing address from it?
+            try
+            {
+                var o_customerJSON = JSON.parse(o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}));
+                var s_address = o_customerJSON.billaddress1
+                if (o_customerJSON.billaddress2)
+                {
+                    s_address += ', '+o_customerJSON.billaddress2;
+                }
+                o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {
+                    firstName : '',
+                    lastName : '',
+                    company : '',
+                    address : s_address,
+                    city : o_customerJSON.billcity,
+                    state : o_customerJSON.billstate[0] ? o_customerJSON.billstate[0].value : '',
+                    zip : o_customerJSON.billzipcode,
+                    country : o_customerJSON.billcountrycode,
+                }
+                //the fact the JSON is really just XML is annoying right here - order matters...
+                if (o_profile.getValue({fieldId: 'custrecord_an_token_customer_type'}) === 'individual')
+                {
+                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
+                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName = o_customerJSON.firstname;
+                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName = o_customerJSON.lastname;
+                }
+                else
+                {
+                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName;
+                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName;
+                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company = o_customerJSON.companyname;
+                }
+            }
+            catch (ex)
+            {
+                log.error('Unable to extract billing address', 'the CIM module was unabel to extract billing information from the customer');
+            }
+        }
         var o_paymentProfile = {};
         if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1) {
             o_paymentProfile.creditCard = {};
             o_paymentProfile.creditCard.cardNumber = o_profile.getValue({fieldId: 'custrecord_an_token_cardnumber'});
             o_paymentProfile.creditCard.expirationDate = o_profile.getValue({fieldId: 'custrecord_an_token_expdate'});
             o_paymentProfile.creditCard.cardCode = o_profile.getValue({fieldId: 'custrecord_an_token_cardcode'});
-            //todo - o_paymentProfile.validationMode = 'liveMode' or 'testMode'
+            //allow setting of an actual test of a CC when tokenizing!
+            //o_paymentProfile.validationMode = 'liveMode' or 'testMode'
+            //o_newProfileRequest.createCustomerProfileRequest.validationMode = o_ccAuthSvcConfig.custrecord_an_cim_live_mode.val ? 'liveMode' : 'testMode';
         }
         else {
             /*set these 2 only because - refunds!
@@ -2111,9 +2162,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             }
         }
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.payment = o_paymentProfile;
-        //allow setting of an actual test of a CC when tokenizing!
-        o_newProfileRequest.createCustomerProfileRequest.validationMode = o_ccAuthSvcConfig.custrecord_an_cim_live_mode.val ? 'liveMode' : 'testMode';
-
+        exports.homeSysLog('getCIM(createNewProfile) request', o_newProfileRequest);
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_cim_iscim', value: true});
         try {
@@ -2122,7 +2171,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 url: o_ccAuthSvcConfig.authSvcUrl,
                 body: JSON.stringify(o_newProfileRequest)
             });
-            log.debug('getCIM(createNewProfile) request', o_newProfileRequest);
             log.debug('getCIM(createNewProfile) response.body', response.body);
             var profileResponse = JSON.parse(response.body.replace('\uFEFF', ''));
             rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
@@ -2150,17 +2198,18 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 o_createNewProfileResponse.customerProfileId = profileResponse.customerProfileId;
                 o_createNewProfileResponse.customerPaymentProfileIdList = profileResponse.customerPaymentProfileIdList;
                 var a_response = profileResponse.validationDirectResponseList[0].split(',');
+                var accountIdx = _.findIndex(a_response, function(o) { return _.startsWith(o,'XXXX') });
                 if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1){
                     o_createNewProfileResponse.creditCard = {
-                        cardnum : a_response[50],
-                        cardtype : a_response[51],
+                        cardnum : a_response[accountIdx],
+                        cardtype : a_response[accountIdx + 1],
                     }
                 }
                 else
                 {
                     o_createNewProfileResponse.bankAccount = {
-                        accountNum : a_response[50],
-                        accountType : a_response[51],
+                        accountNum : a_response[accountIdx],
+                        accountType : a_response[accountIdx + 1],
                     }
                 }
 
@@ -2234,6 +2283,33 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         //var o_createProfileResponse = {success:true, customerProfileId:null, txn : txn};
         exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.customerProfileId = o_profile.customerProfileId;
+        try {
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: o_ccAuthSvcConfig.authSvcUrl,
+                body: JSON.stringify(exports.AuthNetGetCustomerProfileRequest)
+            });
+            exports.homeSysLog('getCIM(getCustomerProfileRequest) request', exports.AuthNetGetCustomerProfileRequest);
+            exports.homeSysLog('getCIM(getCustomerProfileRequest) response.body', response.body);
+            return  JSON.parse(response.body.replace('\uFEFF', ''));
+        } catch (e) {
+            log.error(e.name, e.message);
+            log.error(e.name, e.stack);
+            //o_createProfileResponse.success = false;
+        } finally {
+            //rec_response.save()
+        }
+    };
+
+    mngCustomerProfile.getProfileByNSeId = function(nseid, o_ccAuthSvcConfig) {
+        exports.homeSysLog('getProfileByNseId()', nseid);
+        //var o_createProfileResponse = {success:true, customerProfileId:null, txn : txn};
+        delete exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.customerProfileId;
+        //again - it's really XML inside anet - so order matters!
+        delete exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.includeIssuerInfo;
+        exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
+        exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.merchantCustomerId = nseid;
+        exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.includeIssuerInfo = true;
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},

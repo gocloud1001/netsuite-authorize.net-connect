@@ -199,7 +199,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
         }
         //this can obviously be removed - but it's nice to let us know who is installing and who is updating so we have some idea!
         //we currently do NOT do anything with this information aside from count the number of times things are happening
-        //if Cloud 1001, LLC choese to add any sort of future notification of releases or anything -
+        //if Cloud 1001, LLC chooses to add any sort of future notification of releases or anything -
         // we will provide an opt-in to this at installation time
         var o_user = runtime.getCurrentUser();
         var s_toEmail = 'Company : '+installationInfo.companyname +'<br />' +
@@ -208,9 +208,9 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             'Installed By Email : ' + o_user.email+'<br />' +
             s_notesString;
         email.send({
-            author: -5,
+            author: o_user.id,
             recipients: 'suiteauthconnect@gocloud1001.com',
-            subject: 'UPDATE SuiteAuthConnect SDF Config '+ s_oldVersionNumber + ' >> '+ authNet.VERSION,
+            subject: 'SuiteAuthConnect SDF Config '+ s_oldVersionNumber + ' >> '+ authNet.VERSION,
             body: s_toEmail
         });
     }
