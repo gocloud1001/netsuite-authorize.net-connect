@@ -3,13 +3,16 @@ NetSuite <> Authorize.Net Integration as a SDF project that runs completely insi
 
 ## READ THIS BEFORE PROCEEDING
 Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) make this as clear as we can make it - it needs to be reiterated : **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In**, because it is not allowed to, per Oracle. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.  
-Here's a checklist and grades of things it does and does not do (version 3.1):
+Here's a checklist and grades of things it does and does not do (version 3.1+):
 - [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, Shopify, WooCommerce, BigCommerce, etc* inside of NetSuite
 - [**A+**] Allows for direct processing of authorizations or authorizations+captures inside of NetSuite on the appropriate transaction type following native card processing logic
+- [**A+**] Provides VERY ROBUST batch settlement tracking and processing features making daily reconciliations and deposits simple and efficient while also making any discrepancies easy to spot and resolve
 - [**A+**] Storage of card data using Authorize.Net CIM for PCI complaint tokens - no raw card data is preserved
 - [**F**] SuiteCommerce will not work with this solution because it is not a Gateway Plugin  (*besides, you should use a decent webstore anyhow - not SuiteCommerce*)
-- [**D**] Customer Center "self pay" has not been tested, may or may not work (*it can work - but the Customer Center implementation in NetSuite itself is so poor - the user experience is horrific*)
+- [**F**] NetSuite POS will not work with this solution because it is not a Gateway Plugin  (*additionally, should you really be running a product that calls itself a POS?*)
+- [**D**] Customer Center "self pay" has not been tested end to end tested - it can work - but the Customer Center implementation in NetSuite itself is so poor - the user experience is horrific and not suggested
 - [**F**] The new(ish) "Pay Now" link functionality in NetSuite is not supported as that uses NetSuite Payment Instruments which is part of their Payment Gateway, which this is not part of
+- [**F**] Hardware integration for swipes, dips or taps is not supported becasue NetSuite is a web based platform and that's just silly to expect
 
 ## PRE-Installation
 There is a PDF in the codebase that offers additional information about prerequisite components needed in your NetSuite account to support the installation. To enable these you will need to navigate in your NetSuite account, while in the Administrator role, to Setup > Company > Enable Features >> SuiteCloud and enable the following:<br/>
@@ -52,7 +55,7 @@ Feel free to [reach out to us](https://www.gocloud1001.com "reach out to us") if
 If you need help installing, configuring or have other questions - we do provide pre-paid ad-hoc assistance for installation in [30 minute](https://calendly.com/cloud1001-andy/authorize-net-software-support-session-half-hour) and [1 hour](https://calendly.com/cloud1001-andy/authorize-net-software-support-session) blocks. We WILL NOT log into your system - these are screen share sessions where you can use the time for anything you need.
 
 ## Roadmap
-3.1 is LIVE and includes eCheck support (ACH) using Authorize.net, default payments by customer and sets the stage for "pay by link" logic to let people pay their invoices directly!
+3.1.x is LIVE and includes eCheck support (ACH) using Authorize.net, default payments by customer and sets the stage for "pay by link" logic to let people pay their invoices directly!
 
 This readme is made pretty by https://stackedit.io
 
