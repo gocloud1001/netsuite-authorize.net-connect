@@ -47,14 +47,14 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.1.7';
+    exports.VERSION = '3.1.8';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
-    //exports.TOKEN = ['cim_token'];
+    exports.SETTLEMENT = ['batchid', 'settle_amount', 'settle_date', 'settle_markettype', 'settle_status'];
     exports.CCFIELDS = ['ccnumber', 'ccexp', 'ccv'];
     exports.CCENTRY = _.concat(exports.TOKEN,exports.CCFIELDS);
     exports.CODES = ['datetime','authcode', 'refid', 'error_status', 'done'];
-    exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES);
+    exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES, exports.SETTLEMENT);
     exports.SERVICE_CREDENTIAL_FIELDS = ['custrecord_an_login', 'custrecord_an_login_sb', 'custrecord_an_trankey', 'custrecord_an_trankey_sb'];
 
     var RESPONSECODES = {
@@ -108,12 +108,6 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         }
     };
 
-    exports.AuthNetSettle = {
-        getTransactionDetailsRequest: {
-            "merchantAuthentication": {},
-            "transId": null
-        }
-    };
     //get status of transaction
     exports.AuthNetGetTxnStatus = {
         getTransactionDetailsRequest: {
@@ -148,6 +142,32 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             "includeIssuerInfo": "false"
         }
     };
+
+    var o_getSettledBatchListRequest = function(o_ccAuthSvcConfig){
+        return {
+            "getSettledBatchListRequest": {
+                "merchantAuthentication": o_ccAuthSvcConfig.auth,
+                "firstSettlementDate": '',
+                "lastSettlementDate": ''
+            }
+        }
+    }
+    var o_getTransactionListRequest = function(o_ccAuthSvcConfig){
+        return {
+            "getTransactionListRequest": {
+                "merchantAuthentication": o_ccAuthSvcConfig.auth,
+                "batchId" : "",
+                "sorting": {
+                    "orderBy": "submitTimeUTC",
+                    "orderDescending": "true"
+                },
+                "paging": {
+                    "limit": "100",
+                    "offset": "1"
+                }
+            }
+        }
+    }
 
     exports.normalizeRecType = function(type){
         //the keys are the "type" values returned when searching for a transaction
@@ -615,6 +635,17 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             return false;
         });
         return config;
+    };
+
+    exports.getSettledBatchListRequest = function (d_start, d_end) {
+        log.debug('getSettledBatchListRequest. 3rd Party Status Call', 'getSettledBatchListRequest()');
+        var o_ccAuthSvcConfig = this.getConfigFromCache();
+        return getSettledBatchListRequest(o_ccAuthSvcConfig, d_start, d_end);
+    };
+    exports.getTransactionListRequest = function (batchId) {
+        log.debug('getTransactionListRequest. 3rd Party Status Call', 'getTransactionListRequest()');
+        var o_ccAuthSvcConfig = this.getConfigFromCache();
+        return getTransactionListRequest(o_ccAuthSvcConfig, batchId);
     };
 
 
@@ -1223,6 +1254,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
             exports.homeSysLog('getTxnStatus response.body', response.body);
             var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
             if (o_body.transaction){
+                rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(o_body.transaction)});
                 if (+o_body.transaction.responseCode === 1){
                     rec_response.setValue({fieldId: 'custrecord_an_response_status', value : 'Ok'});
                 } else {
@@ -1240,6 +1272,31 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 rec_response.setValue({fieldId: 'custrecord_an_response_message', value : o_body.transaction.transactionStatus });
                 rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value : o_body.transaction.responseReasonDescription });
                 rec_response.setValue({fieldId: 'custrecord_an_refid', value : o_body.refId});
+
+                if (o_body.transaction.payment.creditCard) {
+                    rec_response.setValue({
+                        fieldId: 'custrecord_an_card_type',
+                        value: o_body.transaction.payment.creditCard.cardType
+                    });
+                    rec_response.setValue({
+                        fieldId: 'custrecord_an_cardnum',
+                        value: o_body.transaction.payment.creditCard.cardNumber
+                    });
+                }
+                else if (o_body.transaction.payment.bankAccount)
+                {
+                    rec_response.setValue({
+                        fieldId: 'custrecord_an_card_type',
+                        value: o_body.transaction.payment.bankAccount.accountType
+                    });
+                    rec_response.setValue({
+                        fieldId: 'custrecord_an_cardnum',
+                        value: o_body.transaction.payment.bankAccount.accountNumber
+                    });
+                }
+                rec_response.setValue({fieldId: 'custrecord_an_reqrefid', value: o_body.transrefId});
+
+
             } else {
                 if (o_body.messages) {
                     rec_response.setValue({fieldId: 'custrecord_an_response_status', value: o_body.messages.resultCode});
@@ -1914,7 +1971,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     callSettlement[1] = function(txn, o_ccAuthSvcConfig) {
         log.audit('STARTING - callSettlement[1]', txn.getValue({fieldId: 'tranid'}));
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
-        exports.AuthNetSettle.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
+        exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
 
         /**
          * Inside NetSuite Integration TIP
@@ -1932,16 +1989,16 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
 
         //because we use different fields - this needs to happen
         if (txn.type === 'cashrefund'){
-            exports.AuthNetSettle.getTransactionDetailsRequest.transId = txn.getValue({fieldId: 'custbody_authnet_refunded_tran'}) ? txn.getValue({fieldId: 'custbody_authnet_refunded_tran'}) : (txn.getValue({fieldId: 'custbody_magento_transid'}) ? txn.getValue({fieldId: 'custbody_magento_transid'}) : txn.getValue({fieldId: 'custbody_authnet_refid'}));
+            exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.transId = txn.getValue({fieldId: 'custbody_authnet_refunded_tran'}) ? txn.getValue({fieldId: 'custbody_authnet_refunded_tran'}) : (txn.getValue({fieldId: 'custbody_magento_transid'}) ? txn.getValue({fieldId: 'custbody_magento_transid'}) : txn.getValue({fieldId: 'custbody_authnet_refid'}));
         } else {
-            exports.AuthNetSettle.getTransactionDetailsRequest.transId = txn.getValue({fieldId: 'custbody_authnet_refid'});
+            exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.transId = txn.getValue({fieldId: 'custbody_authnet_refid'});
         }
 
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
                 url: authSvcUrl,
-                body: JSON.stringify(exports.AuthNetSettle)
+                body: JSON.stringify(exports.AuthNetGetTxnStatus)
             });
 
             var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
@@ -2045,7 +2102,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                     }
                 } else {
                     //deal with the error here
-                    rec_response.setValue({fieldId: 'custrecord_an_refid', value: exports.AuthNetSettle.getTransactionDetailsRequest.transId});
+                    rec_response.setValue({fieldId: 'custrecord_an_refid', value: exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.transId});
                     rec_response.setValue({fieldId: 'custrecord_an_response_status', value: o_body.messages.resultCode});
                     txn.setValue({
                         fieldId: 'custbody_authnet_settle_status',
@@ -2442,8 +2499,71 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
         return o_profileResponse;
     };
 
+    //Settlement Tools
+    var getSettledBatchListRequest = function(o_ccAuthSvcConfig, start, end){
+        var o_summaryStatus = {};
+        var o_request = o_getSettledBatchListRequest(o_ccAuthSvcConfig);
+        o_request.getSettledBatchListRequest.firstSettlementDate = moment(start).format('YYYY-MM-DDT00:00:00Z');
+        o_request.getSettledBatchListRequest.lastSettlementDate= moment(end).format('YYYY-MM-DDT00:00:00Z');
+        log.debug('getSettledBatchListRequest request', o_request);
+        try {
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: o_ccAuthSvcConfig.authSvcUrl,
+                body: JSON.stringify(o_request)
+            });
 
-return exports;
+            log.debug('getSettledBatchListRequest response.body', response.body);
+            var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
+            //log.debug('getSettledBatchListRequest o_body', o_body)
+            if (o_body.batchList){
+                o_summaryStatus.fullResponse = o_body;
+            } else {
+                if (o_body.messages){
+                    if (o_body.messages.resultCode === 'Error'){
+                        o_summaryStatus.error = true;
+                        o_summaryStatus.message = o_body.messages.message[0].text;
+                    }
+                }
+            }
+        } catch (e) {
+            log.error(e);
+        } finally {
+
+        }
+        return o_summaryStatus;
+    };
+
+    var getTransactionListRequest = function(o_ccAuthSvcConfig, batchId){
+            var o_summaryStatus = {};
+
+            var o_request = o_getTransactionListRequest(o_ccAuthSvcConfig);
+            o_request.getTransactionListRequest.batchId = batchId;
+
+            log.debug('getTransactionListRequest request', o_request);
+            try {
+                var response = https.post({
+                    headers: {'Content-Type': 'application/json'},
+                    url: o_ccAuthSvcConfig.authSvcUrl,
+                    body: JSON.stringify(o_request)
+                });
+                log.debug('getTransactionListRequest response.body', response.body);
+                var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
+                if (o_body.transactions){
+                    o_summaryStatus.fullResponse = o_body;
+                } else {
+                }
+            } catch (e) {
+                log.error(e);
+            } finally {
+
+            }
+            return o_summaryStatus;
+        }
+
+
+
+        return exports;
 });
 
 

@@ -433,8 +433,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     }
 
                 }
-                else if (context.type === context.UserEventType.CREATE && context.newRecord.type === 'cashrefund')
+                else if (context.type === context.UserEventType.CREATE && context.newRecord.type === 'cashrefund' && (!context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || context.newRecord.getValue({fieldId :'custbody_authnet_override'})))
                 {
+                    log.audit('Skipping cashrefund', 'Not authnet or overriden!')
                     //added explicitly to control the UI fields o nthe cash refund becasue it may NOT know it's from an AuthNet history
                     _.forEach(authNet.CCENTRY, function (fd) {
                         var fld = 'custbody_authnet_' + fd;
@@ -450,10 +451,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 }
                 else if (context.type === context.UserEventType.CREATE && context.newRecord.getValue({fieldId :'custbody_authnet_use'}) && !context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
                 {
-                    //ENSURE the response fields are hiddne on a create since they would be enpty
+                    //ENSURE the response fields are hidden on a create since they would be empty
                     log.debug(context.newRecord.type + ' doing a CREATE here', 'from: ' + context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
-                    //should be cleared
-                    context.newRecord.setValue({fieldId :'custbody_authnet_datetime', value :''});
                     //should be disabled
                     var setFields = (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})) ? ui.FieldDisplayType.DISABLED : ui.FieldDisplayType.HIDDEN;
                     //get values for doing work
@@ -466,6 +465,16 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             });
                         } catch (e){
                             log.error('MISSING A CODE FIELD!', fld)
+                        }
+                    });
+                    //should be cleared
+                    context.newRecord.setValue({fieldId :'custbody_authnet_datetime', value :''});
+                    _.forEach(authNet.SETTLEMENT, function (fd) {
+                        var fld = 'custbody_authnet_' + fd;
+                        try {
+                            context.newRecord.setValue({fieldId :fld, value :''});
+                        } catch (e){
+                            log.error('MISSING A SETTLEMENT FIELD!', fld)
                         }
                     });
 
@@ -486,11 +495,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             //two options - 1 - cash nad cary - single auth net transaction OR from a SO
                             if (i_createdfrom ){
                                 log.debug('cash sale', 'created from ' + i_createdfrom)
-
                                 //todo - add support for a config option allowing MULTIPLE cash sales - each subsequent one a auth/capture off token or card
-
-
-
                                 if (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})){
                                     form.getField({id: 'custbody_authnet_use'}).updateDisplayType({
                                         displayType: ui.FieldDisplayType.DISABLED
@@ -863,7 +868,12 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_authcode', value: context.newRecord.getValue({fieldId: 'custbody_authnet_authcode'})});
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_datetime', value: moment(context.newRecord.getValue({fieldId: 'custbody_authnet_datetime'})).toDate()});
                                                         rec_deposit.setValue({fieldId:'memo', value: 'WebStore Auth+Capture Deposit'});
-                                                        rec_deposit.save();
+                                                        var i_depositId = rec_deposit.save();
+                                                        authNet.getStatus(record.load({
+                                                            type: record.Type.CUSTOMER_DEPOSIT,
+                                                            id: i_depositId,
+                                                            isDynamic: true,
+                                                        }));
                                                     }
                                                     else if (o_status.transactionStatus === 'authorizedPendingCapture')
                                                     {

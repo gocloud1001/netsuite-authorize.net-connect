@@ -15,5 +15,11 @@
       <linktasktype>SRCH_RSLT</linktasktype>
       <shortlist>F</shortlist>
     </link>
+    <link>
+      <linklabel>Authorize.Net Batch Settlement Reconciliation Tool</linklabel>
+      <linkobject>[scriptid=customscript_sac_sl2_settlement_tools.customdeploy_sac_sl2_settlement_tools]</linkobject>
+      <linktasktype>SCRIPT</linktasktype>
+      <shortlist>F</shortlist>
+    </link>
   </links>
 </centercategory>

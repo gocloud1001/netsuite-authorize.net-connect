@@ -608,12 +608,13 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             if (_.includes(['salesorder', 'customerdeposit','customerpayment'],context.currentRecord.type) ||
                 (context.currentRecord.type === 'cashsale' && !context.currentRecord.getValue({fieldId: 'createdfrom'})) ) {
                 if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && !context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})) {
-                    //b_canSave = isReady(context.currentRecord);
-                    b_canSave = false;
-                    if (window.confirm("Some Authorize.Net information appears missing on this transaction (no token is found).  Do you want to attempt to save and see if the missing data can be located for you?"))
-                    {
-                        b_canSave = true;
-                        console.log('Overridden? '+ b_canSave);
+                    if (context.mode === 'create') {
+                        //b_canSave = isReady(context.currentRecord);
+                        b_canSave = false;
+                        if (window.confirm("Some Authorize.Net information appears missing on this transaction (no token is found).  Do you want to attempt to save and see if the missing data can be located for you?  If you are creating a new transaction - you will want to verify the authorize.net charge was successful after you save")) {
+                            b_canSave = true;
+                            console.log('Overridden? ' + b_canSave);
+                        }
                     }
                 }
             }
