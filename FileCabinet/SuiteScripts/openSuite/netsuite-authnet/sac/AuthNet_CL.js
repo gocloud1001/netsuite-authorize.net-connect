@@ -89,8 +89,15 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             catch (e)
             {
                 log.error(e.name, e.message);
+                if(e.name === 'INSUFFICIENT_PERMISSION')
+                {
+                    alert('Unable to retrieve customer CIM profiles / card tokens : '+e.message);
+                }
+                else
+                {
+                    alert('Unable to retrieve customer CIM profiles / card tokens - this is an error.');
+                }
                 //log.error(e.name, e.stack);
-                alert('Unable to retrieve customer CIM profiles / card tokens - this is an error.');
             }
         }
 

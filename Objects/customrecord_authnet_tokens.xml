@@ -1,5 +1,5 @@
 <customrecordtype scriptid="customrecord_authnet_tokens">
-  <accesstype>CUSTRECORDENTRYPERM</accesstype>
+  <accesstype>NONENEEDED</accesstype>
   <allowattachments>F</allowattachments>
   <allowinlinedeleting>F</allowinlinedeleting>
   <allowinlinedetaching>T</allowinlinedetaching>
@@ -9,7 +9,6 @@
   <allowquickadd>F</allowquickadd>
   <allowquicksearch>F</allowquicksearch>
   <allowuiaccess>T</allowuiaccess>
-  <customsegment></customsegment>
   <description></description>
   <enabledle>F</enabledle>
   <enablekeywords>F</enablekeywords>

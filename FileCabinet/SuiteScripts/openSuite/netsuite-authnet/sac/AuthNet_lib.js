@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.1.9';
+    exports.VERSION = '3.1.10';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.SETTLEMENT = ['batchid', 'settle_amount', 'settle_date', 'settle_markettype', 'settle_status'];
@@ -350,7 +350,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
     exports.parseHistory = function (txnid, txntype) {
         var o_parsedHistory = {isValid : false, status : 'ERROR', message : ''};
         //would be undefined on a create that triggers this due to logic issue or on a copy or the transformation where there is no history but the record has some field set indicating there MIGHT be history
-        this.homeSysLog(txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype));
+        this.homeSysLog('parseHistory() '+txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype));
         if (_.isNull(txnid) || _.isNull(txntype)){
             o_parsedHistory.isValid = true;
             o_parsedHistory.status = 'OK';
@@ -1073,7 +1073,7 @@ define(["require", "exports", 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 
                 'name': txn.getSublistText({sublistId: 'item', fieldId: 'item', line: i}).substring(0, 29),
                 'description': s_description,
                 'quantity': s_lineQuantity,
-                'unitPrice': Math.abs(unitPrice).toString(),
+                'unitPrice': Math.abs(unitPrice).toFixed(2),
                 'taxable': b_taxableItem
             };
             request.lineItems.lineItem.push(obj);

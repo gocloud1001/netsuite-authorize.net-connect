@@ -274,8 +274,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 if (b_hasToken && thisRecord.getValue('orderstatus') === 'A') {
                                     //there's no error - theres a token and it's not been run, so no response failure
                                     b_responseFailure = false;
+                                    log.audit('This Transaction is Pending Approval', 'Displayign any error has been supressed becasue this is not done yet!');
                                 }
-                                if ((b_responseFailure && thisRecord.getValue({fieldId: 'paymentmethod'}) === o_config2.custrecord_an_paymentmethod.val)) {
+                                if ((b_responseFailure && thisRecord.getValue({fieldId: 'paymentmethod'}) === o_config2.custrecord_an_paymentmethod.val))
+                                {
                                     context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: false});
                                     //context.newRecord.setValue({fieldId :'memo', value :'hi there - big time'});
                                     s_field = s_field.replace(/%TYPE%/g, 'error');
@@ -296,7 +298,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     form.removeButton({id: 'nextbill'});
                                     form.removeButton({id: 'billremaining'});
                                     //todo - remove cancel call to auth net if no auth
-                                } else if (!_.isEmpty(thisRecord.getValue('custbody_authnet_authcode'))) {
+                                }
+                                else if (!_.isEmpty(thisRecord.getValue('custbody_authnet_authcode')))
+                                {
                                     form.removeButton({id: 'void'});
                                     //dont let people uncheck the check mark now!
                                     try {
@@ -815,7 +819,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 switch (context.newRecord.type) {
                     case 'salesorder':
                         var thisRec;
-                        if (context.type === context.UserEventType.CANCEL) {
+                        if (context.type === context.UserEventType.CANCEL)
+                        {
                             var txn = record.load({
                                 type: record.Type.SALES_ORDER,
                                 id: context.newRecord.id,
@@ -831,7 +836,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     thisRec.save({ignoreMandatoryFields : true});
                                 }
                             }
-                        } else {
+                        }
+                        else
+                        {
                             //EXTERNAL AUTH LOGIC HERE
                             //log.debug(o_config2.custrecord_an_external_auth_allowed.val, context.newRecord.getValue(o_config2.custrecord_an_external_fieldid.val))
                             if (context.type === context.UserEventType.CREATE && o_config2.custrecord_an_external_auth_allowed.val && !_.isEmpty(context.newRecord.getValue(o_config2.custrecord_an_external_fieldid.val)))
@@ -908,12 +915,21 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             else
                             {
                                 //INTERNAL AUTH HERE
-                                //TODO - kill payment method completly and set a field on the client
-                                //var b_isTokenized = (context.newRecord.getValue('custbody_token_instant_auth') && +context.newRecord.getValue('custbody_authnet_cim_token') !== 0 );
+                                //todo - explore holding the actual auth attempt until transaction approval
+                                log.debug('status old and new', s_oldStatus + ' : ' + s_newStatus);
+
+                                //added to support "Perform Authorization On Approval of Sales Order Not Create/Save"
+                                //is this pending approval orderstatus === 'A', and if it is and the
+                                if (s_newStatus === 'A' && o_config2.custrecord_an_auth_so_on_approval.val && context.type !== context.UserEventType.APPROVE)
+                                {
+                                    log.audit('This Sales Order was not authorized yet', 'The setting "Perform Authorization On Approval of Sales Order Not Create/Save" is enabled - so this order will be processed upon approval');
+                                    return;
+                                }
+
                                 var b_isTokenized = (_.toInteger(context.newRecord.getValue({fieldId :'custbody_authnet_cim_token'})) !== 0);
                                 var pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testSO(context.newRecord);
                                 if (pluginResult.process) {
-                                //if (pluginResult.process || b_isTokenized  ) {
+
                                     //if there was a cc number, its auth.net and it's not already approved, let's do it!
                                     thisRec = authNet.getAuth(context.newRecord);
                                     //thisRec.setValue('custbody_token_instant_auth', false);

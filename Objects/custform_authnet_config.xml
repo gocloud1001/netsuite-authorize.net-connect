@@ -270,6 +270,23 @@
         </field>
       </fields>
     </fieldGroup>
+    <fieldGroup scriptid="fieldgroup_10_7568601_sb1_268">
+      <label>Special NetSuite Processing Options</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>[scriptid=customrecord_authnet_config.custrecord_an_auth_so_on_approval]</id>
+          <label>	Perform Authorization On Approval of Sales Order Not Create/Save</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
     <fieldGroup scriptid="fieldgroup_124_t1273352_950">
       <label>External Integration (Allow Non-NetSuite / External Authorizations)</label>
       <visible>T</visible>
