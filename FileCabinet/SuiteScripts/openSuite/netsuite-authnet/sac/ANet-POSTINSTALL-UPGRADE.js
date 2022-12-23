@@ -95,8 +95,8 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             //won't use config JSON
             var a_filters = [
                 ['isinactive', 'is', 'F'],
-                "AND",
-                ['custrecord_an_all_sub', 'is', 'T']
+                //"AND",
+                //['custrecord_an_all_sub', 'is', 'T']
             ];
             var authnetconfig = search.create({
                 type: 'customrecord_authnet_config',
@@ -141,10 +141,6 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 }
             }
             o_configRecord.setValue({fieldId : 'custrecord_an_version', value: authNet.VERSION});
-            //todo for multi sub
-            if (!o_configRecord.getValue({fieldId : 'custrecord_an_all_sub'})){
-                o_configRecord.setValue({fieldId : 'custrecord_an_all_sub', value: true});
-            }
             try {
                 if (!o_configRecord.getValue({fieldId: 'custrecord_an_instanceid'})) {
                     o_configRecord.setValue({fieldId: 'custrecord_an_instanceid', value: companyInfo.getValue({ fieldId: 'companyid' })});
@@ -170,6 +166,11 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 if (!o_configRecord.getValue({fieldId: 'custrecord_an_paymentmethod_echeck'})) {
                     o_configRecord.setValue({fieldId: 'custrecord_an_paymentmethod_echeck', value: i_achMethod});
                 }
+            } catch (ex){
+                s_notesString += ex.name + ' : ' + ex.message + '<br>';
+            }
+            try {
+                o_configRecord.setValue({fieldId: 'custrecord_an_show_versions', value: true});
             } catch (ex){
                 s_notesString += ex.name + ' : ' + ex.message + '<br>';
             }

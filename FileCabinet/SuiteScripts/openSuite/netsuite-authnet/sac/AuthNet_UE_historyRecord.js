@@ -70,7 +70,16 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                         var o_heldStatus = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custrecord_an_refid'}));
                         log.debug('o_heldStatus', o_heldStatus);
 
-                        if (o_heldStatus.fullResponse.FDSFilterAction)
+                        if (o_heldStatus.transactionStatus === 'declined')
+                        {
+                            var s_txnName = context.newRecord.getText({fieldId:'custrecord_an_txn'});
+                            form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: s_txnName.length > 1 ? s_txnName + ' was declined' : 'The original transaction was declined and then deleted',
+                                message: o_heldStatus.fullResponse.responseReasonDescription,
+                            });
+                        }
+                        else if (o_heldStatus.fullResponse.FDSFilterAction)
                         {
                             var s_message = '<ul>';
                             s_message += '<li style="list-style-type: circle;">AVS Message: '+context.newRecord.getValue({fieldId: 'custrecord_an_avs_status'})+'</li>';
@@ -84,16 +93,17 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                             form.addPageInitMessage({
                                 type: message.Type.WARNING,
                                 title: 'This '+context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) + ' has been Held For Review ',
-                                message: s_message,
+                                message: s_message + '<br/><br/>Additional details can be found in your Authorize.Net portal using the transaction id below.',
                             });
+                            var s_txnType = context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'authOnlyTransaction' ? 'Authorization' : 'Authorization & Capture';
                             form.addButton({
                                 id: 'custpage_approveauth',
-                                label: 'Approve Authorization',
+                                label: 'Approve '+s_txnType,
                                 functionName: 'doApprove'
                             });
                             form.addButton({
                                 id: 'custpage_declineauth',
-                                label: 'Decline Authorization',
+                                label: 'Decline '+s_txnType,
                                 functionName: 'doDecline'
                             });
 

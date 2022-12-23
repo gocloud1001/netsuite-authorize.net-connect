@@ -129,6 +129,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 break;
                             case 'cashrefund':
                             case 'depositapplication':
+                            case 'creditmemo':
                                 log.debug('object o_anResponse', o_anResponse);
                                 var error_string = '';
                                 if (o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})){
@@ -238,28 +239,193 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     context.response.write(JSON.stringify(o_parsed))
                     //call the auth to see if we can void it
                 }
+                else if (o_params.updatetokenpaymenttype)
+                {
+                    task.create({
+                        taskType: task.TaskType.MAP_REDUCE,
+                        deploymentId: 'customdeploy_sac_update_profiles_up',
+                        scriptId: 'customscript_sac_update_profiles'
+                    }).submit();
+                    context.response.write('The proces to upgrade your payment tokens to this version is currently runningi n the background.  It will take as long as it takes - based on the number of tokens you have and how fast your instance of NetSuite is based on time of day and system load.  ' +
+                        '<p>You WILL NOT be able to enable multi-subsidary functionality until this process has completed.</p>'+
+                        '<p>Processing status will be shown on the configuration record</p>'
+                    );
+                }
                 else if (o_params.debugger === 'totallytrue')
                 {
-                    ///app/site/hosting/scriptlet.nl?script=632&deploy=1&debugger=totallytrue
+                    log.debug('TESTING TOOL PARAMS', o_params);
                     var form = ui.createForm({
                         title: 'CLOUD 1001, LLC Authorize.Net Platform Debugger - USE AT YOUR OWN PERIL!',
                         hideNavBar : false
                     });
+                    form.clientScriptModulePath = './AuthNet_unitTests_CL2.js';
+                    var rawConfig = form.addField({
+                        id: 'custpage_rawconfig',
+                        type: ui.FieldType.LONGTEXT,
+                        label: 'custpage_rawconfig',
+                    }).defaultValue = JSON.stringify(o_config2);
+                    var o_subConfig = o_config2;
+                    var currentConfig = form.addField({
+                        id: 'custpage_currentconfig',
+                        type: ui.FieldType.LONGTEXT,
+                        label: 'Current Config',
+                    }).defaultValue = '{}';
+                    //cache management
+                    var grp_cache = form.addFieldGroup({
+                    id: 'grpcache',
+                    label: 'Cache Management'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'Purge the Cache',
+                        source: 'purgecache',
+                        container: 'grpcache'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'View Current Cache',
+                        source: 'viewcache',
+                        container: 'grpcache'
+                    });
 
+                    //now deal with the subsidiary logic here for all subsequent tests
+                    var grp_subs = form.addFieldGroup({
+                        id: 'grpsubs',
+                        label: 'Configuration Management (Subsidiary / Multi-Gateway)'
+                    });
+                    var sel_configs;
+                    if (o_config2.mode === 'subsidiary')
+                    {
+                        sel_configs = form.addField({
+                            id: 'custpage_configrec',
+                            type: ui.FieldType.SELECT,
+                            label: 'Subsidiary Gateway To Use',
+                            source: 'customrecord_authnet_config_subsidiary',
+                            container: 'grpsubs'
+                        });
+                        sel_configs.isMandatory = true;
+                        if (o_params.sub === 'true' && o_params.config)
+                        {
+                            log.debug('setting the sub config', o_params.config);
+                            sel_configs.defaultValue = o_params.config;
+                            var o_sub = search.lookupFields({
+                                type:'customrecord_authnet_config_subsidiary',
+                                id : o_params.config,
+                                columns : 'custrecord_ancs_subsidiary'
+                            });
+                            o_subConfig = o_config2.subs['subid' + o_sub.custrecord_ancs_subsidiary[0].value];
+                            currentConfig.defaultValue = JSON.stringify(o_subConfig)
+                        }
+                        form.addField({
+                            id: 'custpage_sub_note',
+                            label: 'NOTE : The customer, token and item selected in any test must be accessible to the subsidiary ' +
+                                'selected in this gateway.  There is no validation in this tool to ensure that selection or limit ' +
+                                'results.  If you make bad choices there will be bad consequences.',
+                            type: ui.FieldType.HELP,
+                            container: 'grpsubs'
+                        });
+                    }
+                    else
+                    {
+                        sel_configs = form.addField({
+                            id: 'custpage_configrec',
+                            type: ui.FieldType.SELECT,
+                            label: 'Gateway To Use',
+                            source: 'customrecord_authnet_config',
+                            container: 'grpsubs'
+                        });
+                        sel_configs.updateDisplayType({
+                            displayType: ui.FieldDisplayType.INLINE
+                        });
+                        if (o_params.config)
+                        {
+                            sel_configs.defaultValue = o_params.config;
+                        }
+                        currentConfig.defaultValue = JSON.stringify(o_config2);
+                    }
                     //generic for all tests
                     var generic = form.addFieldGroup({
                         id: 'grpgeneric',
                         label: 'Fields all tests might use'
                     });
+                    form.addField({
+                        id: 'custpage_guidance',
+                        label: 'Here you may select a customer, a token and an item - where it will be used to generate a ' +
+                            'test transaction of the type selected using Authorize.Net.  note - if you are in production and have production enabled ' +
+                            'the test will attempt to use the production gateway.',
+                        type: ui.FieldType.HELP,
+                        container: 'grpgeneric'
+                    });
                     var customer = form.addField({
-                        id: 'custid',
+                        id: 'customer',
                         type: ui.FieldType.SELECT,
                         source : 'customer',
                         label: 'Customer',
                         container: 'grpgeneric'
                     });
+                    var fld_token = form.addField({
+                        id: 'token',
+                        type: ui.FieldType.SELECT,
+                        label: 'CIM Profile / Token',
+                        container: 'grpgeneric'
+                    });
+                    var item = form.addField({
+                        id: 'item',
+                        type: ui.FieldType.SELECT,
+                        source : 'item',
+                        label: 'Item',
+                        container: 'grpgeneric'
+                    });
+                    if (o_params.customer)
+                    {
+                        customer.defaultValue = o_params.customer;
+                        //now build the token choices for the customer
+                        var a_filters = [
+                            ['custrecord_an_token_entity', search.Operator.ANYOF, o_params.customer],
+                            "AND",
+                            ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, false],
+                            "AND",
+                            ['isinactive', search.Operator.IS, false],
+                            "AND",
+                            ['custrecord_an_token_token', 'isnotempty', ''],
+                        ];
+                        if (o_subConfig.isSubConfig) {
+                            a_filters.push("AND");
+                            a_filters.push(['custrecord_an_token_gateway', search.Operator.ANYOF, o_subConfig.masterid.toString()]);
+                            a_filters.push("AND");
+                            a_filters.push(['custrecord_an_token_gateway_sub', search.Operator.ANYOF, o_subConfig.configid.toString()]);
+                            a_filters.push("AND");
+                            a_filters.push(['custrecord_an_token_subsidiary', search.Operator.ANYOF, o_subConfig.subid.toString()]);
+                        } else {
+                            a_filters.push("AND");
+                            a_filters.push(['custrecord_an_token_gateway', search.Operator.ANYOF, o_subConfig.id.toString()]);
+                        }
+                        log.debug('token search filters', a_filters);
+                        fld_token.addSelectOption({
+                            value: '',
+                            text: ''
+                        });
+                        search.create({
+                            type: 'customrecord_authnet_tokens',
+                            filters: a_filters,
+                            columns: [
+                                'name',
+                                'custrecord_an_token_default'
+                            ]
+                        }).run().each(function (result) {
+                            log.debug('token result', result);
+                            fld_token.addSelectOption({
+                                value: result.id,
+                                text: result.getValue('name') + (result.getValue('custrecord_an_token_default') === true ? ' (Default)' : '')
+                            });
+                            return true;
+                        });
+                    }
+
                     //customer.defaultValue = '1647';
-                    form.addField({
+                    /*form.addField({
                         id: 'txnid',
                         type: ui.FieldType.TEXT,
                         label: 'Internal ID of Transaction',
@@ -305,7 +471,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         type: ui.FieldType.TEXT,
                         label: 'InternalId of Token Record',
                         container: 'grpgeneric'
-                    });
+                    });*/
 
                     form.addField({
                         id: 'billzip',
@@ -314,15 +480,15 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         container: 'grpgeneric'
                     });
                     form.addField({
-                        id: 'extrafields',
-                        type: ui.FieldType.TEXT,
-                        label: 'Array of field key : value pairs',
+                        id: 'linejson',
+                        type: ui.FieldType.TEXTAREA,
+                        label: 'Added JSON Payload (Line)',
                         container: 'grpgeneric'
                     });
                     form.addField({
                         id: 'orderjson',
                         type: ui.FieldType.TEXTAREA,
-                        label: 'Fake Order Body JSON',
+                        label: 'Added JSON Payload (Body)',
                         container: 'grpgeneric'
                     });
 
@@ -332,7 +498,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         id: 'grpunit',
                         label: 'Some Unit Testing'
                     });
-                    form.addField({
+                    /*form.addField({
                         id: 'custpage_test',
                         type: ui.FieldType.RADIO,
                         label: 'AUTH.useFakeOrderBodyJSON()',
@@ -345,20 +511,286 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'AUTHCAP.useFakeOrderBodyJSON()',
                         source: 'fakeauthcapso',
                         container: 'grpunit'
-                    });
+                    });*/
 
                     //auth - UI
                     var grp_authin = form.addFieldGroup({
                         id: 'grpauthin',
-                        label: 'Create internal auth (SO)'
+                        label: 'Test Auth (Builds SO)'
                     });
                     form.addField({
                         id: 'custpage_test',
                         type: ui.FieldType.RADIO,
-                        label: 'getAuth()',
+                        label: 'makeSO().getAuth()',
                         source: 'makeso',
                         container: 'grpauthin'
                     });
+
+                    //capture off so
+                    var grp_capture = form.addFieldGroup({
+                        id: 'grpcapture',
+                        label: 'Test Capture Off SO (Builds SO --> CS)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'makeSO() then makeCashSale().priorAuthCapture()',
+                        source: 'captureoffso',
+                        container: 'grpcapture'
+                    });
+                    /*form.addField({
+                        id: 'sotocsid',
+                        type: ui.FieldType.TEXT,
+                        label: 'SO Internal ID to capture!',
+                        container: 'grpcapture'
+                    });*/
+
+                    //deposit capture
+                    var grp_depositcapture = form.addFieldGroup({
+                        id: 'grpdepositcapture',
+                        label: 'Make SO and Customer Deposit (SO --> Customer Deposit)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'makeSO() then makeDeposit().authCapture()',
+                        source: 'makedeposit',
+                        container: 'grpdepositcapture'
+                    });
+
+                    //direct capture
+                    var grp_directcapture = form.addFieldGroup({
+                        id: 'grpdircapture',
+                        label: 'Test Auth + Capture (Builds standalone CS)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'makeCashSale().authCapture()',
+                        source: 'makecs',
+                        container: 'grpdircapture'
+                    });
+
+                    var grp_custpayment = form.addFieldGroup({
+                        id: 'grppaymentcapture',
+                        label: 'Make Invoice and Customer Payment (INV --> Customer Payment)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'makeInvoice() then makePayment().authCapture()',
+                        source: 'makepayment',
+                        container: 'grppaymentcapture'
+                    });
+
+                    form.addField({
+                        id: 'custpage_numpmt',
+                        type: ui.FieldType.INTEGER,
+                        label: 'Number of Payments to generate for invoice',
+                        container: 'grppaymentcapture'
+                    }).defaultValue = 1;
+
+                    var grp_cashrefund = form.addFieldGroup({
+                        id: 'grpcashrefund',
+                        label: 'Issue Cash Refund (Refunds Cash Sale)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'issueCashRefund()',
+                        source: 'cashrefund',
+                        container: 'grpcashrefund'
+                    });
+
+                    var fld_csToRefund = form.addField({
+                        id: 'custpage_cstorefund',
+                        type: ui.FieldType.SELECT,
+                        label: 'Cash Sale To Refund',
+                        container: 'grpcashrefund'
+                    });
+                    if (o_params.customer)
+                    {
+
+                        fld_csToRefund.addSelectOption({
+                            value: '',
+                            text: ''
+                        });
+                        search.create({
+                            type: 'cashsale',
+                            filters: [
+                                ['mainline', search.Operator.IS, true],
+                                "AND",
+                                ['custbody_authnet_use', search.Operator.IS, true],
+                                "AND",
+                                ['custbody_authnet_refid', search.Operator.ISNOTEMPTY,''],
+                                "AND",
+                                ['entity', search.Operator.ANYOF, o_params.customer],
+                                "AND",
+                                ['status', search.Operator.ANYOF, ["CashSale:B", "CashSale:C"]],
+                            ],
+                            columns: [
+                                'tranid',
+                                'amount',
+                                'applyingtransaction'
+                            ]
+                        }).run().each(function (result) {
+                            //log.debug('cashsale result', result);
+                            if (!result.getValue('applyingtransaction')) {
+                                //we dont want any that may have been refunded already to mess with - this is a unit test, remember
+                                fld_csToRefund.addSelectOption({
+                                    value: result.id,
+                                    text: '#' + result.getValue('tranid') + ' ($' + result.getValue('amount') + ')'
+                                });
+                            }
+                            return true;
+                        });
+                    }
+
+                    //Issue customer refund off deposit
+                    form.addFieldGroup({
+                        id: 'custref_deposit',
+                        label: 'Issue Customer Refund (Refund Deposit)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'issueRefund()',
+                        source: 'custref_deposit',
+                        container: 'custref_deposit'
+                    });
+
+
+                    if (o_params.customer)
+                    {
+                        var fld_depTxnToRefund = form.addField({
+                            id: 'custpage_deptxntorefund',
+                            type: ui.FieldType.SELECT,
+                            label: 'Deposit to Refund',
+                            container: 'custref_deposit'
+                        });
+
+                        fld_depTxnToRefund.addSelectOption({
+                            value: '',
+                            text: ''
+                        });
+                        search.create({
+                            type: 'transaction',
+                            filters: [
+                                [
+                                    [
+                                        ['type', search.Operator.ANYOF, ['CustDep']],
+                                        "AND",
+                                        ['status', search.Operator.NONEOF, ["CustDep:C"]]
+                                    ],
+                                ],
+                                "AND",
+                                ['mainline', search.Operator.IS, true],
+                                "AND",
+                                ['custbody_authnet_use', search.Operator.IS, true],
+                                "AND",
+                                ['custbody_authnet_refid', search.Operator.ISNOTEMPTY,''],
+                                "AND",
+                                ['entity', search.Operator.ANYOF, o_params.customer],
+                            ],
+                            columns: [
+                                'tranid',
+                                'amount',
+                                'type',
+                                'applyingtransaction',
+                                'appliedtotransaction'
+                            ]
+                        }).run().each(function (result) {
+                            log.debug('deposit pick list result', result);
+                            if (!result.getValue('applyingtransaction')) {
+                                //we dont want any that may have been refunded already to mess with - this is a unit test, remember
+                                fld_depTxnToRefund.addSelectOption({
+                                    value: result.id,
+                                    text: result.getText('type') + ' #' + result.getValue('tranid') + ' ($' + result.getValue('amount') + ')'
+                                });
+                            }
+                            return true;
+                        });
+                    }
+                    
+                    //issue custoemr refund off invoice via credit memo
+                    form.addFieldGroup({
+                        id: 'custref_inv_cm',
+                        label: 'Issue Customer Refund (Refund Credit Memo Off Invoice)'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'issueCustomerRefund()',
+                        source: 'custref_inv_cm',
+                        container: 'custref_inv_cm'
+                    });
+
+
+                    if (o_params.customer)
+                    {
+                        var fld_txnToRefund = form.addField({
+                            id: 'custpage_invtxntorefund',
+                            type: ui.FieldType.SELECT,
+                            label: 'Invoice to Issue Credit Memo and Refund',
+                            container: 'custref_inv_cm'
+                        });
+
+                        fld_txnToRefund.addSelectOption({
+                            value: '',
+                            text: ''
+                        });
+                        var o_invoicesToProcess = {};
+                        search.create({
+                            type: 'invoice',
+                            filters: [
+                                ['status', search.Operator.ANYOF, ["CustInvc:B"]],
+                                "AND",
+                                ['mainline', search.Operator.IS, true],
+                                "AND",
+                                ['entity', search.Operator.ANYOF, o_params.customer],
+                                "AND",
+                                ['applyingtransaction', search.Operator.NONEOF, ['@NONE@']],
+                            ],
+                            columns: [
+                                'tranid',
+                                'amount',
+                                'type',
+                                'applyingtransaction',
+                                {name : 'type', join : 'applyingtransaction'}
+                            ]
+                        }).run().each(function (result) {
+                            log.debug('invoice pick list result', result);
+                            if (o_invoicesToProcess[result.getValue('tranid')])
+                            {
+                                if (!result.getValue({name : 'type', join : 'applyingtransaction'}) === 'CustPymt')
+                                {
+                                    o_invoicesToProcess[result.getValue('tranid')].isRefundable = false;
+                                }
+                            }
+                            else
+                            {
+                                o_invoicesToProcess[result.getValue('tranid')] = {
+                                    id : result.id,
+                                    tranid : result.getValue('tranid'),
+                                    amount : result.getValue('amount'),
+                                    type : result.getText('type'),
+                                    applyingtransaction : result.getValue('applyingtransaction'),
+                                    isRefundable : result.getValue({name : 'type', join : 'applyingtransaction'}) === 'CustPymt'
+                                }
+                            }
+                            return true;
+                        });
+                        _.forEach(o_invoicesToProcess, function (inv){
+                            if (inv.isRefundable)
+                            {
+                                fld_txnToRefund.addSelectOption({
+                                    value: inv.id,
+                                    text: inv.type + ' #' + inv.tranid + ' ($' + inv.amount + ')'
+                                });
+                            }
+
+                        });
+                    }
 
                     //external auth record test
                     var grp_validAuth = form.addFieldGroup({
@@ -396,63 +828,14 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     form.addField({
                         id: 'refid',
                         type: ui.FieldType.TEXT,
-                        label: 'refid',
+                        label: 'authnet tranid (if your settings are to create a deposit with the SO, this must be an authCapture)',
                         container: 'grpauthout'
                     });
                     form.addField({
                         id: 'externalorderid',
                         type: ui.FieldType.TEXT,
-                        label: 'External Order ID',
+                        label: 'External Order ID (this will go in the configured fieldid to trigger external auth)',
                         container: 'grpauthout'
-                    });
-
-
-
-                    //capture off so
-                    var grp_capture = form.addFieldGroup({
-                        id: 'grpcapture',
-                        label: 'Capture Off SO (SO --> CS)'
-                    });
-                    form.addField({
-                        id: 'custpage_test',
-                        type: ui.FieldType.RADIO,
-                        label: 'captureOffSO()',
-                        source: 'captureoffso',
-                        container: 'grpcapture'
-                    });
-                    form.addField({
-                        id: 'sotocsid',
-                        type: ui.FieldType.TEXT,
-                        label: 'SO Internal ID to capture!',
-                        container: 'grpcapture'
-                    });
-
-
-
-                    //direct capture
-                    var grp_directcapture = form.addFieldGroup({
-                        id: 'grpdircapture',
-                        label: 'Direct Capture (standalone CS)'
-                    });
-                    form.addField({
-                        id: 'custpage_test',
-                        type: ui.FieldType.RADIO,
-                        label: 'makeCashSale().authCapture()',
-                        source: 'makecs',
-                        container: 'grpdircapture'
-                    });
-
-                    //deposit capture
-                    var grp_depositcapture = form.addFieldGroup({
-                        id: 'grpdepositcapture',
-                        label: 'Make SO for INV and Capture Deposit'
-                    });
-                    form.addField({
-                        id: 'custpage_test',
-                        type: ui.FieldType.RADIO,
-                        label: 'makeDeposit().authCapture()',
-                        source: 'makedeposit',
-                        container: 'grpdepositcapture'
                     });
 
 
@@ -476,6 +859,13 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         type: ui.FieldType.RADIO,
                         label: 'getBy-NSeId()',
                         source: 'cimbynseid',
+                        container: 'grpcim'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'getBy-ProfileId()',
+                        source: 'cimbyprofileid',
                         container: 'grpcim'
                     });
                     form.addField({
@@ -529,11 +919,6 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         context.response.write(e.name + ' :: '+e.message);
                     }
                 }
-                else if (o_params.purgecache === 'true')
-                {
-                    authNet.purgeCache();
-                    context.response.write('Cache Purged');
-                }
                 else
                 {
                 /*template = template.replace(/%%MESSAGES%%/g, 'TRANSACTION HAS BEEN CHARGED - CAN NOT DELETE');
@@ -562,12 +947,24 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         context.response.write('Initial setup and configuraton is STILL taking place - you may need to wait a moment and reload this page.');
                     }
                 } else {
-                    redirect.toRecord({
-                        type: 'customrecord_authnet_config',
-                        id: o_config2.id,
-                        isEditMode: !o_config2.custrecord_an_enable.val,
-                        parameters: {'custparam_issetup': 'true'}
-                    });
+                    try {
+                        redirect.toRecord({
+                            type: 'customrecord_authnet_config',
+                            id: o_config2.id,
+                            isEditMode: !o_config2.custrecord_an_enable.val,
+                            parameters: {'custparam_issetup': 'true'}
+                        });
+                    }
+                    catch(ex)
+                    {
+                        log.emergency(ex.name, ex.message);
+                        log.emergency(ex.name, ex.stack);
+                        redirect.toRecord({
+                            type: 'customrecord_authnet_config',
+                            id: o_config2.id,
+                            parameters: {'custparam_issetup': 'true'}
+                        });
+                    }
                 }
 
                 }
@@ -575,11 +972,310 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
             } else {
                 log.debug('POST');
                 log.debug('context.request.parameters', context.request.parameters);
-                //context.response.write(JSON.stringify(context.request.parameters));
                 var o_params = context.request.parameters;
                 var o_config2 = authNet.getConfigFromCache();
-                var o_response = {'OK':null};
+                var o_response = {'OK':null, reset : '<a href=' + url.resolveScript({
+                        scriptId: 'customscript_c9_authnet_screen_svc',
+                        deploymentId: 'customdeploy_sac_authnet_screen_svc',
+                        params: {debugger : 'totallytrue'}
+                    })+ '>Run another test</a>'};
+                function buildSO(o_params, o_response)
+                {
+                    var testSo = record.create({
+                        type: 'salesorder',
+                        isDynamic : true
+                    });
+                    testSo.setValue({fieldId: 'entity', value : o_params.customer });
+                    testSo.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
+                    testSo.selectNewLine({sublistId:'item'});
+                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
+                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
+                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
+                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:'1.'+moment().format('DD')});
+                    try {
+                        if (o_params.linejson)
+                        {
+                            _.forEach(JSON.parse(o_params.linejson), function(val, kie) {
+                                log.debug(kie, val)
+                                testInv.setCurrentSublistValue({sublistId:'item', fieldId:kie, value : val});
+                            });
+                        }
+
+                    } catch (e){
+                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                        log.error('Line JSON Error', o_response.bodyJSONError);
+                    }
+                    testSo.commitLine({sublistId:'item'});
+                    var addressSubRec = testSo.getSubrecord({fieldId: 'billingaddress' });
+                    addressSubRec.setValue({fieldId: 'country', value: 'US'});
+                    var o_address = {
+                        'zip':o_params.billzip ? o_params.billzip : 14568,
+                        'state':'NY',
+                        'city': 'Walworth',
+                        'addrphone': '555-867-5309',
+                        'addr1' : '123 Main Street',
+                        'addr2' : 'Appt. B',
+                        'attention' : 'AuthNet Tester!',
+                        'addressee' : 'Mr. Person'
+                    };
+                    _.forEach(o_address, function(val, kie){
+                        addressSubRec.setValue({fieldId: kie, value: val});
+                    });
+
+                    testSo.setValue({fieldId:'billaddressee', value: o_address.addressee });
+                    testSo.setValue({fieldId:'billcountry', value: 'US' });
+                    testSo.setValue({fieldId:'billzip', value: o_address.zip  });
+                    testSo.setValue({fieldId:'billstate', value: o_address.state  });
+                    testSo.setValue({fieldId:'billcity', value: o_address.city  });
+                    testSo.setValue({fieldId:'billaddr1', value: o_address.addr1  });
+                    testSo.setValue({fieldId:'billaddr2', value: o_address.addr2  });
+                    testSo.setValue({fieldId:'billphone', value: o_address.addrphone  });
+                    testSo.setValue({fieldId: 'orderstatus', value : 'B' });
+                    if (!o_params.skipAuth) {
+                        testSo.setValue({fieldId: 'custbody_authnet_use', value: true});
+                        testSo.setValue({fieldId: 'custbody_authnet_cim_token', value: +o_params.token});
+                        testSo.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });;
+                    }
+                    else if(o_params.custpage_test ==='makeextso') {
+                        testSo.setValue({fieldId: 'custbody_authnet_use', value: true});
+                        testSo.setValue({fieldId: 'custbody_authnet_refid', value: o_params.refid});
+                        testSo.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                        //todo - get config here to ensure the correct behavior
+                        testSo.setValue({
+                            fieldId: o_config2.custrecord_an_external_fieldid.val,
+                            value: o_params.externalorderid
+                        });
+                    }
+                    try {
+                        if (o_params.orderjson)
+                        {
+                            _.forEach(JSON.parse(o_params.orderjson), function(val, kie) {
+                                testSo.setValue({fieldId:kie, value: val  });
+                            });
+                        }
+                    } catch (e){
+                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                    }
+                    var i_soId = testSo.save({ignoreMandatoryFields:true});
+                    o_response.OK = true;
+                    o_response.soid = i_soId;
+                    var _recordlink = url.resolveRecord({
+                        recordType: 'salesorder',
+                        recordId: i_soId,
+                        //isEditMode: true
+                    });
+                    if (!o_params.skipAuth) {
+                        o_response.link = '<a target="_blank" href=' + _recordlink + '>New Sales Order (auth)</a>';
+                    }
+                    else
+                    {
+                        o_response.link = '<a target="_blank" href=' + _recordlink + '>New Sales Order</a>';
+                    }
+                    return o_response;
+                }
+                function buildCS(o_params, o_response)
+                {
+                    var testCS = record.create({
+                        type: 'cashsale',
+                        isDynamic : true
+                    });
+                    testCS.setValue({fieldId: 'entity', value : o_params.customer });
+                    testCS.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
+                    testCS.selectNewLine({sublistId:'item'});
+                    testCS.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
+                    testCS.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
+                    testCS.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
+                    testCS.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:'1.'+moment().format('DD')});
+                    try {
+                        if (o_params.linejson)
+                        {
+                            _.forEach(JSON.parse(o_params.linejson), function(val, kie) {
+                                log.debug(kie, val)
+                                testInv.setCurrentSublistValue({sublistId:'item', fieldId:kie, value : val});
+                            });
+                        }
+
+                    } catch (e){
+                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                        log.error('Line JSON Error', o_response.bodyJSONError);
+                    }
+                    testCS.commitLine({sublistId:'item'});
+                    var addressSubRec = testCS.getSubrecord({fieldId: 'billingaddress' });
+                    addressSubRec.setValue({fieldId: 'country', value: 'US'});
+                    var o_address = {
+                        'zip':o_params.billzip ? o_params.billzip : 14568,
+                        'state':'NY',
+                        'city': 'Walworth',
+                        'addrphone': '555-867-5309',
+                        'addr1' : '123 Main Street',
+                        'addr2' : 'Appt. B',
+                        'attention' : 'AuthNet Tester!',
+                        'addressee' : 'Mr. Person'
+                    };
+                    _.forEach(o_address, function(val, kie){
+                        addressSubRec.setValue({fieldId: kie, value: val});
+                    });
+
+                    testCS.setValue({fieldId:'billaddressee', value: o_address.addressee });
+                    testCS.setValue({fieldId:'billcountry', value: 'US' });
+                    testCS.setValue({fieldId:'billzip', value: o_address.zip  });
+                    testCS.setValue({fieldId:'billstate', value: o_address.state  });
+                    testCS.setValue({fieldId:'billcity', value: o_address.city  });
+                    testCS.setValue({fieldId:'billaddr1', value: o_address.addr1  });
+                    testCS.setValue({fieldId:'billaddr2', value: o_address.addr2  });
+                    testCS.setValue({fieldId:'billphone', value: o_address.addrphone  });
+                    testCS.setValue({fieldId: 'custbody_authnet_use', value : true });
+                    testCS.setValue({fieldId: 'orderstatus', value : 'B' });
+                    testCS.setValue({fieldId: 'custbody_authnet_cim_token', value : +o_params.token});
+                    testCS.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                    try {
+                        if (o_params.orderjson)
+                        {
+                            _.forEach(JSON.parse(o_params.orderjson), function(val, kie) {
+                                testCS.setValue({fieldId:kie, value: val  });
+                            });
+                        }
+                    } catch (e){
+                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                    }
+                    var i_csId = testCS.save({ignoreMandatoryFields:true});
+                    o_response.OK = true;
+                    o_response.csid = i_csId;
+                    var _recordlink = url.resolveRecord({
+                        recordType: 'cashsale',
+                        recordId: i_csId,
+                        //isEditMode: true
+                    });
+                    o_response.link = '<a target="_blank" href=' + _recordlink + '>New Cash Sale (authCapture)</a>';
+                    return o_response;
+                }
+                function buildINV(o_params, o_response)
+                {
+                    var testInv = record.create({
+                        type: 'invoice',
+                        isDynamic : true
+                    });
+                    testInv.setValue({fieldId: 'entity', value : o_params.customer });
+                    testInv.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});;
+                    testInv.selectNewLine({sublistId:'item'});
+                    testInv.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
+                    testInv.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
+                    testInv.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
+                    testInv.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:+('1.'+moment().format('DD')) * +o_params.custpage_numpmt});
+                    try {
+                        if (o_params.linejson)
+                        {
+                            _.forEach(JSON.parse(o_params.linejson), function(val, kie) {
+                                log.debug(kie, val)
+                                testInv.setCurrentSublistValue({sublistId:'item', fieldId:kie, value : val});
+                            });
+                        }
+
+                    } catch (e){
+                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                        log.error('Line JSON Error', o_response.bodyJSONError);
+                    }
+
+                    testInv.commitLine({sublistId:'item'});
+                    var addressSubRec = testInv.getSubrecord({fieldId: 'billingaddress' });
+                    addressSubRec.setValue({fieldId: 'country', value: 'US'});
+                    var o_address = {
+                        'zip':o_params.billzip ? o_params.billzip : 14568,
+                        'state':'NY',
+                        'city': 'Walworth',
+                        'addrphone': '555-867-5309',
+                        'addr1' : '123 Main Street',
+                        'addr2' : 'Appt. B',
+                        'attention' : 'AuthNet Tester!',
+                        'addressee' : 'Mr. Person'
+                    };
+                    _.forEach(o_address, function(val, kie){
+                        addressSubRec.setValue({fieldId: kie, value: val});
+                    });
+
+                    testInv.setValue({fieldId:'billaddressee', value: o_address.addressee });
+                    testInv.setValue({fieldId:'billcountry', value: 'US' });
+                    testInv.setValue({fieldId:'billzip', value: o_address.zip  });
+                    testInv.setValue({fieldId:'billstate', value: o_address.state  });
+                    testInv.setValue({fieldId:'billcity', value: o_address.city  });
+                    testInv.setValue({fieldId:'billaddr1', value: o_address.addr1  });
+                    testInv.setValue({fieldId:'billaddr2', value: o_address.addr2  });
+                    testInv.setValue({fieldId:'billphone', value: o_address.addrphone  });
+
+                    try {
+                        if (o_params.orderjson)
+                        {
+                            _.forEach(JSON.parse(o_params.orderjson), function(val, kie) {
+                                testInv.setValue({fieldId:kie, value: val  });
+                            });
+                        }
+                    } catch (e){
+                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                    }
+                    var i_inId = testInv.save({ignoreMandatoryFields:true});
+                    o_response.OK = true;
+                    o_response.inid = i_inId;
+                    var _recordlink = url.resolveRecord({
+                        recordType: 'invoice',
+                        recordId: i_inId,
+                        //isEditMode: true
+                    });
+                    o_response.invlink = '<a target="_blank" href=' + _recordlink + '>New Invoice</a>';
+                    return o_response;
+                }
+                function buildCustomerRefund(o_params, o_response, i_idToRefund)
+                {
+                    var o_custRefnd = record.create({
+                        type : 'customerrefund',
+                        defaultValues : {entity : o_params.customer}
+                        //isDynamic : true
+                    });
+                    for(var i = o_custRefnd.getLineCount('apply')-1; i>= 0; i--){
+                        log.debug('apply line '+i, o_custRefnd.getSublistValue({sublistId: 'apply' , fieldId: 'doc', line:i}));
+                        if (+o_custRefnd.getSublistValue({sublistId: 'apply' , fieldId: 'doc', line:i}) === i_idToRefund){
+                            o_custRefnd.setSublistValue({sublistId: 'apply' , fieldId: 'apply', line:i, value : true});
+                        }
+                        else {
+                            o_custRefnd.setSublistValue({sublistId: 'apply', fieldId: 'apply', line: i, value: false});
+                        }
+                    }
+                    for(var i = o_custRefnd.getLineCount('deposit')-1; i>= 0; i--) {
+                        log.debug('deposit line '+i, o_custRefnd.getSublistValue({sublistId: 'deposit' , fieldId: 'doc', line:i}));
+                        if (+o_custRefnd.getSublistValue({
+                            sublistId: 'deposit',
+                            fieldId: 'doc',
+                            line: i
+                        }) === i_idToRefund) {
+                            o_custRefnd.setSublistValue({sublistId: 'deposit', fieldId: 'apply', line: i, value: true});
+                        } else {
+                            o_custRefnd.setSublistValue({sublistId: 'deposit', fieldId: 'apply', line: i, value: false});
+                        }
+                    }
+                    o_custRefnd.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
+                    o_custRefnd.setValue({fieldId: 'custbody_authnet_use', value : true });
+                    o_custRefnd.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                    var i_crId = o_custRefnd.save({ignoreMandatoryFields:true});
+                    o_response.customerRefundid = i_crId;
+                    var _recordlink = url.resolveRecord({
+                        recordType: 'customerrefund',
+                        recordId: i_crId,
+                        //isEditMode: true
+                    });
+                    o_response.refundlink = '<a target="_blank" href=' + _recordlink + '>New Customer Refund (refundTransaction)</a>';
+                    return o_response;
+                }
+
                 switch (o_params.custpage_test){
+                    case 'purgecache':
+                        authNet.purgeCache();
+                        o_response.OK = true;
+                        o_response.message = 'Cache Purged';
+                        break;
+                    case 'viewcache':
+                        o_response.OK = true;
+                        o_response.cache = authNet.getConfigFromCache()
+                        //context.response.write(JSON.stringify(authNet.getConfigFromCache()));
+                        break;
                     case 'fakeauthcapso':
                         o_response.OK = true;
                         o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
@@ -587,186 +1283,179 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
 
                     case 'getstatus':
                         o_response.OK = true;
-                        o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
+                        if (o_params.custpage_configrec)
+                        {
+                            o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid, o_params.custpage_configrec);
+                        }
+                        else
+                        {
+                            o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
+                        }
+
                         break;
 
                     case 'makeso':
                         //make the so and set all the fields and save...
-                        var testSo = record.create({
-                            type: 'salesorder',
-                            isDynamic : true
-                        });
-                        testSo.setValue({fieldId: 'entity', value : o_params.custid });
-                        log.debug('must parse this string array', o_params.itemlist)
-                        var a_item = JSON.parse(o_params.itemlist);
-                        _.forEach(a_item, function(line){
-                            log.debug('this is the line being added: '+ line.item, line)
-                            testSo.selectNewLine({sublistId:'item'});
-                            testSo.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:line.item});
-                            testSo.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:line.quantity});
-                            //testSo.setCurrentSublistText({sublistId:'item', fieldId:'price', text:'Custom'});
-                            testSo.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:line.amount});
-                            testSo.commitLine({sublistId:'item'});
-                        });
-
-                        //todo - accept billing zip change
-
-                        testSo.setValue({fieldId: 'custbody_authnet_use', value : true });
-                        testSo.setValue({fieldId: 'orderstatus', value : 'B' });
-                        if (o_params.tokenid){
-                            testSo.setValue({fieldId: 'custbody_authnet_cim_token', value : o_params.tokenid });
-                        } else {
-                            testSo.setValue({fieldId: 'custbody_authnet_ccnumber', value: o_params.ccnum});
-                            testSo.setValue({fieldId: 'custbody_authnet_ccexp', value: o_params.ccexp});
-                            testSo.setValue({fieldId: 'custbody_authnet_ccv', value: o_params.ccv});
-                        }
-
-                        o_response.OK = testSo.save();
-                        break;
-                    case 'makeextso':
-                        var testSo = record.create({
-                            type: 'salesorder',
-                            isDynamic : true
-                        });
-                        testSo.setValue({fieldId: 'entity', value : o_params.custid });
-                        if (!_.isEmpty(o_params.extrafields)) {
-                            var a_extras = JSON.parse(o_params.extrafields);
-                            log.debug('any extra fields: ', a_extras)
-                            _.forEach(a_extras, function (data) {
-                                _.forEach(data, function (val, kie) {
-                                    log.debug('kie: ' + kie, val);
-                                    testCS.setValue({fieldId: kie, value: val});
-                                });
-                            });
-                        }
-
-                        log.debug('must parse this string array', o_params.itemlist)
-                        var a_item = JSON.parse(o_params.itemlist);
-                        _.forEach(a_item, function(line){
-                            log.debug('this is the line being added: '+ line.item, line)
-                            testSo.selectNewLine({sublistId:'item'});
-                            _.forEach(line, function(val, kie){
-                                testSo.setCurrentSublistValue({sublistId:'item', fieldId:kie, value:val});
-                            });
-                            testSo.commitLine({sublistId:'item'});
-                        });
-                        testSo.setValue({fieldId: 'custbody_authnet_refid', value: o_params.refid});
-                        //load the config and get the field we need for the "external order number
-                        //var o_config = authNet.getActiveConfig(testSo);
-                        //log.debug('o_config', o_config)
-                        testSo.setValue({fieldId:o_config.custrecord_an_external_fieldid.val, value :o_params.externalorderid});
-                        o_response.OK = testSo.save();
-
+                        o_response = buildSO(o_params, o_response);
                         break;
                     case 'captureoffso':
+                        o_response = buildSO(o_params, o_response)
                         var o_customerBill = record.transform({
                             fromType: 'salesorder',
-                            fromId: o_params.sotocsid,
+                            fromId: o_response.soid,
                             toType: 'cashsale',
                             isDynamic: true
                         });
-                        o_response.OK = o_customerBill.save();
+                        var i_csId = o_customerBill.save({ignoreMandatoryFields:true});
+                        o_response.csid = i_csId;
+                        var _recordlink = url.resolveRecord({
+                            recordType: 'cashsale',
+                            recordId: i_csId,
+                            //isEditMode: true
+                        });
+                        o_response.link2 = '<a target="_blank" href=' + _recordlink + '>New Cash Sale (capture off prior auth)</a>';
+
                         break;
-
                     case 'makecs':
-                        var testCS = record.create({
-                            type: 'cashsale',
-                            isDynamic : true
-                        });
-                        testCS.setValue({fieldId: 'entity', value : o_params.custid });
-                        if (!_.isEmpty(o_params.extrafields)) {
-                            var a_extras = JSON.parse(o_params.extrafields);
-                            log.debug('any extra fields: ', a_extras)
-                            _.forEach(a_extras, function (data) {
-                                _.forEach(data, function (val, kie) {
-                                    log.debug('kie: ' + kie, val);
-                                    testCS.setValue({fieldId: kie, value: val});
-                                });
-                            });
-                        }
-                        log.debug('must parse this string array', o_params.itemlist)
-                        var a_item = JSON.parse(o_params.itemlist);
-                        _.forEach(a_item, function(line){
-                            log.debug('this is the line being added: '+ line.item, line)
-                            testCS.selectNewLine({sublistId:'item'});
-                            _.forEach(line, function(val, kie){
-                                testCS.setCurrentSublistValue({sublistId:'item', fieldId:kie, value:val});
-                            });
-                            testCS.commitLine({sublistId:'item'});
-                        });
-
-
-                        //todo - accept billing zip change
-
-                        testCS.setValue({fieldId: 'custbody_authnet_use', value : true });
-                        //var o_config = authNet.getActiveConfig(testCS);
-                        testCS.setValue({fieldId:'paymentmethod', value: o_config2.custrecord_an_paymentmethod.val});
-
-                        if (o_params.tokenid){
-                            testCS.setValue({fieldId: 'custbody_authnet_cim_token', value : o_params.tokenid });
-                        } else {
-                            testCS.setValue({fieldId: 'custbody_authnet_ccnumber', value: o_params.ccnum});
-                            testCS.setValue({fieldId: 'custbody_authnet_ccexp', value: o_params.ccexp});
-                            testCS.setValue({fieldId: 'custbody_authnet_ccv', value: o_params.ccv});
-                        }
-
-                        o_response.OK = testCS.save();
+                        o_response = buildCS(o_params, o_response);
                         break;
                     case 'makedeposit':
-                        //todo - transform SO without auth into deposit for that SO!
-                        var testSo = record.create({
-                            type: 'salesorder',
-                            isDynamic : true
-                        });
-                        testSo.setValue({fieldId: 'entity', value : o_params.custid });
-                        if (!_.isEmpty(o_params.extrafields)) {
-                            var a_extras = JSON.parse(o_params.extrafields);
-                            log.debug('any extra fields: ', a_extras)
-                            _.forEach(a_extras, function (data) {
-                                _.forEach(data, function (val, kie) {
-                                    log.debug('kie: ' + kie, val);
-                                    testCS.setValue({fieldId: kie, value: val});
-                                });
-                            });
-                        }
-
-                        log.debug('must parse this string array', o_params.itemlist)
-                        var a_item = JSON.parse(o_params.itemlist);
-                        _.forEach(a_item, function(line){
-                            log.debug('this is the line being added: '+ line.item, line)
-                            testSo.selectNewLine({sublistId:'item'});
-                            _.forEach(line, function(val, kie){
-                                testSo.setCurrentSublistValue({sublistId:'item', fieldId:kie, value:val});
-                            });
-                            testSo.commitLine({sublistId:'item'});
-                        });
-
-                        testSo.setValue({fieldId:'paymentmethod', value :''});
-                        o_response.SO = testSo.save();
-
+                        o_params.skipAuth = true;
+                        o_response = buildSO(o_params, o_response);
                         var o_customerDeposit = record.create({
                             type: 'customerdeposit',
                             disablepaymentfilters: true,
                             isDynamic: true
                         });
-                        o_customerDeposit.setValue({fieldId: 'customer', value:  testSo.getValue({fieldId: 'entity'})});
-                        o_customerDeposit.setValue({fieldId: 'salesorder', value:  o_response.SO});
-                        o_customerDeposit.setValue({fieldId:'payment', value: +testSo.getValue({fieldId: 'total'}) / 2 });
-
+                        o_customerDeposit.setValue({fieldId: 'customer', value:  o_params.customer});
+                        o_customerDeposit.setValue({fieldId: 'salesorder', value:  o_response.soid});
+                        o_customerDeposit.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
+                        //o_customerDeposit.setValue({fieldId:'payment', value: +testSo.getValue({fieldId: 'total'}) / 2 });
                         o_customerDeposit.setValue({fieldId: 'custbody_authnet_use', value : true });
-                        o_customerDeposit.setValue({fieldId: 'undepfunds', value : 'F' });
-                        o_customerDeposit.setValue({fieldId: 'account', value : 186 });
+                        o_customerDeposit.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                        o_customerDeposit.setValue({fieldId: 'undepfunds', value : 'T' });
+                        //o_customerDeposit.setValue({fieldId: 'account', value : 186 });
+                        o_customerDeposit.setValue({fieldId: 'custbody_authnet_cim_token', value : +o_params.token });
+                        var i_cdId = o_customerDeposit.save({ignoreMandatoryFields:true});
+                        o_response.cdid = i_cdId;
+                        var _recordlink = url.resolveRecord({
+                            recordType: 'customerdeposit',
+                            recordId: i_cdId,
+                            //isEditMode: true
+                        });
+                        o_response.link2 = '<a target="_blank" href=' + _recordlink + '>New Customer Deposit (authCapture)</a>';
+                        break;
+                    case 'makepayment':
+                        o_params.skipAuth = true;
+                        o_response = buildINV(o_params, o_response);
+                        var numPayments = 0;
+                        while (numPayments < +o_params.custpage_numpmt) {
+                            numPayments++;
+                            var o_custPayment = record.transform({
+                                fromType: 'invoice',
+                                fromId: o_response.inid,
+                                toType: 'customerpayment'
+                            });
+                            o_custPayment.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
+                            o_custPayment.setValue({fieldId: 'custbody_authnet_use', value: true});
+                            o_custPayment.setValue({fieldId: 'custbody_authnet_cim_token', value: +o_params.token});
+                            o_custPayment.setValue({
+                                fieldId: 'paymentmethod',
+                                value: o_config2.custrecord_an_paymentmethod.val
+                            });
+                            var i_numLines = +o_custPayment.getLineCount('apply');
+                            //log.debug('if line count', i_numLines);
+                            var b_canSave = false;
+                            for (var j = 0; j < i_numLines; j++) {
+                                if (+o_custPayment.getSublistValue({
+                                    sublistId: 'apply',
+                                    fieldId: 'internalid',
+                                    line: j
+                                }) === o_response.inid) {
+                                    o_custPayment.setSublistValue({
+                                        sublistId: 'apply',
+                                        fieldId: 'apply',
+                                        line: j,
+                                        value: true
+                                    });
+                                    o_custPayment.setSublistValue({sublistId:'apply', fieldId:'amount', line: j, value: ('1.'+moment().format('DD'))});
+                                    b_canSave = true;
+                                } else {
+                                    o_custPayment.setSublistValue({
+                                        sublistId: 'apply',
+                                        fieldId: 'apply',
+                                        line: j,
+                                        value: false
+                                    });
+                                }
+                            }
+                            if (b_canSave) {
+                                var i_paymentId = o_custPayment.save({ignoreMandatoryFields: true});
+                                o_response.custpayid = i_paymentId;
+                                var _recordlink = url.resolveRecord({
+                                    recordType: 'customerpayment',
+                                    recordId: i_paymentId,
+                                    //isEditMode: true
+                                });
+                                o_response['link'+numPayments] = '<a target="_blank" href=' + _recordlink + '>New Customer Payment (authCapture)</a>';
+                            } else {
+                                o_response.paymentMessage = 'ALREADY PAID IN FULL!'
+                            }
 
-                        if (o_params.tokenid){
-                            o_customerDeposit.setValue({fieldId: 'custbody_authnet_cim_token', value : o_params.tokenid });
-                        } else {
-                            o_customerDeposit.setValue({fieldId: 'custbody_authnet_ccnumber', value: o_params.ccnum});
-                            o_customerDeposit.setValue({fieldId: 'custbody_authnet_ccexp', value: o_params.ccexp});
-                            o_customerDeposit.setValue({fieldId: 'custbody_authnet_ccv', value: o_params.ccv});
                         }
+                        
+                        break;
+                    case 'cashrefund':
+                        var o_cashRefund = record.transform({
+                            fromType: 'cashsale',
+                            fromId: o_params.custpage_cstorefund,
+                            toType: 'cashrefund'
+                        });
+                        var i_cashRefundId = o_cashRefund.save({ignoreMandatoryFields:true});
 
-                        o_response.OK = o_customerDeposit.save();
+                        var _recordlink = url.resolveRecord({
+                            recordType: 'cashsale',
+                            recordId: o_params.custpage_cstorefund,
+                            //isEditMode: true
+                        });
+                        o_response.link = '<a target="_blank" href=' + _recordlink + '>Old Cash Sale</a>';
 
+                        o_response.cashrefundid = i_cashRefundId;
+                        var _recordlink = url.resolveRecord({
+                            recordType: 'cashrefund',
+                            recordId: i_cashRefundId,
+                            //isEditMode: true
+                        });
+                        o_response.link2 = '<a target="_blank" href=' + _recordlink + '>New Cash Refund (refundTransaction)</a>';
+
+                        break;
+                    case 'custref_deposit':
+                        log.debug('o_params.custpage_deptxntorefund', o_params.custpage_deptxntorefund);
+                        o_response = buildCustomerRefund(o_params, o_response, +o_params.custpage_deptxntorefund);
+                        break;
+
+                    case 'custref_inv_cm':
+                        //first we need to build a credit memo off the invoice
+                        var o_creditMemo = record.transform({
+                            fromType: 'invoice',
+                            fromId: o_params.custpage_invtxntorefund,
+                            toType: 'creditmemo',
+                            isDynamic: true
+                        });
+                        var i_cmId = o_creditMemo.save({ignoreMandatoryFields:true});
+                        o_response.cmid = i_cmId;
+                        var _recordlink = url.resolveRecord({
+                            recordType: 'creditmemo',
+                            recordId: i_cmId,
+                            //isEditMode: true
+                        });
+                        o_response.cmlink = '<a target="_blank" href=' + _recordlink + '>New Credit Memo From Invoice</a>';
+                        //now we customer refund the credit memo
+                        o_response = buildCustomerRefund(o_params, o_response, +o_response.cmid);
+                        break;
+                    case 'makeextso':
+                        o_params.skipAuth = true;
+                        o_response = buildSO(o_params, o_response);
                         break;
                     case 'cim':
                         var thisRec=record.load({
@@ -779,6 +1468,12 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     case 'cimbynseid':
                         log.debug('DEBUGGER - testing CIM lookiups', o_params.nseid);
                         authNet.getProfileByNSeId(o_params.nseid, o_config2);
+                        break;
+                    case 'cimbyprofileid':
+                        log.debug('DEBUGGER - testing CIM lookiups by profile id', o_params.nseid);
+                        var o_profile_JSON = {fields: {custrecord_an_token_customerid : o_params.nseid, custrecord_an_token_gateway_sub : o_params.custpage_configrec}};
+                        o_response.OK = true;
+                        o_response.cim = authNet.importCIMToken(o_profile_JSON);
                         break;
                     case 'history':
                         //load the history record - get the JSON - reparse it to test parsing logic enhancements
@@ -832,10 +1527,18 @@ var template = "<!DOCTYPE html>\n" +
     "            border: 1px solid gray;\n" +
     "        }\n" +
     "\n" +
-    "        header, footer {\n" +
+    "        header {\n" +
     "            padding: 1em;\n" +
     "            color: white;\n" +
-    "            background-color: black;\n" +
+    "            background-color: #9b0000;\n" +
+    "            clear: left;\n" +
+    "            text-align: center;\n" +
+    "        }\n" +
+    "\n" +
+    "        footer {\n" +
+    "            padding: 1em;\n" +
+    "            color: white;\n" +
+    "            background-color: #480000;\n" +
     "            clear: left;\n" +
     "            text-align: center;\n" +
     "        }\n" +

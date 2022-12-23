@@ -27,49 +27,39 @@
  */
 
 
-define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWidget', 'N/ui/message', 'N/redirect', 'lodash', './AuthNet_lib', 'moment'],
-    function (record, plugin, runtime, error, search, log, ui, message, redirect, _, authNet, moment) {
+define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWidget', 'N/ui/message', 'N/redirect', 'lodash', './AuthNet_lib', './AuthNet_UI_lib', 'moment'],
+    function (record, plugin, runtime, error, search, log, ui, message, redirect, _, authNet, authNetUI, moment) {
         function authNetBeforeLoad(context) {
             log.audit('authNetBeforeLoad via : '+runtime.executionContext, context.type +' on '+context.newRecord.type);
-            if (runtime.executionContext === 'USERINTERFACE' ) {
+            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE) {
                 var form = context.form;
-                var o_config2 = authNet.getConfigFromCache();
-                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+
+                //if we have transaction records that the auth net fields appear on but shouldn't - do this
+                if(_.includes(['creditmemo', 'invoice'], context.newRecord.type))
                 {
-                    log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net setup has not been complete!');
-                    form.addPageInitMessage({
-                        type: message.Type.INFORMATION,
-                        title: 'AUTHORIZE.NET setup is INCOMPLETE',
-                        message: 'While this transaction may have nothing to do with Authorize.Net, the setup is incomplete and may cause unintended issues. An Administrator needs to complete the setup by navigating to Cloud 1001 > SuiteAuthConnect > SuiteAuthConnect Configuration and complete the setup.',
-                    });
-                    _.forEach(['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv'], function(fldname){
+                    _.forEach(_.concat(authNet.ALLAUTH, authNet.TOKEN, authNet.CHECKBOXES), function (fd) {
+                        var fld = 'custbody_authnet_' + fd;
                         try {
-                            form.getField({id: fldname}).updateDisplayType({
+                            form.getField({id: fld}).updateDisplayType({
                                 displayType: ui.FieldDisplayType.HIDDEN
                             });
-                        } catch (e) {
-                            log.error('Field Not on Form anyhow!', form + ' missing and authNet Field - '+fldname);
+                        } catch (e){
+                            //log.error('Field Not on Form', form + ' missing ' + fld)
                         }
                     });
+                    log.audit('This record has nothing to do with authorize.net','So all fields are hidden and it is skipped.')
                     return;
                 }
-                var fld_config = form.addField({
-                    id: 'custpage_an_config',
-                    type: ui.FieldType.TEXTAREA,
-                    label: 'ANetCfg'
-                }).updateDisplayType({
-                    displayType: ui.FieldDisplayType.HIDDEN
-                });
-                //pull this from cache if its not there
-                var o_publicConfig = {};
-                _.forEach(o_config2, function(val, kie){
-                    //log.debug(kie, val)
-                    if(!_.includes(authNet.SERVICE_CREDENTIAL_FIELDS, kie) && kie !== 'auth'){
-                        o_publicConfig[kie] = val;
-                    }
-                });
-                fld_config.defaultValue = JSON.stringify(o_publicConfig);
-                //authNet.homeSysLog('the holy config object!', o_publicConfig);
+
+                var o_config2 = authNet.getConfigFromCache();
+                form = authNetUI.notSetUpErrorCheck(form, o_config2);
+                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+                {
+                    return;
+                }
+                //set the auth free config objct in the custom field for the client scripts to know what to do!
+                form = authNetUI.buildConfigField(form, o_config2);
+
                 //var b_hasNativeCC = authNet.hasNativeCC();
                 //Is any of this turned on?
                 if (!o_config2.custrecord_an_enable.val) {
@@ -79,14 +69,14 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     form.getField({id: 'custbody_authnet_override'}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
-                    _.forEach(authNet.CCENTRY, function (fd) {
+                    _.forEach(authNet.ALLAUTH, function (fd) {
                         var fld = 'custbody_authnet_' + fd;
                         try {
                             form.getField({id: fld}).updateDisplayType({
                                 displayType: ui.FieldDisplayType.HIDDEN
                             });
                         } catch (e){
-                            log.error('Field Not on Form', form + ' missing ' + fld)
+                            //log.error('Field Not on Form', form + ' missing ' + fld)
                         }
                     });
                     return;
@@ -99,12 +89,12 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             displayType: ui.FieldDisplayType.HIDDEN
                         });
                     } catch (e){
-                        log.error('Field Not on Form', form + ' missing ' + fld)
+                        //log.error('Field Not on Form', form + ' missing ' + fld)
                     }
                 });
 
-                //if tokens are not allowed - hide the token field!
-                if (!o_config2.custrecord_an_cim_allow_tokens.val){
+                //ALWAYS ALLOWED - if tokens are not allowed - hide the token field!
+                /*if (!o_config2.custrecord_an_cim_allow_tokens.val){
                     try {
                         form.getField({id: 'custbody_authnet_cim_token'}).updateDisplayType({
                             displayType: ui.FieldDisplayType.HIDDEN
@@ -114,7 +104,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     {
                         //nothing here - this field is not on all transactions
                     }
-                }
+                }*/
 
                 var fldWarning = form.addField({
                     id: 'custpage_c9_error',
@@ -139,13 +129,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     '</div>' +
                     '</div>' +
                     '</div>';
-                //if this is a magento order - hide all our fields becasue they are irrelevant
-                //todo - put a check in here for actual auth.net processor
-                //log.debug('AuthNetRequest', authNet.AuthNetRequest)
-                //log.debug('underscore', _.isNaN(1))
 
-                var b_doScripty = true;
-                //never run on these custbody_celigo_magento_id and/or or custbody_celigo_magento
                 if (!_.includes([context.UserEventType.CREATE, context.UserEventType.DELETE], context.type) )
                 {
                     //some general variables here
@@ -161,7 +145,28 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //authNet.homeSysLog('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
                     authNet.homeSysLog('b_responseFailure', b_responseFailure);
                     //authNet.homeSysLog('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
-
+                    if (b_responseFailure && b_isAuthNet)
+                    {
+                        var s_title = '';
+                        if (context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}) === '(IMPORTED)'){
+                            s_title = 'IMPORTED AUTH : ';
+                        }
+                        s_title += o_history.status + ' ' + o_history.errorCode
+                        context.form.addPageInitMessage({
+                            type: message.Type.ERROR,
+                            title: s_title,
+                            message: o_history.message
+                        });
+                    }
+                    else if (o_history.showBanner)
+                    {
+                        //this is used if the transaction passes but has some sort of pending issue
+                        context.form.addPageInitMessage({
+                            type: message.Type.WARNING,
+                            title: o_history.responseCodeText,
+                            message: o_history.message
+                        });
+                    }
                     _.forEach(authNet.CCFIELDS, function (fd) {
                         var fld = 'custbody_authnet_' + fd;
                         try {
@@ -169,13 +174,13 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 displayType: ui.FieldDisplayType.HIDDEN
                             });
                         } catch (e){
-                            log.error('Field Not on Form', form + ' missing ' + fld)
+                            //log.error('Field Not on Form', form + ' missing ' + fld)
                         }
                     });
 
                     //if this is a view - make the cc fields hidden for cleanness
                     if (context.type === context.UserEventType.VIEW){
-                        _.forEach(authNet.CCENTRY, function (fd) {
+                        _.forEach(_.concat(authNet.CCENTRY, authNet.TOKEN), function (fd) {
                             var fld = 'custbody_authnet_' + fd;
                             try {
                                 if (b_hasToken && b_isAuthNet && fld === 'custbody_authnet_cim_token'){
@@ -187,25 +192,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     });
                                 }
                             } catch (e){
-                                log.error('Field Not on Form', form + ' missing ' + fld)
+                                //log.error('Field Not on Form', form + ' missing ' + fld)
                             }
                         });
-                        /*if (o_config2.custrecord_an_external_auth_allowed.val){
-                            //if the field custbody_authnet_use is hidden - and imports are allowed - and it's a SO - pop alert banner!
-                            try {
-                                //form.getField({id: 'custbody_authnet_use'});
-                                //form.getValue({fieldId: 'custbody_authnet_use'});
-                                //log.debug('custbody_authnet_use', form.getField({id: 'custbody_authnet_use'}).isVisible)
-                            } catch (e){
-                                log.error('Use AuthNet Not On Form', form + ' missing critical field for errors');
-                                context.form.addPageInitMessage({
-                                    type: message.Type.ERROR,
-                                    title: 'This form does not have the "Use Authorize.Net" Field Accessible',
-                                    message: 'Because your account is configured to import external authorization events, this field must remain on the form.  You may configure the field to be disabled, but lack of it\'s presence here will cause potential other issues with imported transactions and Authorize.Net.',
-                                    //duration: 5000
-                                });
-                            }
-                        }*/
                     }
 
                     if (context.type === context.UserEventType.COPY){
@@ -216,7 +205,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             try {
                                 objRecord.setValue({fieldId: fld, value: ''});
                             } catch (e){
-                                log.error('Field Not on Form', form + ' missing ' + fld)
+                                //log.error('Field Not on Form', form + ' missing ' + fld)
                             }
                         });
                         _.forEach(authNet.CODES, function (fd) {
@@ -226,7 +215,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     displayType: ui.FieldDisplayType.HIDDEN
                                 });
                             } catch (e){
-                                log.error('Field Not on Form', form + ' missing ' + fld)
+                                //log.error('Field Not on Form', form + ' missing ' + fld)
                             }
                         });
                         _.forEach(['custbody_authnet_use', 'paymentmethod', 'custbody_authnet_override'], function (fld) {
@@ -234,7 +223,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             try {
                                 objRecord.setValue({fieldId: fld, value: ''});
                             } catch (e){
-                                log.error('Field Not on Form', form + ' missing ' + fld)
+                                //log.error('Field Not on Form', form + ' missing ' + fld)
                             }
                         });
                     }
@@ -242,18 +231,12 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     switch (context.newRecord.type) {
                         case 'salesorder':
                             //if this is a copy - we need to delete ALL the values in the field for credit card
-                            if (context.type === context.UserEventType.COPY) {
-
-                                break;
-                            }
-                            if (context.type === context.UserEventType.CANCEL) {
-                                return;
-                            }
-                            var thisRecord = record.load({
+                            var thisRecord = context.newRecord;
+                            /*record.load({
                                 type: context.newRecord.type,
                                 id: context.newRecord.id,
                                 isDynamic: true
-                            });
+                            });*/
                             //some people have cc native and some do not - this prevents double billing anything
                             try{
                                 if (thisRecord.getValue('pnrefnum') || thisRecord.getValue('authcode')){
@@ -262,6 +245,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         displayType: ui.FieldDisplayType.DISABLED
                                     });
                                 }
+                                form.getField({id: 'custbody_authnet_override'}).updateDisplayType({
+                                    displayType: ui.FieldDisplayType.HIDDEN
+                                });
                             } catch(ex){
 
                             }
@@ -311,7 +297,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             displayType: ui.FieldDisplayType.DISABLED
                                         });
                                     } catch (e) {
-                                        log.error('Native CC Field Not on Form', form + ' missing ' + 'paymentmethod')
+                                        //log.error('Native CC Field Not on Form', form + ' missing ' + 'paymentmethod')
                                     }
 
                                     _.forEach(authNet.CCENTRY, function (fd) {
@@ -326,7 +312,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                 });
                                             }
                                         } catch (e) {
-                                            log.error('Field Not on Form', form + ' missing ' + fld)
+                                            //log.error('Field Not on Form', form + ' missing ' + fld)
                                         }
                                     });
                                     //if there is a token on this approved and used record - leave it visable in view
@@ -336,21 +322,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             displayType: ui.FieldDisplayType.NORMAL
                                         });
                                     }
-                                    if (b_responseFailure)
-                                    {
-                                        var s_title = '';
-                                        if (context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}) === '(IMPORTED)'){
-                                            s_title = 'IMPORTED AUTH : ';
-                                        }
-                                        s_title += o_history.status + ' ' + o_history.errorCode
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.ERROR,
-                                            title: s_title,
-                                            message: o_history.message
-                                        });
-                                    }
                                 }
-                                b_doScripty = true;
                             }
                             break;
                         case 'cashrefund':
@@ -372,7 +344,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             } catch (e){
                                 //no log - who cares?
                             }
-                            b_doScripty = true;
                             break;
                         case 'cashsale':
                             if(!context.newRecord.getValue({fieldId:'custbody_authnet_done'}) && (context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || context.newRecord.getValue({fieldId: 'paymentmethod'})) === o_config2.custrecord_an_paymentmethod.val) {
@@ -394,7 +365,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             } catch (e){
                                 //no log - who cares?
                             }
-                            b_doScripty = true;
                             break;
 
                         case 'customerdeposit':
@@ -434,7 +404,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 }
                 else if (context.type === context.UserEventType.CREATE && context.newRecord.type === 'cashrefund' && (!context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || context.newRecord.getValue({fieldId :'custbody_authnet_override'})))
                 {
-                    log.audit('Skipping cashrefund', 'Not authnet or overriden!')
+                    log.audit('Skipping cashrefund', 'Not authnet or overriden!');
                     //added explicitly to control the UI fields o nthe cash refund becasue it may NOT know it's from an AuthNet history
                     _.forEach(authNet.CCENTRY, function (fd) {
                         var fld = 'custbody_authnet_' + fd;
@@ -448,10 +418,19 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     });
 
                 }
-                else if (context.type === context.UserEventType.CREATE && context.newRecord.getValue({fieldId :'custbody_authnet_use'}) && !context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
+                //else if (context.type === context.UserEventType.CREATE && context.newRecord.getValue({fieldId :'custbody_authnet_use'}) && !context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
+                else if (context.type === context.UserEventType.CREATE)
                 {
                     //ENSURE the response fields are hidden on a create since they would be empty
-                    log.debug(context.newRecord.type + ' doing a CREATE here', 'from: ' + context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + context.newRecord.getValue({fieldId: 'createdfrom'}));
+                    //hide the override on a create - you would not do that normally
+                    try {
+                        form.getField({id: 'custbody_authnet_override'}).updateDisplayType({
+                            displayType: ui.FieldDisplayType.HIDDEN
+                        });
+                    } catch (e){
+                        log.error('MISSING OVERRIDE CODE FIELD!', fld)
+                    }
                     //should be disabled
                     var setFields = (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})) ? ui.FieldDisplayType.DISABLED : ui.FieldDisplayType.HIDDEN;
                     //get values for doing work
@@ -465,6 +444,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         } catch (e){
                             log.error('MISSING A CODE FIELD!', fld)
                         }
+
                     });
                     //should be cleared
                     context.newRecord.setValue({fieldId :'custbody_authnet_datetime', value :''});
@@ -479,11 +459,11 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
 
                     //context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: false});
                     switch (context.newRecord.type) {
+                        //no invoice here becasue it's always cut out
                         case 'cashsale':
                             //prevent anything crazy from going on if people already have a pnref
                             try{
                                 if (context.newRecord.getValue('pnrefnum') || context.newRecord.getValue('authcode')){
-                                    context.newRecord.setValue({fieldId :'custbody_authnet_use', value :false});
                                     form.getField({id: 'custbody_authnet_use'}).updateDisplayType({
                                         displayType: ui.FieldDisplayType.DISABLED
                                     });
@@ -500,7 +480,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         displayType: ui.FieldDisplayType.DISABLED
                                     });
                                     //the date/time from the SO needs to be removed so the plugin will trigger the CS capture
-                                    context.newRecord.setValue({fieldId: 'custbody_authnet_datetime', value : ''});
+                                    //context.newRecord.setValue({fieldId: 'custbody_authnet_datetime', value : ''});
                                     log.debug('unset the date!')
                                     try {
                                         form.getField({id: 'paymentmethod'}).updateDisplayType({
@@ -571,9 +551,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     //custbody_authnet_override
 
                                 }
-
-                                b_doScripty = true;
-
                             }
                             break;
                         case 'customerpayment':
@@ -584,23 +561,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         displayType: ui.FieldDisplayType.HIDDEN
                                     });
                                 } catch (e){
-                                    log.error('Field Not on Form', form + ' missing ' + fld)
+                                    //log.error('Field Not on Form', form + ' missing ' + fld)
                                 }
                             });
-                            b_doScripty = true;
-                            break;
-                        case 'invoice':
-                            _.forEach(authNet.CCENTRY, function (fd) {
-                                var fld = 'custbody_authnet_' + fd;
-                                try {
-                                    form.getField({id: fld}).updateDisplayType({
-                                        displayType: ui.FieldDisplayType.HIDDEN
-                                    });
-                                } catch (e){
-                                    log.error('Field Not on Form', form + ' missing ' + fld)
-                                }
-                            });
-                            b_doScripty = false;
                             break;
                         case 'cashrefund':
                             _.forEach(authNet.CCENTRY, function (fd) {
@@ -613,7 +576,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     log.error('MISSING A CCENTRY FIELD!', fld)
                                 }
                             });
-                            b_doScripty = false;
                             break;
                         case 'customerrefund':
                             _.forEach(authNet.CCENTRY, function (fd) {
@@ -626,7 +588,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     log.error('MISSING A CCENTRY FIELD!', fld)
                                 }
                             });
-                            b_doScripty = true;
                             break;
 
                         default:
@@ -642,90 +603,90 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
                 }
-                else if (context.type === context.UserEventType.CREATE && context.newRecord.type === 'cashsale' && !context.newRecord.getValue({fieldId :'custbody_authnet_override'}) && context.newRecord.getValue({fieldId :'createdfrom'}) &&context.newRecord.getValue({fieldId :'custbody_authnet_refid'})){
-                    log.audit('Pre Authed Cash Sale ', 'Preped to capture funds on submit');
-                    context.newRecord.setValue({fieldId: 'custbody_authnet_datetime', value : ''});
-                    context.newRecord.setValue({fieldId :'custbody_authnet_use', value : true});
-                }
-
-                if (b_doScripty){
-                    var fld_scripty = form.addField({
-                        id: 'custpage_scripty',
-                        type: ui.FieldType.INLINEHTML,
-                        label: 'scripty'
-                    });
-
-                    fld_scripty.defaultValue = "<script>" +
-                        "jQuery( document ).ready(function() {" +
-                        "var a_startingNum = [3,4,5,6];" +
-                        "jQuery('#custbody_authnet_ccnumber').keyup(function(event) {" +
-                        "if (this.value.length > 0){" +
-                        "if (a_startingNum.indexOf(+this.value[0]) === -1){" +
-                        "Ext.MessageBox.alert('Invalid Card Number', 'Please recheck the starting card number');" +
-                        "} else if (isNaN(+this.value[this.value.length - 1])){" +
-                        "Ext.MessageBox.alert('Invalid Card Number', 'Please enter only numbers');" +
-                        "}" +
-                        "}" +
-                        "});" +
-                        "jQuery('#custbody_authnet_ccexp').keyup(function(event) {" +
-                        "if (this.value.length > 0){" +
-                        "if (isNaN(+this.value[this.value.length - 1])){" +
-                        "Ext.MessageBox.alert('Invalid Exp Date', 'Only Enter Numbers for MMYY');" +
-                        "}" +
-                        "}" +
-                        "});" +
-                        "jQuery('#custbody_authnet_ccv').keyup(function(event) {" +
-                        "if (this.value.length > 0){" +
-                        "if (isNaN(+this.value[this.value.length - 1])){" +
-                        "Ext.MessageBox.alert('Invalid CCV', 'Only Enter Numbers for CCV values');" +
-                        "} else if (this.value.length === 4){" +
-                        "" +
-                        "}" +
-                        "}" +
-                        "});" +
-                        "});</script>";
-                } else {
-                    log.debug('No Scripty!', 'Not gonna do it...')
-
-                    //log.debug('payment options',form.getField({id:'paymentmethod'}).getSelectOptions());
-
-                    //'Authorize.Net (external)'
-                }
                 //log.debug('authNetBeforeLoad DONE : '+runtime.executionContext, context.type);
             }
         }
         function authNetBeforeSubmit(context) {
+            if(_.includes(['creditmemo'], context.newRecord.type))
+            {
+                return;
+            }
             //var o_config = authNet.getActiveConfig(context.newRecord);
             var o_config2 = authNet.getConfigFromCache();
+            //now switch the object to the correct sub config!
+            if (o_config2.mode === 'subsidiary'){
+                o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
+            }
             //check for EMPTY config on setup
             if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
             {
                 log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net setup has not been complete!');
                 return;
             }
-            else if (o_config2.custrecord_an_enable.val) {
-                log.debug('authNetBeforeSubmit via: '+runtime.executionContext, context.type +' on '+context.newRecord.type);
+            else if (o_config2.custrecord_an_enable.val)
+            {
+                log.debug('STARTING authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type);
                 //runtime.getCurrentSession().set({name: "anetConfig", value: JSON.stringify(o_config)});
                 //manage external import of sales orders with auth
-                if (context.newRecord.type === 'salesorder' && context.type === context.UserEventType.CREATE){
-                    //var o_config = JSON.parse(runtime.getCurrentSession().get({name: "anetConfig"}));
-                    if (o_config2.custrecord_an_external_auth_allowed.val){
-                    //if (o_config.rec.getValue({fieldId: 'custrecord_an_external_auth_allowed'})){
-                        if (context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId : 'custbody_authnet_refid'})) {
-                            context.newRecord.setValue({fieldId:'custbody_authnet_use', value : true});
-                            context.newRecord.setValue({fieldId:'custbody_authnet_datetime', value : moment().toDate()});
-                            if (_.isEmpty(context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}))){
-                                context.newRecord.setValue({fieldId:'custbody_authnet_authcode', value : '(IMPORTED)'});
-                            }
-                            if (o_config2.custrecord_an_make_deposit.val){
-                                context.newRecord.setValue({fieldId:'paymentmethod', value: ''});
-                            } else {
-                                context.newRecord.setValue({fieldId:'paymentmethod', value: o_config2.custrecord_an_paymentmethod.val});
-                            }
+                if (context.type === context.UserEventType.CREATE){
+                    //if this is a create - there's no way it could have an auth date stamp
+                    context.newRecord.setValue({fieldId: 'custbody_authnet_datetime', value : ''});
+                    //clear anything here too
+                    _.forEach(authNet.SETTLEMENT, function (fd) {
+                        var fld = 'custbody_authnet_' + fd;
+                        try {
+                            context.newRecord.setValue({fieldId :fld, value :''});
+                        } catch (e){
+                            log.error('MISSING A SETTLEMENT FIELD!', fld)
                         }
-                        //added to ensure if you have checked authorize.net - the payment method is set 100% of the time
-                    } else if (context.newRecord.getValue({fieldId:'custbody_authnet_use'})){
-                        context.newRecord.setValue({fieldId:'paymentmethod', value: o_config2.custrecord_an_paymentmethod.val});
+                    });
+
+                    //var o_config = JSON.parse(runtime.getCurrentSession().get({name: "anetConfig"}));
+                    if (context.newRecord.type === 'salesorder') {
+                        if (o_config2.custrecord_an_external_auth_allowed.val) {
+                            //if (o_config.rec.getValue({fieldId: 'custrecord_an_external_auth_allowed'})){
+                            if (context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})) {
+                                context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: true});
+                                context.newRecord.setValue({
+                                    fieldId: 'custbody_authnet_datetime',
+                                    value: moment().toDate()
+                                });
+                                if (_.isEmpty(context.newRecord.getValue({fieldId: 'custbody_authnet_authcode'}))) {
+                                    context.newRecord.setValue({
+                                        fieldId: 'custbody_authnet_authcode',
+                                        value: '(IMPORTED)'
+                                    });
+                                }
+                                if (o_config2.custrecord_an_make_deposit.val) {
+                                    context.newRecord.setValue({fieldId: 'paymentmethod', value: ''});
+                                } else {
+                                    context.newRecord.setValue({
+                                        fieldId: 'paymentmethod',
+                                        value: o_config2.custrecord_an_paymentmethod.val
+                                    });
+                                }
+                            }
+                            //added to ensure if you have checked authorize.net - the payment method is set 100% of the time
+                        } else if (context.newRecord.getValue({fieldId: 'custbody_authnet_use'})) {
+                            context.newRecord.setValue({
+                                fieldId: 'paymentmethod',
+                                value: o_config2.custrecord_an_paymentmethod.val
+                            });
+                        }
+                    }
+                    else if (context.newRecord.type === 'cashsale')
+                    {
+                        try{
+                            if (context.newRecord.getValue('pnrefnum') || context.newRecord.getValue('authcode')){
+                                context.newRecord.setValue({fieldId :'custbody_authnet_use', value :false});
+                            }
+                        } catch(ex){
+                            log.emergency('pnref AND a authnet - ohh boy')
+                        }
+                        if (!context.newRecord.getValue({fieldId :'custbody_authnet_override'}) && context.newRecord.getValue({fieldId :'createdfrom'}) && context.newRecord.getValue({fieldId :'custbody_authnet_refid'})){
+                            log.audit('Pre Authed Cash Sale ', 'Preped to capture funds on submit');
+                            context.newRecord.setValue({fieldId :'custbody_authnet_use', value : true});
+                        }
                     }
 
 
@@ -774,24 +735,22 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         isDynamic: true
                     }));
                 }*/
-                log.debug('authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type + ' COMPLETED');
+                log.debug('ENDING authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type + ' COMPLETED');
             }
         }
         function authNetAfterSubmit(context) {
-            /*var licenceValidation;
-            if (runtime.executionContext !== 'USERINTERFACE' ) {
-                licenceValidation = authNet.validateLicence('authnetbasic');
-                authNet.homeSysLog('Non UI get', licenceValidation)
-            } else {
-                licenceValidation = JSON.parse(runtime.getCurrentSession().get({name: 'licence'}));
-                authNet.homeSysLog('licence from session in UI get', licenceValidation)
-                if (_.isEmpty(licenceValidation)){
-                    licenceValidation = authNet.validateLicence('authnetbasic');
-                }
-            }*/
+            if(_.includes(['creditmemo'], context.newRecord.type))
+            {
+                return;
+            }
+            log.debug('STARTING authNetAFTERSubmit via: '+runtime.executionContext, context.type +' on '+context.newRecord.type);
+
             //todo - get the most recent log record and update the transaction???
             //var o_config = authNet.getActiveConfig(context.newRecord);
             var o_config2 = authNet.getConfigFromCache();
+            if (o_config2.mode === 'subsidiary'){
+                o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
+            }
 
             authNet.homeSysLog('authNetAfterSubmit o_config2',o_config2);
 
@@ -915,21 +874,17 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             else
                             {
                                 //INTERNAL AUTH HERE
-                                //todo - explore holding the actual auth attempt until transaction approval
-                                log.debug('status old and new', s_oldStatus + ' : ' + s_newStatus);
-
                                 //added to support "Perform Authorization On Approval of Sales Order Not Create/Save"
+                                //holding the actual auth attempt until transaction approval
                                 //is this pending approval orderstatus === 'A', and if it is and the
                                 if (s_newStatus === 'A' && o_config2.custrecord_an_auth_so_on_approval.val && context.type !== context.UserEventType.APPROVE)
                                 {
                                     log.audit('This Sales Order was not authorized yet', 'The setting "Perform Authorization On Approval of Sales Order Not Create/Save" is enabled - so this order will be processed upon approval');
                                     return;
                                 }
-
                                 var b_isTokenized = (_.toInteger(context.newRecord.getValue({fieldId :'custbody_authnet_cim_token'})) !== 0);
                                 var pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testSO(context.newRecord);
                                 if (pluginResult.process) {
-
                                     //if there was a cc number, its auth.net and it's not already approved, let's do it!
                                     thisRec = authNet.getAuth(context.newRecord);
                                     //thisRec.setValue('custbody_token_instant_auth', false);
@@ -1043,6 +998,26 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     authNet.handleResponse(o_response, context, false);
                                 }
                             }
+                            else if (
+                                txn.getValue({fieldId : 'custbody_authnet_use'})
+                                &&
+                                txn.getValue({fieldId : 'custbody_authnet_cim_token'})
+                                &&
+                                !txn.getValue({fieldId : 'custbody_authnet_refid'})
+                                &&
+                                !txn.getValue({fieldId : 'custbody_authnet_datetime'})
+                                )
+                            {
+                                //this is a missed deposit that someone now wants to charge through, so run it
+                                var pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCD(context.newRecord);
+                                if (pluginResult.process) {
+                                    //if there was a cc number, its auth.net and it's not already approved, let's do it!
+                                    var o_response = authNet.getAuthCapture(context.newRecord);
+                                    //log.debug('o_response', o_response)
+                                    authNet.homeSysLog('DEPOSIT SAVE o_response', o_response);
+                                    authNet.handleResponse(o_response, context, true);
+                                }
+                            }
                         } else {
                             var pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCD(context.newRecord);
                             if (pluginResult.process) {
@@ -1111,7 +1086,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         break;
                 }
             }
-            log.debug('authNetAfterSubmit : ' + runtime.executionContext, context.type +' on '+context.newRecord.type + ' FULLY COMPLETED!');
+            log.debug('ENDING authNetAfterSubmit : ' + runtime.executionContext, context.type +' on '+context.newRecord.type + ' FULLY COMPLETED!');
         }
         return {
             beforeLoad: authNetBeforeLoad,

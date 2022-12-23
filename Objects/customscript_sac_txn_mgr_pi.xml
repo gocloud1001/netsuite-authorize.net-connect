@@ -7,7 +7,7 @@
   <name>SuiteAuthConnect Decision Manager</name>
   <notifyadmins>F</notifyadmins>
   <notifyemails></notifyemails>
-  <notifyowner>T</notifyowner>
+  <notifyowner>F</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_PI.js]</scriptfile>
   <status>RELEASED</status>

@@ -1,8 +1,6 @@
 <transactionbodycustomfield scriptid="custbody_authnet_override">
   <accesslevel>2</accesslevel>
   <applyformatting>F</applyformatting>
-  <bodyassemblybuild>F</bodyassemblybuild>
-  <bodybom>F</bodybom>
   <bodycustomerpayment>T</bodycustomerpayment>
   <bodycustomtransactions></bodycustomtransactions>
   <bodydeposit>T</bodydeposit>
@@ -16,7 +14,6 @@
   <bodyjournal>F</bodyjournal>
   <bodyopportunity>F</bodyopportunity>
   <bodyothertransaction>F</bodyothertransaction>
-  <bodypaycheck>F</bodypaycheck>
   <bodypickingticket>F</bodypickingticket>
   <bodyprintflag>F</bodyprintflag>
   <bodyprintpackingslip>F</bodyprintpackingslip>
@@ -39,7 +36,8 @@
   <fieldtype>CHECKBOX</fieldtype>
   <fldsizelabel></fldsizelabel>
   <globalsearch>F</globalsearch>
-  <help>Checking this box will prevent this transaction and all children / created from transactions from using the SuiteAuthConnect integration.</help>
+  <help>Checking this box will prevent this transaction and all children / created from transactions from using the SuiteAuthConnect integration.&#xd;
+Also - if you need to DELETE a transaction that has touched Authorize.Net and you are being prevented from doing so (there are some cases where you might need to do this) - check this box, save the transaction ,then you will be able to delete it.</help>
   <isformula>F</isformula>
   <ismandatory>F</ismandatory>
   <isparent>F</isparent>

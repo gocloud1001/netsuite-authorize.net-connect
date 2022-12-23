@@ -3,6 +3,7 @@
   <frameworkversion>1.0</frameworkversion>
   <dependencies>
     <features>
+      <feature required="true">SUBSIDIARIES</feature>
       <feature required="true">CUSTOMRECORDS</feature>
       <feature required="false">WEBSTORE</feature>
       <feature required="false">ADVRECEIVING</feature>

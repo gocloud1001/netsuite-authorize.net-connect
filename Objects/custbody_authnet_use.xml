@@ -1,8 +1,6 @@
 <transactionbodycustomfield scriptid="custbody_authnet_use">
   <accesslevel>2</accesslevel>
   <applyformatting>F</applyformatting>
-  <bodyassemblybuild>F</bodyassemblybuild>
-  <bodybom>F</bodybom>
   <bodycustomerpayment>T</bodycustomerpayment>
   <bodycustomtransactions></bodycustomtransactions>
   <bodydeposit>T</bodydeposit>
@@ -16,7 +14,6 @@
   <bodyjournal>F</bodyjournal>
   <bodyopportunity>F</bodyopportunity>
   <bodyothertransaction>F</bodyothertransaction>
-  <bodypaycheck>F</bodypaycheck>
   <bodypickingticket>F</bodypickingticket>
   <bodyprintflag>F</bodyprintflag>
   <bodyprintpackingslip>F</bodyprintpackingslip>
@@ -39,7 +36,8 @@
   <fieldtype>CHECKBOX</fieldtype>
   <fldsizelabel></fldsizelabel>
   <globalsearch>F</globalsearch>
-  <help>Select this box to use Authorize.Net as the credit card payment gateway for this and all related (children) transactions</help>
+  <help>Select this box to use Authorize.Net as the credit card /eCheck payment gateway for this and all related (children) transactions.&#xd;
+Checking this box will allow you to create / select a CIM profile (card token) to use on this transaction.</help>
   <isformula>F</isformula>
   <ismandatory>F</ismandatory>
   <isparent>F</isparent>

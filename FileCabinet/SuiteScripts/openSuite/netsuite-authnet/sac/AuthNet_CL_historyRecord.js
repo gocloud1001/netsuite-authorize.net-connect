@@ -55,7 +55,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             });
             var suitelet_url = domain_url + url.resolveScript({
                 scriptId: 'customscript_c9_authnet_screen_svc',
-                deploymentId: 'customdeploy_c9_authnet_screen_svc'
+                deploymentId: 'customdeploy_sac_authnet_screen_svc'
             }) + '&_id='+rec_id+'&doAuthVoid=true&_type='+curr_rec.type;
             //then redirect to the record as voided
             var response = https.get({
@@ -96,7 +96,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             });
             var suitelet_url = domain_url + url.resolveScript({
                 scriptId: 'customscript_c9_authnet_screen_svc',
-                deploymentId: 'customdeploy_c9_authnet_screen_svc'
+                deploymentId: 'customdeploy_sac_authnet_screen_svc'
             }) + '&_id='+rec_id+'&fraudAuthApprove=approve&_type='+curr_rec.type;
             //then redirect to the record as voided
             var response = https.get({
@@ -137,7 +137,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             });
             var suitelet_url = domain_url + url.resolveScript({
                 scriptId: 'customscript_c9_authnet_screen_svc',
-                deploymentId: 'customdeploy_c9_authnet_screen_svc'
+                deploymentId: 'customdeploy_sac_authnet_screen_svc'
             }) + '&_id='+rec_id+'&fraudAuthApprove=decline&_type='+curr_rec.type;
             //then redirect to the record as voided
             var response = https.get({
@@ -178,7 +178,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             });
             var suitelet_url = domain_url + url.resolveScript({
                 scriptId: 'customscript_c9_authnet_screen_svc',
-                deploymentId: 'customdeploy_c9_authnet_screen_svc'
+                deploymentId: 'customdeploy_sac_authnet_screen_svc'
             }) + '&_id='+rec_id+'&getCIM=true&_type='+curr_rec.type;
             //then redirect to the record as voided
             var response = https.get({

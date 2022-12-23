@@ -6,8 +6,9 @@ Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) make thi
 Here's a checklist and grades of things it does and does not do (version 3.1+):
 - [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, Shopify, WooCommerce, BigCommerce, etc* inside of NetSuite
 - [**A+**] Allows for direct processing of authorizations or authorizations+captures inside of NetSuite on the appropriate transaction type following native card processing logic
-- [**A+**] Provides VERY ROBUST batch settlement tracking and processing features making daily reconciliations and deposits simple and efficient while also making any discrepancies easy to spot and resolve
+- [**A+**] Provides VERY ROBUST batch settlement tracking and processing features making daily reconciliations and deposits simple and efficient while also making any discrepancies easy to spot and resolve
 - [**A+**] Storage of card data using Authorize.Net CIM for PCI complaint tokens - no raw card data is preserved
+- [**A+**] Allows multiple NetSuite subsidiaries each with their own Authorize.Net account / payment gateway
 - [**F**] SuiteCommerce will not work with this solution because it is not a Gateway Plugin  (*besides, you should use a decent webstore anyhow - not SuiteCommerce*)
 - [**F**] NetSuite POS will not work with this solution because it is not a Gateway Plugin  (*additionally, should you really be running a product that calls itself a POS?*)
 - [**D**] Customer Center "self pay" has not been tested end to end tested - it can work - but the Customer Center implementation in NetSuite itself is so poor - the user experience is horrific and not suggested
@@ -55,7 +56,9 @@ Feel free to [reach out to us](https://www.gocloud1001.com "reach out to us") if
 If you need help installing, configuring or have other questions - we do provide pre-paid ad-hoc assistance for installation in [30 minute](https://calendly.com/cloud1001-andy/authorize-net-software-support-session-half-hour) and [1 hour](https://calendly.com/cloud1001-andy/authorize-net-software-support-session) blocks. We WILL NOT log into your system - these are screen share sessions where you can use the time for anything you need.
 
 ## Roadmap
+3.2.x is LIVE and includes multi-subsidiary support, even better reconciliation tools and enhanced token entry for better AVS validation support!
 3.1.x is LIVE and includes eCheck support (ACH) using Authorize.net, default payments by customer and sets the stage for "pay by link" logic to let people pay their invoices directly!
 
 This readme is made pretty by https://stackedit.io
+
 

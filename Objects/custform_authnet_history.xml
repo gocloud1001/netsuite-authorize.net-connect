@@ -107,6 +107,15 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
+          <id>[scriptid=customrecord_authnet_history.custrecord_an_response_code_type]</id>
+          <label>Response Code Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>INLINETEXT</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>T</sameRowAsPrevious>
+        </field>
+        <field>
           <id>[scriptid=customrecord_authnet_history.custrecord_an_supdataqualindic]</id>
           <label>Supplemental Data Qualification Indicator</label>
           <visible>T</visible>

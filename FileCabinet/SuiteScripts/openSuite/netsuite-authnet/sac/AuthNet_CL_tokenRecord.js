@@ -28,8 +28,8 @@
  */
 
 
-define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
-    function(record, url, currentRecord, https, _, moment) {
+define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'lodash', 'moment'],
+    function(record, url, currentRecord, https, search,_, moment) {
         function getParameterByName(name) {
             name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
             var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
@@ -37,8 +37,9 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
             return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
         }
         var a_bankFields = [
-            'custrecord_an_token_entity_email',
-            'custrecord_an_token_customer_type',
+            //'custrecord_an_token_entity_email',
+            //'custrecord_an_token_customer_type',
+            'custpage_customertype',
             'custrecord_an_token_bank_routingnumber',
             'custrecord_an_token_bank_accountnumber',
             'custrecord_an_token_bank_nameonaccount',
@@ -48,9 +49,15 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
         ];
         var a_cardFields = [
             'custrecord_an_token_name_on_card',
+            'custrecord_an_token_lastname_on_card',
             'custrecord_an_token_cardnumber',
             'custrecord_an_token_cardcode',
             'custrecord_an_token_expdate',
+            'custrecord_an_token_entity_addr_number',
+            'custrecord_an_token_entity_addr_city',
+            'custrecord_an_token_entity_addr_state',
+            'custrecord_an_token_entity_addr_zip',
+            'custrecord_an_token_entity_addr_zipplus4',
         ];
         var a_completedField = [
             'custrecord_an_token_last4',
@@ -101,7 +108,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
             if (show){
                 //if we are showing card - clear all bank data
                 _.forEach(a_bankFields, function(fldName) {
-                    if (!_.includes(['custrecord_an_token_entity_email', 'custrecord_an_token_customer_type', 'custrecord_an_token_bank_nameonaccount'], fldName)) {
+                    if (!_.includes(['custrecord_an_token_entity_email', 'custrecord_an_token_customer_type', 'custpage_customertype', 'custrecord_an_token_bank_nameonaccount'], fldName)) {
                         context.currentRecord.setValue({fieldId: fldName, value: '', ignoreFieldChange: true});
                     }
                 });
@@ -112,6 +119,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
             // do nothing for now...
             log.debug('pageInit', scriptContext);
 
+            window.sessionStorage.setItem("config", scriptContext.currentRecord.getValue({fieldId: 'custpage_an_config'}));
             if (scriptContext.currentRecord.isNew && scriptContext.mode === 'create'){
 
                 //scriptContext.currentRecord.setValue({fieldId:'custrecord_an_token_entity', value: getParameterByName('entity')})
@@ -123,6 +131,39 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
                 if (getParameterByName('pi')){
                     scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_entity', value: getParameterByName('pi')})
                 }
+                var s_o_config = window.sessionStorage.getItem("config");
+                if (s_o_config)
+                {
+                    var o_config = JSON.parse(s_o_config);
+                    if (o_config.mode === 'subsidiary'){
+                        o_config = o_config.subs['subid' + scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_subsidiary'})];
+                        //moved below code all server side in the beforeLoad
+                        /*if (window.opener)
+                        {
+                            if (window.opener.nlapiGetFieldValue('subsidiary')) {
+                                console.log('Token PopUp!');
+                                o_config = o_config.subs['subid' + window.opener.nlapiGetFieldValue('subsidiary')];
+                            }
+                        }
+                        //this is for a token being entered directly off the custoemr to get the sub record filter
+                        else if (getParameterByName('pi'))
+                        {
+                            console.log('Token Direct Pi!');
+                            var o_custData = search.lookupFields({
+                                type:'customer',
+                                id : scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_entity'}),
+                                columns : ['subsidiary']
+                            });
+                            o_config = o_config.subs['subid'+o_custData.subsidiary[0].value];
+                        }*/
+                        if (o_config)
+                        {
+                            //scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_subsidiary', value : o_config.subid});
+                            scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_gateway_sub', value : o_config.configid});
+                        }
+                    }
+                }
+
                 showBankFields(scriptContext,false);
                 showCardFields(scriptContext,true);
                 _.forEach(a_completedField, function(fldName){
@@ -132,8 +173,6 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
                     _fld.isVisible = false;
                     _fld.isDisplay = false;
                 });
-
-
             }
         }
 
@@ -151,6 +190,15 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
                     //show all bank fields
                     showBankFields(scriptContext,true);
                     showCardFields(scriptContext,false);
+                    if (scriptContext.currentRecord.getValue({fieldId: 'custpage_customertype'}) === 'individual')
+                    {
+                        scriptContext.currentRecord.setValue({fieldId: 'custpage_achtype', value : 'PPD'});
+                    }
+                    else if (scriptContext.currentRecord.getValue({fieldId: 'custpage_customertype'}) === 'business')
+                    {
+                        scriptContext.currentRecord.setValue({fieldId: 'custpage_banktype', value : 'businessChecking'});
+                        scriptContext.currentRecord.setValue({fieldId: 'custpage_achtype', value : 'CCD'});
+                    }
 
                 }
             }
@@ -159,11 +207,11 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
                     var expDate = scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_expdate'});
                     var m_expDate = moment(expDate);
                     if (expDate.length === 0){
-                        alert( 'Missing Expiration Date');
+                        Ext.MessageBox.alert('Missing Expiration Date', 'This is a required value.');
                     } else if (expDate.length !== 4){
-                        alert( 'Invalid Expiration Date - format must be MMYY');
+                        Ext.MessageBox.alert( 'Invalid Expiration Date', 'Format must be MMYY.  No other characters are needed or accepted.');
                     } else if (m_expDate.isSameOrAfter(moment().endOf('month'))) {
-                        alert( 'Invalid Expiration Date - ' + moment(expDate, 'MMYY').format('MMMM YYYY') + ' has passed');
+                        Ext.MessageBox.alert( 'Invalid Expiration Date', moment(expDate, 'MMYY').format('MMMM YYYY') + ' has passed making the card expired.');
                     }
                 }
 
@@ -173,7 +221,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
                 var ccv = scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_cardcode'});
                 var b_goodcvv = ccv.length <= 4 && ccv.length > 2;
                 if (!b_goodcvv) {
-                    alert(' Invalid CVV Format - must be 3 or 4 numbers');
+                    Ext.MessageBox.alert('Invalid CVV Format', 'Value must be 3 or 4 numbers');
                 }
             }
             else if ((scriptContext.fieldId === 'custrecord_an_token_cardnumber'))
@@ -195,7 +243,38 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'lodash', 'moment'],
                 }
                 if (!b_goodCard)
                 {
-                    alert('Invalid Card Number - recheck this ' + o_ccTypes[cardNum[0]]);
+                    var s_cardType = o_ccTypes[cardNum[0]];
+                    if( _.isUndefined(o_ccTypes[cardNum[0]])){
+                        s_cardType = ' unidentifiable credit card'
+                    }
+                    Ext.MessageBox.alert('Invalid Card Number', 'Recheck the entered information for the '+ s_cardType);
+                }
+            }
+            else if (scriptContext.fieldId === 'custpage_customertype')
+            {
+                if (scriptContext.currentRecord.getValue({fieldId: 'custpage_customertype'}) === 'individual')
+                {
+                    scriptContext.currentRecord.setValue({fieldId: 'custpage_achtype', value : 'PPD', ignoreFieldChange:true});
+                    scriptContext.currentRecord.setValue({fieldId: 'custpage_banktype', value : 'checking', ignoreFieldChange:true});
+                }
+                else if (scriptContext.currentRecord.getValue({fieldId: 'custpage_customertype'}) === 'business')
+                {
+                    scriptContext.currentRecord.setValue({fieldId: 'custpage_banktype', value : 'businessChecking', ignoreFieldChange:true});
+                    scriptContext.currentRecord.setValue({fieldId: 'custpage_achtype', value : 'CCD', ignoreFieldChange:true});
+                }
+            }
+            else if (scriptContext.fieldId === 'custpage_achtype' || scriptContext.fieldId === 'custpage_banktype')
+            {
+                if (scriptContext.currentRecord.getValue({fieldId: 'custpage_achtype'}) && scriptContext.currentRecord.getValue({fieldId: 'custpage_banktype'}))
+                {
+                    if (scriptContext.currentRecord.getValue({fieldId: 'custpage_achtype'}) === 'PPD' && scriptContext.currentRecord.getValue({fieldId: 'custpage_banktype'}) === 'businessChecking')
+                    {
+                        Ext.MessageBox.alert('Bank Account and ACH Type Mismatch', 'Usually a PPD (Personal) ACH type is not associated with a Business Checking account. Please double check your selections before saving this record.');
+                    }
+                    else if (scriptContext.currentRecord.getValue({fieldId: 'custpage_achtype'}) === 'CCD' && _.includes(['checking', 'savings'], scriptContext.currentRecord.getValue({fieldId: 'custpage_banktype'})))
+                    {
+                        Ext.MessageBox.alert('Bank Account and ACH Type Mismatch', 'Usually a CCD (Company) ACH type is not associated with a personal checking or savings account. Please double check your selections before saving this record.');
+                    }
                 }
             }
         }

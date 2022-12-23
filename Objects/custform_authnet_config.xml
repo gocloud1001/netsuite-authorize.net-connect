@@ -145,6 +145,15 @@
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_config.custrecord_an_show_versions]</id>
+          <label>Show message when version is not latest</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
       </fields>
     </fieldGroup>
     <fieldGroup scriptid="fieldgroup_120_t1273352_483">
@@ -185,7 +194,7 @@
           <label>API URL</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
+          <displayType>INLINETEXT</displayType>
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
@@ -220,7 +229,7 @@
           <label>API URL (Sandbox)</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
+          <displayType>INLINETEXT</displayType>
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
@@ -407,6 +416,22 @@
     </defaultFieldGroup>
   </mainFields>
   <tabs>
+    <tab>
+      <id>[scriptid=customrecord_authnet_config.tab_288_5521729_sb1_705]</id>
+      <label>Subsidiary Configuration</label>
+      <visible>T</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_parent_config]</id>
+          <label>Authorize.Net Configuration (Subsidiary)</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
+    </tab>
     <tab>
       <id>RECORDWORKFLOW</id>
       <label>Workflow</label>

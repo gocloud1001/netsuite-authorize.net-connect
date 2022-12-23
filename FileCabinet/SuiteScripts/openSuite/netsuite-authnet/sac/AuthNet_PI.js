@@ -29,8 +29,9 @@ define(['exports', 'N/log', 'lodash', './AuthNet_lib'],
 function(exports, log, _, SAC) {
 
     function testPaymentPresent(record){
-        //return (!_.isInteger(record.getValue({ fieldId:'custbody_authnet_ccnumber'}) || (record.getValue({ fieldId:'custbody_authnet_cim_token'}) && +record.getValue({ fieldId:'custbody_authnet_cim_token_type'}) !== 2)));
-        return ( (record.getValue({ fieldId:'custbody_authnet_cim_token'}) && +record.getValue({ fieldId:'custbody_authnet_cim_token_type'}) !== 2));
+        //log.debug('custbody_authnet_cim_token', record.getValue({ fieldId:'custbody_authnet_cim_token'}))
+        //log.debug('custbody_authnet_cim_token_type', record.getValue({ fieldId:'custbody_authnet_cim_token_type'}))
+        return ( (record.getValue({ fieldId:'custbody_authnet_cim_token'}) && +record.getValue({ fieldId:'custbody_authnet_cim_token_type'}) !== 0));
     }
 
     //this is the test for a Sales Order
@@ -45,7 +46,7 @@ function(exports, log, _, SAC) {
         if (SAC.pi_response.process){
             SAC.pi_response.process = testPaymentPresent(record);
         }
-        log.debug('Plugin Validation - Sales Order', SAC.pi_response);
+        log.audit('Plugin Validation - Sales Order', SAC.pi_response);
         return SAC.pi_response;
     };
 
@@ -78,13 +79,13 @@ function(exports, log, _, SAC) {
         //log.debug('Plugin Validation - record.getValue({fieldId: \'createdfrom\'})', record.getValue({fieldId: 'createdfrom'}));
         //log.debug('Plugin Validation - ', !_.isDate(record.getValue({fieldId: 'custbody_authnet_datetime'})));
 
-        log.debug('Plugin Validation - Cash Sale from SO', SAC.pi_response);
+        log.audit('Plugin Validation - Cash Sale from SO', SAC.pi_response);
         return SAC.pi_response;
     };
 
     //this is a test for a standalone Cash Sale
     exports.testCSStandalone = function (record) {
-        log.debug('Plugin Validation - Cash Sale Standalone');
+        //log.debug('Plugin Validation - Cash Sale Standalone');
         SAC.pi_response.process = (
             !record.getValue({fieldId:'custbody_authnet_override'}) &&
             !record.getValue({fieldId: 'createdfrom'}) &&
@@ -92,7 +93,7 @@ function(exports, log, _, SAC) {
             !record.getValue({fieldId: 'custbody_authnet_refid'}) &&
             testPaymentPresent(record)
         );
-        log.debug('Plugin Validation - Cash Sale Standalone', SAC.pi_response);
+        log.audit('Plugin Validation - Cash Sale Standalone', SAC.pi_response);
         return SAC.pi_response;
     };
 
@@ -105,7 +106,7 @@ function(exports, log, _, SAC) {
             record.getValue({ fieldId:'custbody_authnet_use'})  &&
             testPaymentPresent(record)
         );
-        log.debug('Plugin Validation - Customer Deposit', SAC.pi_response);
+        log.audit('Plugin Validation - Customer Deposit', SAC.pi_response);
         return SAC.pi_response;
     };
 

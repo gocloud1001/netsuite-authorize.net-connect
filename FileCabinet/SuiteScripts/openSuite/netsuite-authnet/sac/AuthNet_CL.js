@@ -30,10 +30,9 @@
 define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 'moment'],
     function(currentRecord, search, message, dialog, _, moment) {
         var exports = {
-            sac : []
+            sac : [],
         };
 
-        //exports.aNetFields = ['custbody_authnet_ccnumber', 'custbody_authnet_ccexp', 'custbody_authnet_ccv','custbody_authnet_cim_token'];
         exports.aNetFields = ['custbody_authnet_cim_token'];
 
         exports.test = function(context){
@@ -49,9 +48,13 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             //}
         }
 
-        function getDefaultCard(currentRecord){
+        function getDefaultCard(currentRecord, o_config){
             try {
-                var o_config = JSON.parse(currentRecord.getValue({fieldId: 'custpage_an_config'}));
+               console.log('getting DefaultCard - this might take a second or 2...')
+                //console.log(o_config)
+                if (!o_config){
+                    alert('getDefaultCard missing a config object');
+                }
                 var custId = currentRecord.getValue({fieldId: 'entity'}) ? currentRecord.getValue({fieldId: 'entity'}) : currentRecord.getValue({fieldId: 'customer'});
                 var a_filters = [
                     ['custrecord_an_token_entity', search.Operator.ANYOF, custId],
@@ -60,28 +63,39 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     "AND",
                     ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, "F"],
                     "AND",
-                    ['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id.toString()],
-                    "AND",
                     ['isinactive', search.Operator.IS, "F"],
                     "AND",
                     ['custrecord_an_token_token', 'isnotempty', ''],
                 ];
+                if (o_config.isSubConfig)
+                {
+                    a_filters.push("AND");
+                    a_filters.push(['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.masterid.toString()]);
+                    a_filters.push("AND");
+                    a_filters.push(['custrecord_an_token_gateway_sub', search.Operator.ANYOF, o_config.configid.toString()]);
+                    a_filters.push("AND");
+                    a_filters.push(['custrecord_an_token_subsidiary', search.Operator.ANYOF, o_config.subid.toString()]);
+                }
+                else
+                {
+                    a_filters.push("AND");
+                    a_filters.push(['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id.toString()]);
+                }
                 log.debug('token search filters', a_filters);
-                var history = search.create({
+                search.create({
                     type: 'customrecord_authnet_tokens',
                     filters: a_filters,
                     columns: [
                         'name',
                         'custrecord_an_token_paymenttype'
                     ]
-                }).run();
-                var i_defaultToken;
-                history.each(function (result) {
+                }).run().each(function (result) {
                     log.debug('result', result)
                     currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
+                    var tokenTypeId = result.getValue('custrecord_an_token_paymenttype') ? result.getValue('custrecord_an_token_paymenttype') : 1;
                     currentRecord.setValue({
                         fieldId: 'custbody_authnet_cim_token_type',
-                        value: result.getValue('custrecord_an_token_paymenttype')
+                        value: tokenTypeId
                     });
                     return true;
                 });
@@ -95,7 +109,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
                 else
                 {
-                    alert('Unable to retrieve customer CIM profiles / card tokens - this is an error.');
+                    alert('Unable to retrieve customer CIM profiles / card tokens - this is a '+e.name+' error.');
                 }
                 //log.error(e.name, e.stack);
             }
@@ -103,7 +117,13 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
 
         function SAC_pageInit(context) {
 
-            console.log('Giggity giggity - we are a GO for SuiteAuthConnect! ' + JSON.stringify(context))
+            if(_.isNull(context.currentRecord.getField({fieldId: 'custpage_an_config'}))){
+                Ext.MessageBox.alert('Configuration is Missing', 'The Authorize.Net User Event Script Is Not Deployed On This Form.  This transaction will not capture funds as expected without that script deployed.');
+            } else {
+                window.sessionStorage.setItem("config", context.currentRecord.getValue({fieldId: 'custpage_an_config'}));
+                console.log('Giggity giggity - we are a GO for SuiteAuthConnect in '+JSON.parse(window.sessionStorage.getItem("config")).mode+' mode! ' + JSON.stringify(context));
+            }
+
             //context = {"currentRecord":{"id":"8045","type":"salesorder","isDynamic":true,"prototype":{}},"mode":"edit"}
             if (_.includes(['salesorder', 'cashsale','customerdeposit','customerpayment'],context.currentRecord.type)) {
                 if (_.includes(['create', 'copy', 'edit'], context.mode)) {
@@ -129,24 +149,106 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
             } else if (_.includes(['customerrefund'], context.currentRecord.type)){
                 try {
-                    window.nlapiGetField('custbody_authnet_ccnumber').setDisplayType('hidden');
-                    window.nlapiGetField('custbody_authnet_ccexp').setDisplayType('hidden');
-                    window.nlapiGetField('custbody_authnet_ccv').setDisplayType('hidden');
-                    window.nlapiGetField('custbody_authnet_refid').setDisplayType('hidden');
-                    window.nlapiGetField('custbody_authnet_authcode').setDisplayType('hidden');
-                    window.nlapiGetField('custbody_authnet_override').setDisplayType('hidden');
-                    window.nlapiGetField('custbody_authnet_cim_token').setDisplayType('hidden');
+                    _.forEach([
+                        'custbody_authnet_ccnumber',
+                        'custbody_authnet_ccexp',
+                        'custbody_authnet_ccv',
+                        'custbody_authnet_refid',
+                        'custbody_authnet_authcode',
+                        'custbody_authnet_override',
+                        'custbody_authnet_cim_token',
+                    ],function(fld){
+                        window.nlapiGetField(fld).setDisplayType('hidden');
+                    });
+
+                    if (context.currentRecord.getValue({fieldId: 'customer'}))
+                    {
+                        var i_numDeposits = context.currentRecord.getLineCount({sublistId: 'deposit' });
+                        var i_numCredits = context.currentRecord.getLineCount({sublistId: 'apply' });
+                        //console.log(i_numDeposits + i_numCredits)
+                        var a_txnIds = [];
+                        for (var i = 0; i < i_numDeposits; i++){
+                            a_txnIds.push(context.currentRecord.getSublistValue({sublistId: 'deposit' , fieldId: 'doc', line : i}));
+                        }
+                        for (var j = 0; j < i_numCredits; j++){
+                            a_txnIds.push(context.currentRecord.getSublistValue({sublistId: 'apply' , fieldId: 'doc', line : j}));
+                        }
+                        if(_.isEmpty(exports.sac) && !_.isEmpty(a_txnIds)) {
+                            var a_filters = [
+                                ['internalid', 'anyof', a_txnIds],
+                                "AND",
+                                ['mainline', 'is', true]
+                            ];
+                            search.create({
+                                type: 'transaction',
+                                filters: a_filters,
+                                columns: [
+                                    {name: 'internalid'},
+                                    {name: 'custbody_authnet_refid'},
+                                    {name: 'custbody_authnet_datetime'},
+                                    {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
+                                ]
+                            }).run().each(function (result) {
+                                if (result.getValue('custbody_authnet_refid')) {
+                                    exports.sac.push(+result.getValue('internalid'));
+                                }
+                                //console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
+                                return true;
+                            });
+                        }
+                    }
+
                 } catch (e){
                     console.log(e);
                 }
             }
+
             //window.nlapiGetField('memo').setDisplayType('normal')
             //console.log(this)
         }
 
         function SAC_postSourcing(context) {
-            var o_config = JSON.parse(context.currentRecord.getValue({fieldId: 'custpage_an_config'}));
+            var o_config = JSON.parse(window.sessionStorage.getItem("config") );
             var fieldName = context.fieldId;
+            //console.log('ps - ' +fieldName);
+            if (fieldName === 'customer' || fieldName === 'entity' || fieldName === 'subsidiary')
+            {
+                if (o_config.mode === 'subsidiary') {
+                    if (context.currentRecord.getValue({fieldId: 'subsidiary'})) {
+                        o_config = o_config.subs['subid' + context.currentRecord.getValue({fieldId: 'subsidiary'})];
+                        if (!o_config)
+                        {
+                            //add a blank config because this sub is not supported.
+                            o_config = {}
+                            //disable these fields :
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_use',
+                                value: false,
+                                ignoreFieldChange: true
+                            });
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_override',
+                                value: false,
+                                ignoreFieldChange: true
+                            });
+                            window.nlapiGetField('custbody_authnet_use').setDisplayType('disabled');
+                            window.nlapiGetField('custbody_authnet_override').setDisplayType('disabled');
+                        }
+                        else
+                        {
+                            window.nlapiGetField('custbody_authnet_use').setDisplayType('normal');
+                            window.nlapiGetField('custbody_authnet_override').setDisplayType('normal');
+                        }
+                        log.debug('postSourcing mode : subsidiary of '+ fieldName, o_config);
+                    }
+                    else
+                    {
+                        log.debug('postSourcing mode : '+o_config.mode+' of '+ fieldName, o_config);
+                    }
+                }
+
+            }
+
             //console.log('postSourcing ' + fieldName)
             //be smart about this special record type
             if (_.includes(['customerrefund'], context.currentRecord.type)) {
@@ -183,126 +285,209 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             if (result.getValue('custbody_authnet_refid')) {
                                 exports.sac.push(+result.getValue('internalid'));
                             }
-                            console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
+                            //console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
                             return true;
                         });
                     }
                 }
             }
             if (fieldName === 'custbody_authnet_cim_token' && context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})){
-                console.log('o_config',o_config)
                 try {
-                    if (+context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                        context.currentRecord.setValue({fieldId : 'paymentmethod', value : o_config.custrecord_an_paymentmethod.val, ignoreFieldChange:true});
+                    if (o_config) {
+                        if (+context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
+                            context.currentRecord.setValue({
+                                fieldId: 'paymentmethod',
+                                value: o_config.custrecord_an_paymentmethod.val,
+                                ignoreFieldChange: true
+                            });
+                        } else {
+                            context.currentRecord.setValue({
+                                fieldId: 'paymentmethod',
+                                value: o_config.custrecord_an_paymentmethod_echeck.val,
+                                ignoreFieldChange: true
+                            });
+                        }
                     }
                     else
                     {
-                        context.currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod_echeck.val, ignoreFieldChange:true});
+                        log.audit('No CONFIG', 'No valid config object!');
                     }
                 } catch (e) {
-                    log.audit('Account does not have native cc-pocessing enabled');
+                    log.audit('Account does not have native cc-processing enabled');
                 }
             }
-        }
-        function SAC_validateField(context) {
-            var b_isValid = true;
-            var currentRecord = context.currentRecord;
-            var fieldName = context.fieldId;
-            if (_.includes(['salesorder'], currentRecord.type)) {
-                switch (fieldName) {
-                    case 'custbody_authnet_cim_token':
-
-                        break;
-                }
-            }
-            return b_isValid;
         }
 
         function SAC_fieldChanged(context) {
             var currentRecord = context.currentRecord;
             var fieldName = context.fieldId;
+            console.log(currentRecord.type + ' : '+fieldName)
+            //this section is a bit of a mess and should be refactored to be cleaner...
+            if (_.includes([
+                'custbody_authnet_use',
+                'custbody_authnet_override',
+                'terms',
+                'orderstatus',
+                'apply',
+                'paymentmethod',
+                'payment'
+            ], fieldName))
+            {
+                var o_config = JSON.parse(window.sessionStorage.getItem("config"));
+                if (o_config.mode === 'subsidiary') {
+                    if (context.currentRecord.getValue({fieldId: 'subsidiary'})) {
+                        o_config = o_config.subs['subid' + context.currentRecord.getValue({fieldId: 'subsidiary'})];
 
-            if(_.isNull(context.currentRecord.getField({fieldId: 'custpage_an_config'}))){
-                Ext.MessageBox.alert('Configuration is Missing', 'The Authorize.Net User Event Script Is Not Deployed On This Form.  This transaction will not capture funds as expected without that script deployed.');
-            } else {
-                var o_config = JSON.parse(context.currentRecord.getValue({fieldId: 'custpage_an_config'}));
-                var nativeFields = ['creditcard', 'ccnumber', 'ccexpiredate', 'creditcardprocessor', 'pnrefnum', 'authcode'];
-                //explicitly disallow terms and auth.net on the same SO
-                if (_.includes(['salesorder'], currentRecord.type)) {
-                    switch (fieldName) {
-                        case 'custbody_authnet_use':
-                            var s_currentStatus = currentRecord.getValue({fieldId: 'orderstatus'});
-                            console.log(s_currentStatus + ' :: ' + o_config.custrecord_an_generate_token_pend_approv.val)
-                            if (_.includes(['B', 'D', 'E', 'F'], s_currentStatus) || (s_currentStatus === 'A' && o_config.custrecord_an_generate_token_pend_approv.val)) {
+                        if (_.isUndefined(o_config))
+                        {
+                            //when the sub is not setup for auth net
+                            //disable these fields :
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_use',
+                                value: false,
+                                ignoreFieldChange: true
+                            });
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_override',
+                                value: false,
+                                ignoreFieldChange: true
+                            });
+                            window.nlapiGetField('custbody_authnet_use').setDisplayType('disabled');
+                            window.nlapiGetField('custbody_authnet_override').setDisplayType('disabled');
+                            log.audit('This Subsidiary is not supported', 'The selected Subsdiary doea not use authorzie.net');
+                            return;
+                        }
+                        else
+                        {
+                            //sub is set up for authorize!
+                            window.nlapiGetField('custbody_authnet_use').setDisplayType('normal');
+                            window.nlapiGetField('custbody_authnet_override').setDisplayType('normal');
+                        }
+                    }
+                    else
+                    {
+                        window.nlapiGetField('custbody_authnet_use').setDisplayType('disabled');
+                        window.nlapiGetField('custbody_authnet_override').setDisplayType('disabled');
+                        return;
+                    }
+                }
+                //console.log('o_config')
+                //console.log(o_config)
+
+                if (o_config.custrecord_an_paymentmethod)
+                {
+                    if (fieldName === 'paymentmethod')
+                    {
+                        if (_.includes([o_config.custrecord_an_paymentmethod_echeck.val, o_config.custrecord_an_paymentmethod.val], context.currentRecord.getValue({fieldId: 'paymentmethod'})) )
+                        {
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_use',
+                                value: true
+                            });
+                        }
+                        else
+                        {
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_use',
+                                value: false,
+                                ignoreFieldChange: true
+                            });
+                        }
+                    }
+                }
+                //console.log('FOUND CONFIG : ' + JSON.stringify(o_config))
+                var nativeFields = ['creditcard', 'ccnumber', 'ccexpiredate', 'creditcardprocessor', 'pnrefnum', 'authcode', 'terms'];
+                //cc field changes - set this field to auth net
+                if (_.includes(['salesorder', 'cashsale', 'customerdeposit', 'customerpayment', 'cashrefund'], currentRecord.type)) {
+                    console.log(currentRecord.type + ' : '+fieldName)
+                    //explicitly disallow terms and auth.net on the same SO
+                    if (_.includes(['salesorder'], currentRecord.type))
+                    {
+                        switch (fieldName) {
+                            case 'custbody_authnet_use':
+                                var s_currentStatus = currentRecord.getValue({fieldId: 'orderstatus'});
+                                console.log(s_currentStatus + ' :: ' + o_config.custrecord_an_generate_token_pend_approv.val)
+                                if (_.includes(['B', 'D', 'E', 'F'], s_currentStatus) || (s_currentStatus === 'A' && o_config.custrecord_an_generate_token_pend_approv.val)) {
+                                    _.forEach(exports.aNetFields, function (field) {
+                                        try {
+                                            currentRecord.setValue({fieldId: field, value: ''});
+                                            window.nlapiGetField(field).setDisplayType('normal');
+                                            console.log('show ' + field)
+                                        } catch (e) {
+                                            log.error('issue with client hide / show . ', 'Missing field : ' + field);
+                                        }
+                                    });
+                                } else {
+                                    currentRecord.setValue({
+                                        fieldId: 'custbody_authnet_use',
+                                        value: false,
+                                        ignoreFieldChange: true
+                                    });
+                                    var s_status = currentRecord.getText({fieldId: 'orderstatus'})
+                                    console.log('Nope : ' + currentRecord.getValue({fieldId: 'orderstatus'}) + ' ' + s_status);
+                                    alert('You can not charge a customers credit card for a ' + s_status + ' transaction.  Either change the transaction to an approved state, change the Authorize.Net configuration or attempt to charge the card later.');
+                                }
+                                break;
+
+                            case 'terms':
                                 _.forEach(exports.aNetFields, function (field) {
                                     try {
-                                        currentRecord.setValue({fieldId: field, value: ''});
-                                        window.nlapiGetField(field).setDisplayType('normal');
-                                        console.log('show ' + field)
+                                        currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange:true});
+                                        window.nlapiGetField(field).setDisplayType('hidden');
+                                        //console.log('hide ' + field)
                                     } catch (e) {
                                         log.error('issue with client hide / show . ', 'Missing field : ' + field);
                                     }
                                 });
-                                //search for the default card for this customer
-                                getDefaultCard(context.currentRecord);
-                            } else {
                                 currentRecord.setValue({
                                     fieldId: 'custbody_authnet_use',
                                     value: false,
                                     ignoreFieldChange: true
                                 });
-                                var s_status = currentRecord.getText({fieldId: 'orderstatus'})
-                                console.log('Nope : ' + currentRecord.getValue({fieldId: 'orderstatus'}) + ' ' + s_status);
-                                alert('You can not charge a customers credit card for a ' + s_status + ' transaction.  Either change the transaction to an approved state, change the Authorize.Net configuration or attempt to charge the card later.');
-                            }
-                            break;
-
-                        case 'terms':
-                            _.forEach(exports.aNetFields, function (field) {
-                                try {
-                                    currentRecord.setValue({fieldId: field, value: ''});
-                                    window.nlapiGetField(field).setDisplayType('hidden');
-                                    console.log('hide ' + field)
-                                } catch (e) {
-                                    log.error('issue with client hide / show . ', 'Missing field : ' + field);
-                                }
-                            });
-                            currentRecord.setValue({
-                                fieldId: 'custbody_authnet_use',
-                                value: false,
-                                ignoreFieldChange: true
-                            });
-                            currentRecord.setValue({
-                                fieldId: 'custbody_authnet_cim_token',
-                                value: '',
-                                ignoreFieldChange: true
-                            });
-                            break;
-                        case 'orderstatus':
-                            var s_currentStatus = currentRecord.getValue({fieldId: 'orderstatus'});
-                            if (s_currentStatus !== 'B') {
                                 currentRecord.setValue({
-                                    fieldId: 'custbody_authnet_use',
-                                    value: false,
-                                    ignoreFieldChange: false
+                                    fieldId: 'custbody_authnet_cim_token',
+                                    value: '',
+                                    ignoreFieldChange: true
                                 });
-                            }
-                            break;
+                                break;
+                            case 'orderstatus':
+                                var s_currentStatus = currentRecord.getValue({fieldId: 'orderstatus'});
+                                if (s_currentStatus !== 'B') {
+                                    currentRecord.setValue({
+                                        fieldId: 'custbody_authnet_use',
+                                        value: false,
+                                        ignoreFieldChange: false
+                                    });
+                                }
+                                break;
+                        }
                     }
-                }
-
-                //cc field changes - set this field to auth net
-                if (_.includes(['salesorder', 'cashsale', 'customerdeposit', 'customerpayment'], currentRecord.type)) {
+                    else if (_.includes(['customerpayment'], currentRecord.type))
+                    {
+                        if (fieldName === 'payment')
+                        {
+                            if (+currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'}) !== 0)
+                            {
+                                if (+currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'}) !== +currentRecord.getValue({fieldId: 'payment'}))
+                                {
+                                    Ext.MessageBox.alert('Payment Already Settled', 'This payment has already settled with Authorize.Net for $'+currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'})+'. You can not change the amount on this transaction.' );
+                                    currentRecord.setValue({fieldId :'payment', value: currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'}), ignoreFieldChange: true});
+                                }
+                            }
+                            else if (currentRecord.getValue({fieldId: 'custbody_authnet_datetime'}))
+                            {
+                                Ext.MessageBox.alert('Payment Pending Settlement', 'This payment was submitted to Authorize.Net at '+currentRecord.getValue({fieldId: 'custbody_authnet_datetime'})+'. You can not change the amount on this transaction.' );
+                            }
+                        }
+                    }
                     if (fieldName === 'custbody_authnet_use') {
                         if (currentRecord.getValue({fieldId: 'custbody_authnet_use'})) {
-                            getDefaultCard(context.currentRecord);
+                            getDefaultCard(context.currentRecord, o_config);
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod.val);
-                                }
-                                else
-                                {
-                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod_echeck.val);
+                                    currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
+                                } else {
+                                    currentRecord.setValue({fieldId :'paymentmethod', value : o_config.custrecord_an_paymentmethod_echeck.val,ignoreFieldChange: true});
                                 }
                             } catch (e) {
                                 log.audit('Account does not have native cc-pocessing enabled');
@@ -318,31 +503,24 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             _.forEach(nativeFields, function (field) {
                                 try {
                                     window.nlapiGetField(field).setDisplayType('hidden');
-                                    currentRecord.setValue({fieldId: field, value: ''});
+                                    currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange: true});
                                 } catch (e) {
                                     log.error('issue with client hide / show . ', 'Missing field : ' + field);
                                 }
                             });
-                            //window.nlapiGetField('custbody_authnet_ccnumber').setDisplayType('normal');
-                            //window.nlapiGetField('custbody_authnet_ccexp').setDisplayType('normal');
-                            //window.nlapiGetField('custbody_authnet_ccv').setDisplayType('normal');
-                            //window.nlapiGetField('creditcard').setDisplayType('hidden');
 
                             try {
-                                currentRecord.setValue('creditcard', '');
-                                currentRecord.setValue({fieldId: 'getauth', value: false});
+                                currentRecord.setValue({fieldId :'creditcard', value :'', ignoreFieldChange: true});
+                                currentRecord.setValue({fieldId: 'getauth', value: false, ignoreFieldChange: true});
                             } catch (e) {
                                 log.debug('Native billing not enabled')
                             }
                             //window.nlapiDisableField('bullshit')
                         } else {
-                            currentRecord.setText('paymentmethod', '');
-                            //currentRecord.setValue('custbody_authnet_ccnumber', '');
-                            //currentRecord.setValue('custbody_authnet_ccexp', '');
-                            //currentRecord.setValue('custbody_authnet_ccv', '');
+                            currentRecord.setText({fieldId:'paymentmethod', text:'', ignoreFieldChange: true});
                             _.forEach(exports.aNetFields, function (field) {
                                 try {
-                                    currentRecord.setValue({fieldId: field, value: ''});
+                                    currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange: true});
                                     window.nlapiGetField(field).setDisplayType('hidden');
                                 } catch (e) {
                                     log.error('issue with client hide / show . ', 'Missing field : ' + field);
@@ -360,14 +538,24 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             //window.nlapiGetField('custbody_authnet_ccv').setDisplayType('hidden');
                         }
                     }
-                    else if (fieldName === 'custbody_authnet_override'){
+                    else if (fieldName === 'custbody_authnet_override') {
                         if (currentRecord.getValue({fieldId: 'custbody_authnet_override'})) {
-                            currentRecord.setValue({fieldId:'custbody_authnet_use', value: false, ignoreFieldChange : true});
-                            currentRecord.setValue({fieldId:'custbody_authnet_done', value: true, ignoreFieldChange : true});
+                            currentRecord.setValue({
+                                fieldId: 'custbody_authnet_use',
+                                value: false,
+                                ignoreFieldChange: true
+                            });
+                            currentRecord.setValue({
+                                fieldId: 'custbody_authnet_done',
+                                value: true,
+                                ignoreFieldChange: true
+                            });
                         }
 
                     }
-                } else if (_.includes(['customerrefund'], context.currentRecord.type)) {
+                }
+                else if (_.includes(['customerrefund'], context.currentRecord.type))
+                {
                     if (fieldName === 'custbody_authnet_use') {
                         var a_txnIds = [];
                         for (var i = context.currentRecord.getLineCount('apply') - 1; i >= 0; i--) {
@@ -379,7 +567,11 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 ignoreFieldChange: true
                             });
                             context.currentRecord.commitLine({sublistId: 'apply'});
-                            a_txnIds.push(context.currentRecord.getSublistValue({sublistId: 'apply' , fieldId: 'doc', line : i}));
+                            a_txnIds.push(context.currentRecord.getSublistValue({
+                                sublistId: 'apply',
+                                fieldId: 'doc',
+                                line: i
+                            }));
                         }
                         for (var i = context.currentRecord.getLineCount('deposit') - 1; i >= 0; i--) {
                             context.currentRecord.selectLine({sublistId: 'deposit', line: i});
@@ -390,9 +582,13 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 ignoreFieldChange: true
                             });
                             context.currentRecord.commitLine({sublistId: 'deposit'});
-                            a_txnIds.push(context.currentRecord.getSublistValue({sublistId: 'deposit' , fieldId: 'doc', line : i}));
+                            a_txnIds.push(context.currentRecord.getSublistValue({
+                                sublistId: 'deposit',
+                                fieldId: 'doc',
+                                line: i
+                            }));
                         }
-                        if(_.isEmpty(exports.sac) && !_.isEmpty(a_txnIds)) {
+                        if (_.isEmpty(exports.sac) && !_.isEmpty(a_txnIds)) {
                             var a_filters = [
                                 ['internalid', 'anyof', a_txnIds],
                                 "AND",
@@ -411,7 +607,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 if (result.getValue('custbody_authnet_refid')) {
                                     exports.sac.push(+result.getValue('internalid'));
                                 }
-                                //console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
+                                console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
                                 return true;
                             });
                         }
@@ -419,14 +615,12 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         if (currentRecord.getValue('custbody_authnet_use')) {
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod.val);
-                                }
-                                else
-                                {
-                                    currentRecord.setValue('paymentmethod', o_config.custrecord_an_paymentmethod_echeck.val);
+                                    currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val, ignoreFieldChange: true});
+                                } else {
+                                    currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod_echeck.val, ignoreFieldChange: true});
                                 }
                             } catch (e) {
-                                log.audit('Account does not have native cc-pocessing enabled');
+                                log.audit('Account does not have native cc-processing enabled');
                             }
                             _.forEach(nativeFields, function (field) {
                                 try {
@@ -443,7 +637,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 log.debug('Native billing not enabled')
                             }
                         } else {
-                            currentRecord.setText('paymentmethod', '');
+                            currentRecord.setText({fieldId:'paymentmethod', text:'', ignoreFieldChange: true});
                             _.forEach(nativeFields, function (field) {
                                 try {
                                     window.nlapiGetField(field).setDisplayType('normal');
@@ -452,9 +646,11 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 }
                             });
                         }
-                    } else if (fieldName === 'apply') {
-                        //console.log(exports.sac);
+                    }
+                    else if (fieldName === 'apply')
+                    {
                         var b_useAuthNet = currentRecord.getValue('custbody_authnet_use');
+                        //console.log(exports.sac);
                         var lineDate = context.currentRecord.getSublistValue({
                             sublistId: context.sublistId,
                             fieldId: context.sublistId + 'date',
@@ -465,31 +661,32 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             fieldId: 'doc',
                             line: context.line
                         });
-                        console.log(lineDate)
-                        console.log(docId)
+                        //console.log(lineDate)
+                        //console.log(docId)
                         //if the date for the apply is today - reject it outright
                         var m_authDate = moment(lineDate);
                         var m_midnight = moment().endOf('day').subtract(59, 'seconds');
                         //if we can void - we void
-                        if (b_useAuthNet && m_authDate.isSame(m_midnight, 'day')) {
-                            //so this transaction looks like it's on the same day - let's see when the settlment is
-                            var o_lineTransaction = search.lookupFields({
-                                type: 'transaction',
-                                id: docId,
-                                columns: [
-                                    'type',
-                                    'custbody_authnet_settle_date',
-                                    'custbody_authnet_refid',
-                                    'custbody_authnet_datetime'
-                                ]
-                            });
-                            //console.log(o_lineTransaction)
-                            //o_lineTransaction.type[0].value === 'CustCred' //credit memo
-                            //it has a settlement date - so the funds have been captured - so let's do this
-                            if (o_lineTransaction.type[0].value === 'CustCred' && (o_lineTransaction.custbody_authnet_settle_date || moment(o_lineTransaction.custbody_authnet_datetime).isBefore(m_midnight))) {
-                                //this passes muster here becasue it's a credit memo and has settlment from a cash sale thats older
-                            } else {
-                                alert('This transaction is from today and may not have voided so it can not be refunded - go to the transaction and void it directly on the Authorize.Net History Record.');
+
+                        //if we are applying AND authnet is on
+                        //console.log(context);
+                        //console.log('sublist is '+context.sublistId);
+                        //console.log('doc val is '+context.currentRecord.getSublistValue({sublistId: context.sublistId , fieldId: 'doc', line: context.line}));
+                        var b_hasSAC = _.includes(exports.sac, +context.currentRecord.getSublistValue({
+                            sublistId: context.sublistId,
+                            fieldId: 'doc',
+                            line: context.line
+                        }));
+                        //console.log('b_hasSAC '+b_hasSAC);
+                        //console.log('b_useAuthNet '+b_useAuthNet);
+                        //console.log('line date '+ context.currentRecord.getSublistValue({sublistId: context.sublistId , fieldId: 'apply', line: context.line}));
+                        if (context.currentRecord.getSublistValue({
+                            sublistId: context.sublistId,
+                            fieldId: 'apply',
+                            line: context.line
+                        })) {
+                            if (!b_useAuthNet && b_hasSAC) {
+                                Ext.MessageBox.alert('Selected transaction <span style="color:red;">used</span> Authorize.Net', 'You are attempting to issue this Customer Refund on a transaction that captured funds using Authorize.Net.  To refund this transaction, you must first check the box "Use Authorize.Net" and then select this transaction');
                                 context.currentRecord.setCurrentSublistValue({
                                     sublistId: context.sublistId,
                                     fieldId: 'apply',
@@ -501,25 +698,17 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                     fieldId: 'amount',
                                     value: ''
                                 });
-                            }
-                        } else {
-                            //if we are applying AND authnet is on
-                            //console.log(context);
-                            //console.log('sublist is '+context.sublistId);
-                            //console.log('doc val is '+context.currentRecord.getSublistValue({sublistId: context.sublistId , fieldId: 'doc', line: context.line}));
-                            var b_hasSAC = _.includes(exports.sac, +context.currentRecord.getSublistValue({
-                                sublistId: context.sublistId,
-                                fieldId: 'doc',
-                                line: context.line
-                            }));
-                            //console.log('b_useAuthNet '+b_useAuthNet);
-                            //console.log('line date '+ context.currentRecord.getSublistValue({sublistId: context.sublistId , fieldId: 'apply', line: context.line}));
-                            if (b_useAuthNet !== b_hasSAC && context.currentRecord.getSublistValue({
-                                sublistId: context.sublistId,
-                                fieldId: 'apply',
-                                line: context.line
-                            })) {
-                                Ext.MessageBox.alert('Selected transaction did not use Authorize.Net', 'You are attempting to issue this Customer Refund with Authorize.Net, you can only select transactions that captured funds using Authorize.Net.');
+                            } else if (b_useAuthNet && !b_hasSAC) {
+                                if (context.sublistId === 'apply')
+                                {
+                                    Ext.MessageBox.alert('Credit Memo\'s <span style="color:red;">CAN NOT</span> use Authorize.Net',
+                                        'Because a Credit Memo may be issued against an Invoice with multiple Payments / Deposits applied, it\'s not possiable to use Authorize.Net here to issue a refund. You may either refund the customer via a check (most common) or issue the refund here via Refund Method of Cash and then utilize your Authorize.Net account to refund individual payments equaling the total refund - note that these will not show in your settlement reporting tools within NetSuite. <br><br>While this is frustrating, this issue is due to how both NetSuite and Authorize.Net work / do not work together.' );
+                                }
+                                else
+                                {
+                                    Ext.MessageBox.alert('Selected transaction did <span style="color:red;">not</span> use Authorize.Net',
+                                        'You are attempting to issue this Customer Refund with Authorize.Net on a transaction that was not generated with Authorize.Net, you can only select transactions that captured funds using Authorize.Net. To refund this transaction, you must first uncheck the box "Use Authorize.Net" and then select this transaction');
+                                }
                                 context.currentRecord.setCurrentSublistValue({
                                     sublistId: context.sublistId,
                                     fieldId: 'apply',
@@ -530,13 +719,26 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                     sublistId: context.sublistId,
                                     fieldId: 'amount',
                                     value: ''
+                                });
+                            } else if (b_useAuthNet && m_authDate.isSame(m_midnight, 'day')) {
+                                //so this transaction looks like it's on the same day - let's see when the settlment is
+                                var o_lineTransaction = search.lookupFields({
+                                    type: 'transaction',
+                                    id: docId,
+                                    columns: [
+                                        'type',
+                                        'custbody_authnet_settle_date',
+                                        'custbody_authnet_refid',
+                                        'custbody_authnet_datetime'
+                                    ]
                                 });
                             }
                         }
                     }
+
                 }
             }
-        };
+    }
 
         /*exports.validateLine = function(context) {
             var currentRecord = context.currentRecord;
@@ -555,58 +757,6 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
             }
         };*/
-        function isReady(thisRec){
-            var b_isValid = true;
-            var o_ccTypes = {
-                3 : 'Amex',
-                4 : 'Visa',
-                5 : 'Master Card',
-                6 : 'Discover'
-            };
-            if (!thisRec.getValue({fieldId: 'custbody_authnet_cim_token'})) {
-                var cardNum = thisRec.getValue({fieldId: 'custbody_authnet_ccnumber'});
-                var b_goodCard;
-                if ((_.includes([4, 5, 6], +cardNum[0]) && cardNum.length === 16)) {
-                    b_goodCard = true;
-                } else if (+cardNum[0] === 3 && cardNum.length >= 15){
-                    b_goodCard = true;
-                } else {
-                    b_goodCard = false;
-                }
-                var expDate = thisRec.getValue({fieldId: 'custbody_authnet_ccexp'});
-                var m_expDate = moment(expDate, 'MMYY').endOf('month');
-                var b_goodExp = (expDate.length === 4 && m_expDate.isSameOrAfter(moment().endOf('month')));
-                var ccv = thisRec.getValue({fieldId: 'custbody_authnet_ccv'});
-                var b_goodcvv = ccv.length <= 4 && ccv.length > 2;
-                var s_error = '';
-                if (!b_goodCard) {
-                    if (_.isUndefined(o_ccTypes[cardNum[0]])){
-                        s_error += 'A Credit Card or Payment Profile has not been entered for this transaction, please review the entered payment information.';
-                        b_goodExp = true;
-                        b_goodcvv = true;
-                    } else {
-                        s_error += 'Invalid Card Number - recheck this ' + o_ccTypes[cardNum[0]] + '<br>';
-                    }
-                }
-                if (!b_goodExp) {
-                    if (!expDate){
-                        s_error += ' Missing Expiration Date <br>';
-                    } else {
-                        s_error += ' Invalid Expiration Date - ' + moment(expDate, 'MMYY').format('MMMM YYYY') + ' has passed<br>';
-                    }
-                }
-                if (!b_goodcvv) {
-                    s_error += ' Invalid CVV Format - must be 3 or 4 numbers<br>';
-                }
-                if (s_error.length > 0) {
-                    b_isValid = false;
-                    Ext.MessageBox.alert('Credit Card Issue', s_error);
-                }
-            }
-
-            return b_isValid;
-        }
-
 
         function SAC_saveRecord(context){
             var b_canSave = true;
@@ -618,7 +768,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     if (context.mode === 'create') {
                         //b_canSave = isReady(context.currentRecord);
                         b_canSave = false;
-                        if (window.confirm("Some Authorize.Net information appears missing on this transaction (no token is found).  Do you want to attempt to save and see if the missing data can be located for you?  If you are creating a new transaction - you will want to verify the authorize.net charge was successful after you save")) {
+                        if (window.confirm('Some Authorize.Net information appears missing on this transaction (no token is found).  Do you want to attempt to save and see if the missing data can be located for you?  If you are creating a new transaction - you will want to verify the authorize.net charge was successful after you save under the "Authorize.Net" Tab')) {
                             b_canSave = true;
                             console.log('Overridden? ' + b_canSave);
                         }
@@ -626,7 +776,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
             }
             return b_canSave;
-        };
+        }
 
         return {
             pageInit: SAC_pageInit,

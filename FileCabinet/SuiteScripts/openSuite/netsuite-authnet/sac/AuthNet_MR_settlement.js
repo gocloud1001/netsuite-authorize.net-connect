@@ -30,7 +30,7 @@
 define(['exports', 'N/record', 'N/search', 'N/format', 'lodash', './AuthNet_lib'],
 function (exports, record, search, format, _, authNet) {
     exports.getInputData = function () {
-        log.audit('starting the getInputs for Authorize.Net Settlment', 'mapping and reducing shall commence!');
+        log.audit('starting the getInputs for Authorize.Net Settlement', 'mapping and reducing shall commence!');
         var a_transactionsToBeSettled = [];
         //var licenceValidation = authNet.validateLicence2();
 
@@ -106,7 +106,7 @@ function (exports, record, search, format, _, authNet) {
                 id: recToChange.id
             });
             authNet.doSettlement(txn);
-            log.audit('settlment action updated on '+recToChange.type.txt+', id '+ recToChange.id)
+            log.audit('settlement action updated on '+recToChange.type.txt+', id '+ recToChange.id)
         } catch (ex){
             log.error(ex.name, ex.message);
         }

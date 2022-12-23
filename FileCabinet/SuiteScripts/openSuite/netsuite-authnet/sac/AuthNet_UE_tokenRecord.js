@@ -37,8 +37,8 @@
  */
 
 
-define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N/error', 'N/ui/serverWidget', 'N/ui/message', 'lodash', './AuthNet_lib'],
-    function (record, encode, runtime, search,  url, crypto, error, ui, message, _, authNet) {
+define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N/error', 'N/ui/serverWidget', 'N/ui/message', 'lodash', './AuthNet_lib', './AuthNet_UI_lib'],
+    function (record, encode, runtime, search,  url, crypto, error, ui, message, _, authNet, authNetUI) {
 
 
         function setCCDisplay(context){
@@ -68,6 +68,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 _.forEach([
                     'custrecord_an_token_cardnumber',
                     'custrecord_an_token_name_on_card',
+                    'custrecord_an_token_lastname_on_card',
                     'custrecord_an_token_cardcode',
                     'custrecord_an_token_bank_accounttype',
                     'custrecord_an_token_bank_routingnumber',
@@ -75,6 +76,13 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     'custrecord_an_token_bank_nameonaccount',
                     'custrecord_an_token_bank_bankname',
                     'custrecord_an_token_bank_echecktype',
+                    'custrecord_an_token_customer_type',
+                    'custrecord_an_token_entity_addr_number',
+                    'custrecord_an_token_entity_addr_city',
+                    'custrecord_an_token_entity_addr_state',
+                    'custrecord_an_token_entity_addr_zip',
+                    'custrecord_an_token_entity_addr_zipplus4',
+                    'custrecord_an_token_entity_email',
                     //'custrecord_an_token_pblkchn',
                 ], function(fldName){
                     context.form.getField({id: fldName}).updateDisplayType({
@@ -83,7 +91,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 });
 
                 context.form.getField({id: 'custrecord_an_token_paymenttype'}).updateDisplayType({
-                    displayType: ui.FieldDisplayType.DISABLED
+                    displayType: ui.FieldDisplayType.INLINE
                 });
 
 
@@ -120,35 +128,50 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     'custrecord_an_token_expdate',
                     'custrecord_an_token_bank_accountnumber',
                     'custrecord_an_token_cardnumber',
-                    //'custrecord_an_token_pblkchn',
+                    'custrecord_an_token_name_on_card',
+                    'custrecord_an_token_lastname_on_card',
+                    'custrecord_an_token_entity_addr_number',
+                    'custrecord_an_token_entity_addr_city',
+                    'custrecord_an_token_entity_addr_state',
+                    'custrecord_an_token_entity_addr_zip',
+                    'custrecord_an_token_entity_addr_zipplus4',
+                    'custrecord_an_token_entity_email',
                 ], function(fldName){
                     context.form.getField({id: fldName}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
                 });
 
-                context.form.getField({id: 'custrecord_an_token_paymenttype'}).updateDisplayType({
-                    displayType: ui.FieldDisplayType.DISABLED
+                _.forEach([
+                    'custrecord_an_token_bank_accounttype',
+                    'custrecord_an_token_paymenttype',
+                    'custrecord_an_token_bank_echecktype',
+                    'custrecord_an_token_bank_bankname',
+                    'custrecord_an_token_bank_nameonaccount',
+                    'custrecord_an_token_bank_routingnumber',
+                ], function(fldName){
+                    context.form.getField({id: fldName}).updateDisplayType({
+                        displayType: ui.FieldDisplayType.INLINE
+                    });
                 });
-
-
             }
         }
 
         function beforeLoad(context) {
             //when loading validate the hash and throw an alert if it's invalid
-            log.debug(runtime.executionContext, context.type)
-            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE ) {
-                if (context.request.parameters.entity)
+           //(runtime.executionContext, context.type)
+            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE )
+            {
+                var form = context.form;
+                var o_config2 = authNet.getConfigFromCache();
+                form = authNetUI.notSetUpErrorCheck(form, o_config2);
+                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
                 {
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_entity', value : context.request.parameters.entity})
+                    return;
                 }
-                if (context.request.parameters.customer)
-                {
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_entity', value : context.request.parameters.customer})
-                }
-
-                if (context.type === 'create' && (!context.request.parameters.entity && !context.newRecord.getValue({fieldId: 'custrecord_an_token_entity'})))
+                form = authNetUI.buildConfigField(form, o_config2);
+                //log.debug('context.request.parameters', context.request.parameters)
+                if (context.type === 'create' && !(context.request.parameters.entity || context.request.parameters.pi || context.request.parameters.customer))
                 {
                     throw 'You can not generate a profile / token without a customer.  Either select a customer record and create a Authorize.Net Customer Payment Profile from there, or enter one from a transaction.';
                 }
@@ -167,6 +190,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                             id: context.newRecord.id,
                             values: {
                                 custrecord_an_token_pblkchn_tampered: true,
+                                custrecord_an_token_default: false,
                                 isinactive : true
                             },
                             options: {
@@ -179,19 +203,79 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
 
                 var iseCheck = +context.newRecord.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 2;
                 if (context.type === 'create' && (context.request.parameters.entity || context.request.parameters.pi || context.request.parameters.customer)) {
-                    log.debug('making fields viewable');
+                    //log.debug('making fields viewable');
                     var i_entity =  (context.request.parameters.entity) ? context.request.parameters.entity : (context.request.parameters.pi ? context.request.parameters.pi : context.request.parameters.customer);
-                    log.debug('i_entity',i_entity)
-
+                    //log.debug('i_entity',i_entity)
                     context.newRecord.setValue({fieldId:'custrecord_an_token_entity', value: i_entity});
+                    //now get the default billing of the customer - if it's set and parse it out
+                    var o_customerData, a_customerFields = [
+                        'isperson',
+                        'firstname',
+                        'lastname',
+                        'companyname',
+                        'billaddress1',
+                        'billaddress2',
+                        'billcity',
+                        'billzipcode',
+                        'billstate',
+                        'billcountry',
+                        'billcountrycode',
+                    ];
+                    if (o_config2.mode === 'subsidiary')
+                    {
+                        a_customerFields.push('subsidiary');
+                        o_customerData = search.lookupFields({
+                            type:'customer',
+                            id : i_entity,
+                            columns : a_customerFields
+                        });
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_subsidiary', value : o_customerData.subsidiary[0].value})
+                    }
+                    else
+                    {
+                        o_customerData = search.lookupFields({
+                            type:'customer',
+                            id : i_entity,
+                            columns : a_customerFields
+                        });
+                    }
+                    log.debug('o_customerData',o_customerData);
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_number', value : o_customerData.billaddress1});
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_city', value : o_customerData.billcity});
+                    if (!_.isEmpty(o_customerData.billstate[0]))
+                    {
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_state', value : o_customerData.billstate[0].text});
+                    }
+                    if (o_customerData.billzipcode)
+                    {
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_zip', value : o_customerData.billzipcode.split('-')[0]});
+                        if (o_customerData.billzipcode.split('-')[1])
+                        {
+                            context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_zipplus4', value : o_customerData.billzipcode.split('-')[1]});
+                        }
+                    }
+                    var s_address = o_customerData.billaddress1
+                    if (o_customerData.billaddress2)
+                    {
+                        s_address += ', '+o_customerData.billaddress2;
+                    }
+                    var o_billingAddressObject = {
+                        firstName : '',
+                        lastName : '',
+                        company : '',
+                        address : s_address,
+                        city : o_customerData.billcity,
+                        state : o_customerData.billstate[0] ? o_customerData.billstate[0].value : '',
+                        zip : o_customerData.billzipcode,
+                        country : o_customerData.billcountrycode,
+                    };
+
                     context.form.getField({id: 'custrecord_an_token_entity'}).updateDisplayType({
                         displayType: ui.FieldDisplayType.INLINE
                     });
                     context.form.getField({id: 'custrecord_an_token_gateway'}).updateDisplayType({
                         displayType: ui.FieldDisplayType.INLINE
                     });
-
-                    var o_config2 = authNet.getConfigFromCache();
                     context.newRecord.setValue({fieldId:'custrecord_an_token_gateway', value: o_config2.id});
 
                     context.form.getField({id: 'name'}).updateDisplayType({
@@ -206,50 +290,49 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     context.form.getField({id: 'custrecord_an_token_pblkchn'}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
-
-                    var o_customerData = search.lookupFields({
-                        type : 'customer',
-                        id : i_entity,//context.newRecord.getValue({fieldId:'custrecord_an_token_entity'}),
-                        columns : [
-                            'email',
-                            'isperson',
-                            'firstname',
-                            'lastname',
-                            'companyname',
-                            'billaddress1',
-                            'billaddress2',
-                            'billcity',
-                            'billzipcode',
-                            'billstate',
-                            'billcountry',
-                            'billcountrycode',
-                        ]
+                    //hide this field forever now
+                    context.form.getField({id: 'custrecord_an_token_customer_type'}).updateDisplayType({
+                        displayType: ui.FieldDisplayType.HIDDEN
                     });
+
                     //{"email":"test@test2.com","isperson":true,"firstname":"Test","lastname":"NAME","companyname":"Test 3-","billaddress1":"123 Fraud Street","billaddress2":"Aprt Code A","billcity":"Indianapolis","billzipcode":"46201","billstate":[{"value":"IN","text":"IN"}],"billcountry":[{"value":"US","text":"United States"}],"billcountrycode":"US"}
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_billaddress_json', value : JSON.stringify(o_customerData)});
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_billaddress_json', value : JSON.stringify(o_billingAddressObject)});
                     if (o_customerData.email){
                         context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_email', value : o_customerData.email});
                     }
                     if (o_customerData.isperson){
-                        context.newRecord.setValue({fieldId: 'custrecord_an_token_customer_type', value : 'individual'});
                         var guessedName='';
                         if (o_customerData.firstname)
                         {
+                            context.newRecord.setValue({fieldId: 'custrecord_an_token_name_on_card', value : o_customerData.firstname});
                             guessedName += o_customerData.firstname;
                         }
                         if (o_customerData.lastname)
                         {
+                            context.newRecord.setValue({fieldId: 'custrecord_an_token_lastname_on_card', value : o_customerData.lastname});
                             guessedName += ' ' + o_customerData.lastname;
                         }
-                        log.debug('guessedName',guessedName)
+                        //log.debug('guessedName',guessedName)
                         context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_nameonaccount', value : guessedName});
-                        context.newRecord.setValue({fieldId: 'custrecord_an_token_name_on_card', value : guessedName});
+                    }
+
+                    //add the fake customer type field
+                    var fld_customerType = context.form.addField({id:'custpage_customertype', type:ui.FieldType.SELECT, label : 'Customer Type'})
+                    fld_customerType.addSelectOption({
+                        value : 'business',
+                        text : 'Business / Company'
+                    });
+                    fld_customerType.addSelectOption({
+                        value : 'individual',
+                        text : 'Individual / Person'
+                    });
+                    if (!o_customerData.isperson){
+                        fld_customerType.defaultValue = 'business';
                     }
                     else
                     {
-                        context.newRecord.setValue({fieldId: 'custrecord_an_token_customer_type', value : 'business'});
+                        fld_customerType.defaultValue = 'individual';
                     }
-
                     //add the fake dropdown fields
                     var fld_bankType = context.form.addField({id:'custpage_banktype', type:ui.FieldType.SELECT, label : context.form.getField({id:'custrecord_an_token_bank_accounttype'}).label})
                     fld_bankType.addSelectOption({
@@ -281,18 +364,41 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     });
                     fld_achType.addSelectOption({
                         value : 'PPD',
-                        text : 'PPD'
+                        text : 'PPD (Personal)'
                     });
                     fld_achType.addSelectOption({
                         value : 'CCD',
-                        text : 'CCD'
+                        text : 'CCD (Company)'
                     });
-                    if (!o_customerData.isperson){
+                    if (o_customerData.isperson){
+                        fld_achType.defaultValue = 'PPD';
+                    }
+                    else
+                    {
                         fld_achType.defaultValue = 'CCD';
                     }
-                    context.form.getField({id: 'custrecord_an_token_bank_echecktype'}).updateDisplayType({
+                    var fld_echeckType = context.form.getField({id: 'custrecord_an_token_bank_echecktype'}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
+                    //HELP field for eCheck Setup
+                    var fld_guidance = context.form.addField({
+                        id: 'custpage_echeck_mode',
+                        label: 'All customer payment profiles will use attempt to use the DEFAULT BILLING address set on the customer ' +
+                            'at the time of creation to generate the profile. To generate a profile using a different billing address, you must edit ' +
+                            'Payment Method Details and change the billing address used on the card. This is by design to ensure the address ' +
+                            'is tightly bound to the payment method and the cardholder. This will NOT change the customer information. ' +
+                            'The token will to use the address on this form upon creation.',
+                        type: ui.FieldType.HELP
+                    });
+                    context.form.insertField({
+                        field: fld_echeckType,
+                        nextfield: 'custrecord_an_token_entity_email'
+                    });
+                    context.form.insertField({
+                        field: fld_guidance,
+                        nextfield: 'custrecord_an_token_paymenttype'
+                    });
+
                 }
                 else if (context.type === 'edit'){
                     if (iseCheck){
@@ -316,13 +422,25 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
         }
         function beforeSubmit(context) {
             //get the config for this token - incase we need it
-            var o_config = authNet.getConfigFromCache(+context.newRecord.getValue({fieldId: 'custrecord_an_token_gateway'}));
+            var o_config = authNet.getConfigFromCache();
+            if (o_config.mode === 'subsidiary'){
+                o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'custrecord_an_token_subsidiary'}), o_config);
+                //log.debug('sub specific o_config', o_config);
+                log.audit('subsidiary mode : Processing with '+o_config.configname, o_config.subname);
+            }
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception
             if (!_.includes(['delete', 'create'], context.type)){
-                if (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'})) {
+                if (runtime.executionContext === runtime.ContextType.SUITELET && !context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
+                {
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_pblkchn', value :authNet.mkpblkchain(context.newRecord, context.newRecord.id)});
+                }
+                else if (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
+                {
                     context.newRecord.setValue({fieldId : 'custrecord_an_token_pblkchn_tampered', value : true });
                     context.newRecord.setValue({fieldId : 'isinactive', value : true });
+                    context.newRecord.setValue({fieldId : 'custrecord_an_token_default', value : false });
                 }
                 else if (+context.newRecord.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 0)
                 {
@@ -360,7 +478,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     //get the 2 custom fields and set into the real fields
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_accounttype', value : context.newRecord.getValue({fieldId: 'custpage_banktype'})});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_echecktype', value : context.newRecord.getValue({fieldId: 'custpage_achtype'})});
-                    log.debug('ACH in UE - o_newProfile', o_newProfile);
+                    log.audit('ACH in UE - o_newProfile', o_newProfile);
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_customerid', value : o_newProfile.customerProfileId});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_token', value : o_newProfile.customerPaymentProfileIdList[0]});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_type', value : o_newProfile.bankAccount.accountType});
@@ -370,11 +488,11 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 else
                 {
                     //build the name {Card Type} (XXXX{last 4})
-                    log.debug('CC in UE - o_newProfile', o_newProfile);
+                    log.audit('CC in UE - o_newProfile', o_newProfile);
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_customerid', value : o_newProfile.customerProfileId});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_token', value : o_newProfile.customerPaymentProfileIdList[0]});
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_type', value : o_newProfile.creditCard.cardnum});
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_last4', value : o_newProfile.creditCard.cardtype});
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_last4', value : o_newProfile.creditCard.cardnum});
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_type', value : o_newProfile.creditCard.cardtype});
                     context.newRecord.setValue({fieldId: 'name', value : o_newProfile.creditCard.cardtype + ' ('+o_newProfile.creditCard.cardnum+')'});
                 }
             }
@@ -417,7 +535,8 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
         function afterSubmit(context) {
             if (context.type === 'create') {
                 //added support for importing existing profile's into NetSuite for use after pulling all the profile information from the API
-                if (runtime.executionContext === runtime.ContextType.CSV_IMPORT){
+                if (runtime.executionContext === runtime.ContextType.CSV_IMPORT)
+                {
                     //get the profile off the profile import and then hash the record
                     //https://developer.authorize.net/api/reference/index.html#customer-profiles-get-customer-profile
                     var importedProfile = authNet.importCIMToken(context.newRecord.toJSON());

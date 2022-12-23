@@ -8,7 +8,7 @@
   <notifyuser>F</notifyuser>
   <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_SL.js]</scriptfile>
   <scriptdeployments>
-    <scriptdeployment scriptid="customdeploy_c9_authnet_screen_svc">
+    <scriptdeployment scriptid="customdeploy_sac_authnet_screen_svc">
       <allemployees>T</allemployees>
       <allpartners>F</allpartners>
       <allroles>F</allroles>
