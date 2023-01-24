@@ -41,31 +41,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                 if (context.type !== 'create') {
                     var form = context.form;
                     form.clientScriptModulePath = './AuthNet_CL_historyRecord.js';
-                    if (context.newRecord.getValue({fieldId: 'custrecord_an_response_status'}) === 'Ok')
-                    {
-                        if (context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'authOnlyTransaction') {
-                            //lets see if this auth has been used
-                            var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custrecord_an_refid'}));
-                            log.debug('o_status', o_status)
-                            authNet.homeSysLog('authNet.getStatusCheck() -> o_status', o_status);
-                            if (o_status.transactionStatus === 'authorizedPendingCapture') {
-                                form.addButton({
-                                    id: 'custpage_voidauth',
-                                    label: 'Void Authorization',
-                                    functionName: 'setAuthVoid' //set it to P
-                                });
-                            }
-                        } else if (context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'createCustomerProfileFromTransactionRequest'){
-
-                            form.addButton({
-                                id: 'custpage_redocim',
-                                label: 'Request Token',
-                                functionName: 'getCIM' //set it to P
-                            });
-
-                        }
-                    }
-                    else if (+context.newRecord.getValue({fieldId: 'custrecord_an_response_code'}) === 4)
+                    if (+context.newRecord.getValue({fieldId: 'custrecord_an_response_code'}) === 4)
                     {
                         var o_heldStatus = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custrecord_an_refid'}));
                         log.debug('o_heldStatus', o_heldStatus);
@@ -79,7 +55,8 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                                 message: o_heldStatus.fullResponse.responseReasonDescription,
                             });
                         }
-                        else if (o_heldStatus.fullResponse.FDSFilterAction)
+                        else if (o_heldStatus.transactionStatus === 'FDSAuthorizedPendingReview')
+                        //else if (o_heldStatus.fullResponse.FDSFilterAction)
                         {
                             var s_message = '<ul>';
                             s_message += '<li style="list-style-type: circle;">AVS Message: '+context.newRecord.getValue({fieldId: 'custrecord_an_avs_status'})+'</li>';
@@ -105,6 +82,31 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                                 id: 'custpage_declineauth',
                                 label: 'Decline '+s_txnType,
                                 functionName: 'doDecline'
+                            });
+
+                        }
+                    }
+
+                    else if (context.newRecord.getValue({fieldId: 'custrecord_an_response_status'}) === 'Ok')
+                    {
+                        if (context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'authOnlyTransaction') {
+                            //lets see if this auth has been used
+                            var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custrecord_an_refid'}));
+                            log.debug('o_status', o_status)
+                            authNet.homeSysLog('authNet.getStatusCheck() -> o_status', o_status);
+                            if (o_status.transactionStatus === 'authorizedPendingCapture') {
+                                form.addButton({
+                                    id: 'custpage_voidauth',
+                                    label: 'Void Authorization',
+                                    functionName: 'setAuthVoid' //set it to P
+                                });
+                            }
+                        } else if (context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'createCustomerProfileFromTransactionRequest'){
+
+                            form.addButton({
+                                id: 'custpage_redocim',
+                                label: 'Request Token',
+                                functionName: 'getCIM' //set it to P
                             });
 
                         }

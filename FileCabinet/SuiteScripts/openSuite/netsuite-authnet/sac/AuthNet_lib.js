@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.02';
+    exports.VERSION = '3.2.03';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -2495,89 +2495,95 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             o_newProfileRequest.createCustomerProfileRequest.profile.email = o_profile.getValue({fieldId: 'custrecord_an_token_entity_email'});
         }
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles = {};
-        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType = o_profile.getValue({fieldId: 'custpage_customertype'});
+        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType = o_profile.getValue({fieldId: 'custpage_customertype'}) ? o_profile.getValue({fieldId: 'custpage_customertype'}) : o_profile.getValue({fieldId: 'custrecord_an_token_customer_type'});
+        if(_.isNull(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType))
+        {
+            throw 'No valid Customer Type was provided (individual / business) - this is a mandatory field per Authorize.Net'
+        }
         //o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {https://developer.authorize.net/api/reference/index.html#customer-profiles-create-customer-profile}
+        var o_billingAddressObject = {};
         if (o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}))
         {
-            //is this JSON and can we get the billing address from it?
-            try
+            o_billingAddressObject = JSON.parse(o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}));
+        }
+        //is this JSON and can we get the billing address from it?
+        try
+        {
+            //now build the correct address information here
+
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_name_on_card'}))
             {
-                //now build the correct address information here
-                var o_billingAddressObject = JSON.parse(o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}));
-                if (o_profile.getValue({fieldId: 'custrecord_an_token_name_on_card'}))
+                o_billingAddressObject.firstname = o_profile.getValue({fieldId: 'custrecord_an_token_name_on_card'});
+            }
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_lastname_on_card'}))
+            {
+                o_billingAddressObject.lastname = o_profile.getValue({fieldId: 'custrecord_an_token_lastname_on_card'});
+            }
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_number'}))
+            {
+                o_billingAddressObject.address = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_number'});
+            }
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_city'}))
+            {
+                o_billingAddressObject.city = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_city'});
+            }
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_state'}))
+            {
+                o_billingAddressObject.state = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_state'});
+            }
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zip'}))
+            {
+                o_billingAddressObject.zip = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zip'});
+                if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zipplus4'}))
                 {
-                    o_billingAddressObject.firstname = o_profile.getValue({fieldId: 'custrecord_an_token_name_on_card'});
+                    o_billingAddressObject.zip += '-' + o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zipplus4'});
                 }
-                if (o_profile.getValue({fieldId: 'custrecord_an_token_lastname_on_card'}))
-                {
-                    o_billingAddressObject.lastname = o_profile.getValue({fieldId: 'custrecord_an_token_lastname_on_card'});
-                }
-                if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_number'}))
-                {
-                    o_billingAddressObject.address = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_number'});
-                }
-                if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_city'}))
-                {
-                    o_billingAddressObject.city = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_city'});
-                }
-                if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_state'}))
-                {
-                    o_billingAddressObject.state = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_state'});
-                }
-                if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zip'}))
-                {
-                    o_billingAddressObject.zip = o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zip'});
-                    if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zipplus4'}))
-                    {
-                        o_billingAddressObject.zip += '-' + o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zipplus4'});
-                    }
-                }
-                var s_address = o_billingAddressObject.address
-                if (o_billingAddressObject.billaddress2)
-                {
-                    s_address += ', '+o_billingAddressObject.billaddress2;
-                }
-                o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {
-                    firstName : o_billingAddressObject.firstname,
-                    lastName : o_billingAddressObject.lastname,
-                    company : '',
-                    address : s_address,
-                    city : o_billingAddressObject.city,
-                    state : o_billingAddressObject.state,
-                    zip : o_billingAddressObject.zip,
-                    country : o_billingAddressObject.country,
-                }
-                if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1)
+            }
+            var s_address = o_billingAddressObject.address
+            if (o_billingAddressObject.billaddress2)
+            {
+                s_address += ', '+o_billingAddressObject.billaddress2;
+            }
+            log.debug('o_billingAddressObject', o_billingAddressObject);
+            o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {
+                firstName : o_billingAddressObject.firstname,
+                lastName : o_billingAddressObject.lastname,
+                company : '',
+                address : s_address,
+                city : o_billingAddressObject.city,
+                state : o_billingAddressObject.state,
+                zip : o_billingAddressObject.zip,
+                country : o_billingAddressObject.country,
+            }
+            if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1)
+            {
+                delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
+            }
+            else
+            {
+                if (o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType === 'individual')
                 {
                     delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
+                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName = o_billingAddressObject.firstname;
+                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName = o_billingAddressObject.lastname;
                 }
                 else
                 {
-                    if (o_profile.getValue({fieldId: 'custpage_customertype'}) === 'individual')
-                    {
-                        delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
-                        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName = o_billingAddressObject.firstname;
-                        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName = o_billingAddressObject.lastname;
-                    }
-                    else
-                    {
-                        delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName;
-                        delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName;
-                        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company = o_billingAddressObject.companyname;
-                    }
+                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName;
+                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName;
+                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company = o_billingAddressObject.companyname;
                 }
-                //clean anything empty to prevent errors
-                o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = _.omitBy(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo, _.isEmpty);
-                //the fact the JSON is really just XML is annoying right here - order matters...
-                //log.debug('o_billingAddressObject', o_billingAddressObject)
-                //log.debug('custpage_customertype', o_profile.getValue({fieldId: 'custpage_customertype'}))
             }
-            catch (ex)
-            {
-                log.error('Unable to extract billing address', 'the CIM module was unable to extract billing information from the customer');
-                log.error('Unable to extract billing address', ex.message);
-                log.error('Unable to extract billing address', ex.stack);
-            }
+            //clean anything empty to prevent errors
+            o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = _.omitBy(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo, _.isEmpty);
+            //the fact the JSON is really just XML is annoying right here - order matters...
+            //log.debug('o_billingAddressObject', o_billingAddressObject)
+        }
+        catch (ex)
+        {
+            log.error('Unable to extract billing address', 'the CIM module was unable to extract billing information from the customer');
+            log.error('Unable to extract billing address', ex.message);
+            log.error('Unable to extract billing address', ex.stack);
         }
         var o_paymentProfile = {};
         if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1) {
@@ -2605,7 +2611,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
         }
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.payment = o_paymentProfile;
-        exports.homeSysLog('getCIM(createNewProfile) request', o_newProfileRequest);
+        exports.homeSysLog('getCIM(createNewProfile) REQUEST', o_newProfileRequest);
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});

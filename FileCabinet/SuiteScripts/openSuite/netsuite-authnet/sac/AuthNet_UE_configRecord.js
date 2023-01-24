@@ -439,7 +439,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 context.form.addPageInitMessage({
                                     type: message.Type.WARNING,
                                     title: 'Your version of SuiteAuthConnect is not the current version',
-                                    message: 'You are currently running version ' + authNet.VERSION + ' and the most recently released version is ' + s_remoteVersion + '.  You may want to consider updating your version to ensure you have the latest bug fixes and added features.',
+                                    message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You may want to consider updating your version if you are behind to ensure you have the latest bug fixes and added features.',
                                     duration: 60000
                                 });
                             }
@@ -492,7 +492,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         recordType: 'customrecord_authnet_config',
                         recordId: result.id
                     })
-                    throw 'You can not create more than 1 Authorize.Net configuration witin your account.<br /><br />   The configuration <i><a href="'+_recordlink+'">' + result.getValue('name') + '</a></i> already exists - click the link to review that configuration and/or update it.';
+                    throw 'You can not create more than 1 Authorize.Net configuration within your account.<br /><br />   The configuration <i><a href="'+_recordlink+'">' + result.getValue('name') + '</a></i> already exists - click the link to review that configuration and/or update it.';
                 });
             }
 

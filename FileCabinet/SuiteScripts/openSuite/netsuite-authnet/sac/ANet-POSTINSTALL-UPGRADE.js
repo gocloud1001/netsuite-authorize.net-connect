@@ -31,6 +31,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
     function (require, exports, record, runtime, config, search, email, cache, authNet) {
 
     function performConfig(){
+        log.audit('Starting Install / Upgrade Config', 'Begining to apply any needed config changes based on Version '+authNet.VERSION);
         var companyInfo = config.load({ type: config.Type.COMPANY_INFORMATION });
         var installationInfo = {
             companyname: companyInfo.getValue({ fieldId: 'companyname' }),
@@ -60,6 +61,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 });
                 o_pmtRecord.setValue({fieldId: 'name', value: 'Authorize.Net'});
                 i_pmtMethod = o_pmtRecord.save({ignoreMandatoryFields: true});
+                log.audit('Upgrade Config', 'Payment Method for cards created');
             }
         } catch (e){
             s_notesString += e.name + ' : ' + e.message;
@@ -84,6 +86,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 });
                 o_pmtRecord.setValue({fieldId: 'name', value: 'Authorize.Net (eCheck)'});
                 i_achMethod = o_pmtRecord.save({ignoreMandatoryFields: true});
+                log.audit('Upgrade Config', 'Payment Method for eChecks created');
             }
         } catch (e){
             s_notesString += e.name + ' : ' + e.message;
@@ -112,8 +115,10 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 //this will only return the first one
                 return false;
             });
+            log.audit('Config', 'Prepping logic for config id: '+i_configRecId);
             var o_configRecord;
             if (i_configRecId){
+                log.audit('Upgrade Config', 'Loading Config Record ID '+i_configRecId);
                 o_configRecord = record.load({
                     type : 'customrecord_authnet_config',
                     id : i_configRecId,
@@ -121,6 +126,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 });
                 s_oldVersionNumber = o_configRecord.getValue({fieldId : 'custrecord_an_version'});
             } else {
+                log.audit('Installation Config', 'Creating NEW Config Record');
                 o_configRecord = record.create({
                     type : 'customrecord_authnet_config',
                     isDynamic : true

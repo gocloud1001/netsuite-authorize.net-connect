@@ -1,16 +1,21 @@
-<entryForm scriptid="custform_anet_cim_record_popup" standard="STANDARDCUSTOMRECORD_AUTHNET_TOKENSFORM">
-  <name>Authorize.Net Customer Payment Profiles Popup</name>
+<entryForm scriptid="custform_anet_cim_record_csv" standard="STANDARDCUSTOMRECORD_AUTHNET_TOKENSFORM">
+  <name>CSV Raw Data Import Authorize.Net Token Form</name>
   <recordType>[scriptid=customrecord_authnet_tokens]</recordType>
   <inactive>F</inactive>
-  <preferred>T</preferred>
+  <preferred>F</preferred>
   <storedWithRecord>F</storedWithRecord>
   <mainFields>
-    <fieldGroup scriptid="fieldgroup_2_t1273352_241">
-      <label>Type</label>
-      <visible>T</visible>
-      <showTitle>T</showTitle>
-      <singleColumn>F</singleColumn>
+    <defaultFieldGroup>
       <fields position="MIDDLE">
+        <field>
+          <id>CUSTOMFORM</id>
+          <label>Custom Form</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
         <field>
           <id>NAME</id>
           <label>Name</label>
@@ -21,44 +26,62 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
+          <id>RECORDID</id>
+          <label>ID</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>OWNER</id>
+          <label>Owner</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>CREATED</id>
+          <label>Date Created</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>LASTMODIFIED</id>
+          <label>Last Modified</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>ISINACTIVE</id>
+          <label>Inactive</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>PARENT</id>
+          <label>Parent</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
           <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity]</id>
           <label>Entity</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>INLINETEXT</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_gateway]</id>
-          <label>Issuing Gateway</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_gateway_sub]</id>
-          <label>Gateway SUBSIDIARY</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>INLINETEXT</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_subsidiary]</id>
-          <label>Subsidiary Issued Against </label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>INLINETEXT</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_paymenttype]</id>
-          <label>Payment Type</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
@@ -74,17 +97,9 @@
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
-      </fields>
-    </fieldGroup>
-    <fieldGroup scriptid="fieldgroup_4_t1273352_714">
-      <label>Method Details</label>
-      <visible>T</visible>
-      <showTitle>T</showTitle>
-      <singleColumn>F</singleColumn>
-      <fields position="MIDDLE">
         <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_echecktype]</id>
-          <label>ACH Type</label>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_email]</id>
+          <label>Email</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
@@ -92,8 +107,197 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_bankname]</id>
-          <label>Bank Name</label>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_number]</id>
+          <label>Billing Street Address</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_city]</id>
+          <label>Billing City</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_state]</id>
+          <label>Billing State</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_zip]</id>
+          <label>Billing Zip Code</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_zipplus4]</id>
+          <label>Billing Zip +4 (if known)</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_customer_type]</id>
+          <label>Customer Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_paymenttype]</id>
+          <label>Payment Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_customerid]</id>
+          <label>Customer / Profile ID</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_token]</id>
+          <label>customerPaymentProfileId / Token</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_type]</id>
+          <label>Type</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_last4]</id>
+          <label>Last 4</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_name_on_card]</id>
+          <label>First Name On Card</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_lastname_on_card]</id>
+          <label>Last Name On Card</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_cardnumber]</id>
+          <label>Card Number</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_cardcode]</id>
+          <label>CCV</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_expdate]</id>
+          <label>Expiration Date (MMYY)</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_gateway]</id>
+          <label>Issuing Gateway</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_gateway_sub]</id>
+          <label>Gateway Subsidiary</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_subsidiary]</id>
+          <label>Subsidiary Issued Against </label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_pblkchn]</id>
+          <label>PBlkChain</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_pblkchn_tampered]</id>
+          <label>Tampered</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_accounttype]</id>
+          <label>Bank Account Type</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
@@ -128,26 +332,8 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_type]</id>
-          <label>Type</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_last4]</id>
-          <label>Last 4</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_cardnumber]</id>
-          <label>Card Number</label>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_bankname]</id>
+          <label>Bank Name</label>
           <visible>T</visible>
           <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
@@ -155,219 +341,9 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_expdate]</id>
-          <label>Expiration Date (MMYY)</label>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_echecktype]</id>
+          <label>ACH Type</label>
           <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_cardcode]</id>
-          <label>CCV</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_customer_type]</id>
-          <label>Customer Type</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_bank_accounttype]</id>
-          <label>Bank Account Type</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-      </fields>
-    </fieldGroup>
-    <fieldGroup scriptid="fieldgroup_4_5521729_sb1_437">
-      <label>Payment Method Details</label>
-      <visible>T</visible>
-      <showTitle>T</showTitle>
-      <singleColumn>F</singleColumn>
-      <fields position="MIDDLE">
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_email]</id>
-          <label>Email</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>T</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_name_on_card]</id>
-          <label>First Name On Card</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_lastname_on_card]</id>
-          <label>Last Name On Card</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>T</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_number]</id>
-          <label>Billing Street Address</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_city]</id>
-          <label>Billing City</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_state]</id>
-          <label>Billing State</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>T</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_zip]</id>
-          <label>Billing Zip Code</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_zipplus4]</id>
-          <label>Billing Zip +4 (if known)</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>T</sameRowAsPrevious>
-        </field>
-      </fields>
-    </fieldGroup>
-    <defaultFieldGroup>
-      <fields position="MIDDLE">
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_pblkchn_tampered]</id>
-          <label>Tampered</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_pblkchn]</id>
-          <label>PBlkChain</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_customerid]</id>
-          <label>Customer / Profile ID</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_token]</id>
-          <label>customerPaymentProfileId / Token</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
-          <displayType>DISABLED</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>CREATED</id>
-          <label>Date Created</label>
-          <visible>T</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>LASTMODIFIED</id>
-          <label>Last Modified</label>
-          <visible>T</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>CUSTOMFORM</id>
-          <label>Custom Form</label>
-          <visible>F</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>RECORDID</id>
-          <label>ID</label>
-          <visible>T</visible>
-          <mandatory>T</mandatory>
-          <displayType>INLINETEXT</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>OWNER</id>
-          <label>Owner</label>
-          <visible>F</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>ISINACTIVE</id>
-          <label>Inactive</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>PARENT</id>
-          <label>Parent</label>
-          <visible>F</visible>
           <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
           <columnBreak>F</columnBreak>
@@ -380,7 +356,7 @@
     <tab>
       <id>RECORDNOTES</id>
       <label>Notes</label>
-      <visible>F</visible>
+      <visible>T</visible>
       <fieldGroups>
         <defaultFieldGroup/>
       </fieldGroups>
@@ -400,25 +376,9 @@
       </subItems>
     </tab>
     <tab>
-      <id>RECORDTRANSLATION</id>
-      <label>Translation</label>
-      <visible>F</visible>
-      <fieldGroups>
-        <defaultFieldGroup/>
-      </fieldGroups>
-      <subItems>
-        <subList>
-          <id>RECORDTRANSLATIONS</id>
-          <label>Translation</label>
-          <visible>T</visible>
-          <neverEmpty>F</neverEmpty>
-        </subList>
-      </subItems>
-    </tab>
-    <tab>
       <id>RECORDWORKFLOW</id>
       <label>Workflow</label>
-      <visible>F</visible>
+      <visible>T</visible>
       <fieldGroups>
         <defaultFieldGroup/>
       </fieldGroups>
@@ -438,9 +398,25 @@
       </subItems>
     </tab>
     <tab>
+      <id>RECORDTRANSLATION</id>
+      <label>Translation</label>
+      <visible>T</visible>
+      <fieldGroups>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems>
+        <subList>
+          <id>RECORDTRANSLATIONS</id>
+          <label>Translation</label>
+          <visible>T</visible>
+          <neverEmpty>F</neverEmpty>
+        </subList>
+      </subItems>
+    </tab>
+    <tab>
       <id>RECORDCUSTOM</id>
       <label>Custom</label>
-      <visible>F</visible>
+      <visible>T</visible>
       <fieldGroups>
         <defaultFieldGroup/>
       </fieldGroups>
