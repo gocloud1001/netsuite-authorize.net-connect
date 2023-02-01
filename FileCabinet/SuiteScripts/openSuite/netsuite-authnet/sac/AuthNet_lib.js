@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.03';
+    exports.VERSION = '3.2.04';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -745,8 +745,34 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         return b_isValid;
     };
 
+        //build a history record and return the stubbed out record when using EXTERNAL AUTH
+        exports.fixIntegrationHistoryRec = function(txn, config){
+            var o_response = {b_isValid : true, histRecId:''};
+            var o_status = exports.getStatusCheck(txn.getValue({fieldId: 'custbody_authnet_refid'}));
+            if (txn.type === 'customerdeposit' && (o_status.transactionStatus === 'capturedPendingSettlement' || o_status.transactionStatus === 'settledSuccessfully')) {
+                var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
+                rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: config.masterid});
+                rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: config.configid});
+                rec_response.setValue('custrecord_an_txn', txn.id);
+                rec_response.setValue('custrecord_an_calledby', txn.type);
+                rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity') : txn.getValue('customer'));
+                rec_response.setValue('custrecord_an_call_type', o_status.fullResponse.transactionType);
+                rec_response.setValue('custrecord_an_amount', getBaseCurrencyTotal(txn));
+                rec_response.setValue('custrecord_an_reqrefid', o_status.fullResponse.order.invoiceNumber);
+                rec_response.setValue('custrecord_an_refid', o_status.fullResponse.transId);
+                rec_response.setValue('custrecord_an_response_status', 'Ok');
+                rec_response.setValue('custrecord_an_response_message', 'This transaction is assumed valid and authorized prior to integration with NetSuite.');
+                rec_response.setValue('custrecord_an_response_code', o_status.fullResponse.responseCode);
+                rec_response.setValue('custrecord_an_response_ig_other', 'Date Created is NOT the timestamp for the event, that is when the record was sent to NetSuite');
+                o_response.histRecId = rec_response.save({ignoreMandatoryFields: true});
+            }
+            return o_response;
+        };
+
     //a object that can hold all the appropriate auth data in cache or in a field
     exports.cacheActiveConfig = function(){
+        var live_solution = 'AAA175381';
+        var s_companyId = '';
         //var rec = getConfig().rec;
         var a_cachedConfigs = [];
         var a_filters = [
@@ -784,8 +810,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 subid : ''
             };
             //set the general config for the integration
-            var live_solution = 'AAA175381';
-            var s_companyId = _.toUpper(rec.getValue({fieldId : 'custrecord_an_instanceid'}));
+            s_companyId = _.toUpper(rec.getValue({fieldId : 'custrecord_an_instanceid'}));
             o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
             //undo the standard id with the development id's provided by Authorize.Net
             if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !rec.getValue('custrecord_an_islive'))
@@ -810,7 +835,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             ];
             _.forEach(a_mandatoryTopLevelFields, function(fieldId){
                 o_response[fieldId] = o_masterConfig[fieldId]
-            })
+            });
 
             //these 4 fields fro mthe main config are required for setting up a transaction before a sub is known
             o_response.custrecord_an_break_pci = o_masterConfig.custrecord_an_break_pci;
@@ -853,6 +878,16 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         liveAuth : true,
                         auth :{}
                     };
+
+                    o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
+                    //undo the standard id with the development id's provided by Authorize.Net
+                    if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !subRec.getValue('custrecord_ancs_islive'))
+                    {
+                        o_response.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
+                        o_response.solutionId.name = 'SuiteAuthConnect (TESTING MODE) v.'+exports.VERSION;
+                    }
+
+
                     _.forEach(o_masterConfig, function(val, kie){
                         o_thisSub[kie] = val;
                     });
@@ -871,6 +906,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         o_thisSub.auth.name = subRec.getValue({fieldId: 'custrecord_ancs_login'});
                         o_thisSub.auth.transactionKey = subRec.getValue({fieldId: 'custrecord_ancs_trankey'});
                         o_thisSub.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url'});
+
                     } else {
                         o_thisSub.auth.name = subRec.getValue({fieldId: 'custrecord_ancs_login_sb'});
                         o_thisSub.auth.transactionKey = subRec.getValue({fieldId: 'custrecord_ancs_trankey_sb'});
@@ -1203,11 +1239,21 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     histRec.setValue({fieldId : 'custrecord_an_response_ig_other', value :s_otherSuggestions});
                     histRec.setValue({fieldId : 'custrecord_an_reqrefid', value : txnRec.id});
                 });
-            } else {
+            }
+            else
+            {
                 histRec.setValue('custrecord_an_response_status', 'Error');
             }
-            if(_.toUpper(histRec.getValue('custrecord_an_response_status')) === 'OK'){
-                txnRec.setValue('custbody_authnet_authcode', o_body.transactionResponse.authCode);
+            if(_.toUpper(histRec.getValue('custrecord_an_response_status')) === 'OK')
+            {
+                if(o_body.transactionResponse.accountType === 'eCheck')
+                {
+                    txnRec.setValue('custbody_authnet_authcode', 'eCheck');
+                }
+                else
+                {
+                    txnRec.setValue('custbody_authnet_authcode', o_body.transactionResponse.authCode);
+                }
                 //if this is a subsequent transaction (capture, etc) show the refTransId - reference transaction
                 if (+o_body.transactionResponse.transId === 0){
                     txnRec.setValue('custbody_authnet_refid', o_body.transactionResponse.refTransID);

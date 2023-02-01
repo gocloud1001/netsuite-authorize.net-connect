@@ -421,8 +421,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 //else if (context.type === context.UserEventType.CREATE && context.newRecord.getValue({fieldId :'custbody_authnet_use'}) && !context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
                 else if (context.type === context.UserEventType.CREATE)
                 {
+                    var i_createdfrom = context.newRecord.getValue({fieldId: 'createdfrom'}) ? context.newRecord.getValue({fieldId: 'createdfrom'}) : context.newRecord.getValue({fieldId: 'salesorder'});
                     //ENSURE the response fields are hidden on a create since they would be empty
-                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + context.newRecord.getValue({fieldId: 'createdfrom'}));
+                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + i_createdfrom);
                     //hide the override on a create - you would not do that normally
                     try {
                         form.getField({id: 'custbody_authnet_override'}).updateDisplayType({
@@ -434,7 +435,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //should be disabled
                     var setFields = (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})) ? ui.FieldDisplayType.DISABLED : ui.FieldDisplayType.HIDDEN;
                     //get values for doing work
-                    var i_createdfrom = context.newRecord.getValue({fieldId: 'createdfrom'});
                     _.forEach(authNet.CODES, function (fd) {
                         var fld = 'custbody_authnet_' + fd;
                         try {
@@ -515,7 +515,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                             break;
                         case 'customerdeposit':
-                            log.debug('customerdeposit status : '+context.newRecord.getValue({fieldId: 'status'}), 'created from' + i_createdfrom)
+                            var s_status = context.newRecord.getValue({fieldId: 'status'}) ? context.newRecord.getValue({fieldId: 'status'}) : 'NEW';
+                            log.debug('customerdeposit status : '+s_status, 'created from ' + i_createdfrom)
                             //2 cases - from a SO or individual deposit
                             if (i_createdfrom){
                                 if (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})){
@@ -840,7 +841,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_authcode', value: context.newRecord.getValue({fieldId: 'custbody_authnet_authcode'})});
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_datetime', value: moment(context.newRecord.getValue({fieldId: 'custbody_authnet_datetime'})).toDate()});
                                                         rec_deposit.setValue({fieldId:'memo', value: 'WebStore Auth+Capture Deposit'});
-                                                        var i_depositId = rec_deposit.save();
+                                                        var i_depositId = rec_deposit.save({ignoreMandatoryFields:true});
                                                         authNet.getStatus(record.load({
                                                             type: record.Type.CUSTOMER_DEPOSIT,
                                                             id: i_depositId,

@@ -804,6 +804,13 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         source: 'getstatus',
                         container: 'grpauthcheck'
                     });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'makeHistoryStatus()',
+                        source: 'makehistory',
+                        container: 'grpauthcheck'
+                    });
 
                     form.addField({
                         id: 'custpage_tranrefid',
@@ -811,6 +818,12 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'tranrefid',
                         container: 'grpauthcheck'
                     });
+                    form.addField({
+                        id: 'custpage_rectohist',
+                        type: ui.FieldType.TEXT,
+                        label: 'make history for',
+                        container: 'grpauthcheck'
+                    }).defaultValue = '{"type:"customerdeposit", "id" :0000}';
 
                     //external auth record test
                     var grp_authout = form.addFieldGroup({
@@ -1290,6 +1303,29 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         else
                         {
                             o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
+                        }
+
+                        break;
+                    case 'makehistory':
+                        o_response.OK = true;
+                        //todo - make actually work
+                        if (o_params.custpage_rectohist)
+                        {
+
+                            log.debug('o_params.custpage_rectohist', o_params.custpage_rectohist.id)
+                            _.forEach([718390, 718392, 718394, 718396, 718398, 718402, 718404, 718487, 718587, 718687, 718787 ], function (id){
+                                var txn = record.load({type : 'customerdeposit', id : id});
+
+                                if (o_params.custpage_configrec)
+                                {
+                                    o_response.responseFrom_fixIntegrationHistoryRec = authNet.fixIntegrationHistoryRec(txn, o_params.custpage_configrec);
+                                }
+                                else
+                                {
+                                    o_response.responseFrom_fixIntegrationHistoryRec = authNet.fixIntegrationHistoryRec(txn, o_config2);
+                                }
+                            })
+
                         }
 
                         break;
