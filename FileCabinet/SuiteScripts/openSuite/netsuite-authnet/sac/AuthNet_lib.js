@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.04';
+    exports.VERSION = '3.2.05';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -2933,7 +2933,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         });
                         rec_cimProfile.setValue({
                             fieldId: 'custrecord_an_token_entity_email',
-                            value: o_importProfileResponse.email
+                            value: o_importProfileResponse.email.replace(/\s/g, '')
                         });
                         if (!_.isUndefined(profile.payment.creditCard)) {
                             rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value: 1});

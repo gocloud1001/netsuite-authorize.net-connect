@@ -160,7 +160,11 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
         function beforeLoad(context) {
             //when loading validate the hash and throw an alert if it's invalid
            //(runtime.executionContext, context.type)
-            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE )
+            if (context.request.parameters.bypass)
+            {
+                log.audit('Bypassing Script Code', ' This is allows beforeLoad without validation of PBLK values!');
+            }
+            else if (runtime.executionContext === runtime.ContextType.USER_INTERFACE)
             {
                 var form = context.form;
                 var o_config2 = authNet.getConfigFromCache();
@@ -176,28 +180,38 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     throw 'You can not generate a profile / token without a customer.  Either select a customer record and create a Authorize.Net Customer Payment Profile from there, or enter one from a transaction.';
                 }
                 if (!_.includes(['delete', 'create'], context.type)) {
-                    if (context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn_tampered'}) || (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))) {
-                        log.error('hash mismatch!', context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
-                        context.form.addPageInitMessage({
-                            type: message.Type.ERROR,
-                            title: 'This Payment Profile has been tampered with',
-                            message: 'It will no longer function in NetSuite until a new transaction has used the card data again and the profile is validated as good off actual card data.<br />To see who may have tampered with this record view the System Notes below.',
-                            //duration: 5000
-                        });
-                        context.form.removeButton({id: 'edit'});
-                        record.submitFields({
-                            type: context.newRecord.type,
-                            id: context.newRecord.id,
-                            values: {
-                                custrecord_an_token_pblkchn_tampered: true,
-                                custrecord_an_token_default: false,
-                                isinactive : true
-                            },
-                            options: {
-                                enableSourcing: false,
-                                ignoreMandatoryFields: true
+                    //added for certain use cases where the key is not present on the first view of the record
+                    if (context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'})) {
+                        if (context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn_tampered'}) || (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))) {
+                            if (context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn_tampered'}))
+                            {
+                                log.error('ALREADY MARKED TAMPERED - ' + context.newRecord.id, 'Previously marked tampered');
                             }
-                        });
+                            else
+                            {
+                                log.error('HASH MISMATCH - ' + context.newRecord.id, context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}));
+                            }
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'This Payment Profile has been tampered with',
+                                message: 'It will no longer function in NetSuite until a new transaction has used the card data again and the profile is validated as good off actual card data.<br />To see who may have tampered with this record view the System Notes below.',
+                                //duration: 5000
+                            });
+                            context.form.removeButton({id: 'edit'});
+                            record.submitFields({
+                                type: context.newRecord.type,
+                                id: context.newRecord.id,
+                                values: {
+                                    custrecord_an_token_pblkchn_tampered: true,
+                                    custrecord_an_token_default: false,
+                                    isinactive: true
+                                },
+                                options: {
+                                    enableSourcing: false,
+                                    ignoreMandatoryFields: true
+                                }
+                            });
+                        }
                     }
                 }
 
@@ -432,10 +446,23 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception
             if (!_.includes(['delete', 'create'], context.type)){
-                if (runtime.executionContext === runtime.ContextType.SUITELET && !context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
+                if (_.includes([runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT], runtime.executionContext) && !context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
                 {
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
-                    context.newRecord.setValue({fieldId: 'custrecord_an_token_pblkchn', value :authNet.mkpblkchain(context.newRecord, context.newRecord.id)});
+                    if (!context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
+                    {
+                        log.audit('Missing original PBBLK : '+context.newRecord.id, 'Generating and setting new PBLK now!')
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_pblkchn', value :authNet.mkpblkchain(context.newRecord, context.newRecord.id)});
+                        //this fixes an issue where some records never had a cahnce to be validated
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_pblkchn_tampered', value : false});
+                        context.newRecord.setValue({fieldId: 'isinactive', value : false});
+                    }
+                    if (!context.newRecord.getValue({fieldId: 'custrecord_an_token_uuid'}))
+                    {
+                        log.audit('Missing original UUID : '+context.newRecord.id, 'Generating and setting new UUID now!')
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()})
+                    }
+                    //context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
+                    //context.newRecord.setValue({fieldId: 'custrecord_an_token_pblkchn', value :authNet.mkpblkchain(context.newRecord, context.newRecord.id)});
                 }
                 else if (authNet.mkpblkchain(context.newRecord, context.newRecord.id) !== context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
                 {
@@ -448,7 +475,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_paymenttype', value : 1});
                 }
             }
-            else if (context.type === 'create' && (runtime.executionContext === runtime.ContextType.USER_INTERFACE || runtime.executionContext === runtime.ContextType.CSV_IMPORT))
+            else if (context.type === 'create' && (_.includes([runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT], runtime.executionContext) ))
             {
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
                 //clean the heck out of the user entered fields
