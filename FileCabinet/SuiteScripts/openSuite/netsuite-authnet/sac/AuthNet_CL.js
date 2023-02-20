@@ -354,7 +354,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             });
                             window.nlapiGetField('custbody_authnet_use').setDisplayType('disabled');
                             window.nlapiGetField('custbody_authnet_override').setDisplayType('disabled');
-                            log.audit('This Subsidiary is not supported', 'The selected Subsdiary doea not use authorzie.net');
+                            log.audit('This Subsidiary is not supported', 'The selected Subsdiary does not use authorzie.net');
                             return;
                         }
                         else

@@ -154,7 +154,7 @@ function(exports, log, _, SAC) {
         log.debug('Plugin Validation - Customer Refund');
         SAC.pi_response.process = (
             (
-                context.type === context.UserEventType.CREATE && !context.newRecord.getValue('custbody_authnet_done') &&
+                context.type === context.UserEventType.CREATE && !context.newRecord.getValue('custbody_authnet_done') && !context.newRecord.getValue({fieldId:'custbody_authnet_override'}) &&
                 (
                     (context.newRecord.getValue({ fieldId:'custbody_authnet_use'})  || context.newRecord.getValue({fieldId: 'paymentmethod'}) === o_config.custrecord_an_paymentmethod.val )
                 )

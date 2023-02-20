@@ -64,7 +64,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                             {
                                 format: render.DataSource.OBJECT,
                                 alias: "CUST_JSON",
-                                data: empCommissions
+                                data: thisdata
                             });
                         var s_body = myFile.renderAsString();
                         */
@@ -88,9 +88,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                     var s_errors = o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})  + ' (' +o_history.getValue({fieldId: 'custrecord_an_error_code'})+')';
 
                                     template = template.replace(/%%ERROR%%/g, s_errors);
-                                    var s_messages = '';
+                                    var s_messages = '<p>PROCESSING ERROR</p>';
                                     _.forEach(o_anResponse.messages.message, function (message) {
-                                        s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                        if (message.code !== 'I00001') {
+                                            s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                        }
                                     });
                                     template = template.replace(/%%CODE%%/g, s_messages);
                                     template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
@@ -104,12 +106,15 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 template = template.replace(/%%MESSAGES%%/g, o_history.getValue({fieldId: 'custrecord_an_response_message'}));
                                 var s_errors = o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})  + ' (' +o_history.getValue({fieldId: 'custrecord_an_error_code'})+')';
                                 template = template.replace(/%%ERROR%%/g, s_errors);
-                                var s_messages = '';
+                                var s_messages = '<p>PROCESSING ERROR</p>';
                                 _.forEach(o_anResponse.messages.message, function (message) {
-                                    s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                    if (message.code !== 'I00001') {
+                                        s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                    }
                                 });
                                 template = template.replace(/%%CODE%%/g, s_messages);
                                 template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
+                                //https://sandbox.authorize.net/ui/themes/sandbox/transaction/transactiondetail.aspx?transID=60202853669
                                 template = template.replace(/%%cardData%%/g, o_history.getValue({fieldId: 'custrecord_an_card_type'}) + ' ending in ' + o_history.getValue({fieldId: 'custrecord_an_cardnum'}));
                                 template = template.replace(/%%LOG%%/g, historyUrl);
                                 context.response.write(template);
@@ -140,9 +145,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 }
                                 template = template.replace(/%%ERROR%%/g, o_history.getValue({fieldId: 'custrecord_an_response_message'}) + ' (' +o_history.getValue({fieldId: 'custrecord_an_error_code'}) + ')');
                                 template = template.replace(/%%MESSAGES%%/g, error_string);
-                                var s_messages = '';
+                                var s_messages = '<p>PROCESSING ERROR</p>';
                                 _.forEach(o_anResponse.messages.message, function (message) {
-                                    s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                    if (message.code !== 'I00001') {
+                                        s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                    }
                                 });
                                 template = template.replace(/%%CODE%%/g, s_messages);
                                 template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
@@ -246,7 +253,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         deploymentId: 'customdeploy_sac_update_profiles_up',
                         scriptId: 'customscript_sac_update_profiles'
                     }).submit();
-                    context.response.write('The proces to upgrade your payment tokens to this version is currently runningi n the background.  It will take as long as it takes - based on the number of tokens you have and how fast your instance of NetSuite is based on time of day and system load.  ' +
+                    context.response.write('The proces to upgrade your payment tokens to this version is currently running in the background.  It will take as long as it takes - based on the number of tokens you have and how fast your instance of NetSuite is based on time of day and system load.  ' +
                         '<p>You WILL NOT be able to enable multi-subsidary functionality until this process has completed.</p>'+
                         '<p>Processing status will be shown on the configuration record</p>'
                     );
@@ -1004,7 +1011,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
-                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:'1.'+moment().format('DD')});
+                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value: +(moment().format('M')+'.'+moment().format('DD'))});
                     try {
                         if (o_params.linejson)
                         {
@@ -1098,7 +1105,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     testCS.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
                     testCS.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
                     testCS.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
-                    testCS.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:'1.'+moment().format('DD')});
+                    testCS.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value: +(moment().format('M')+'.'+moment().format('DD'))});
                     try {
                         if (o_params.linejson)
                         {
@@ -1174,7 +1181,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     testInv.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
                     testInv.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
                     testInv.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
-                    testInv.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value:+('1.'+moment().format('DD')) * +o_params.custpage_numpmt});
+                    testInv.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value: +(moment().format('M')+'.'+moment().format('DD')) * +o_params.custpage_numpmt});
                     try {
                         if (o_params.linejson)
                         {
@@ -1414,7 +1421,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                         line: j,
                                         value: true
                                     });
-                                    o_custPayment.setSublistValue({sublistId:'apply', fieldId:'amount', line: j, value: ('1.'+moment().format('DD'))});
+                                    o_custPayment.setSublistValue({sublistId:'apply', fieldId:'amount', line: j, value: +(moment().format('M')+'.'+moment().format('DD'))});
                                     b_canSave = true;
                                 } else {
                                     o_custPayment.setSublistValue({

@@ -67,8 +67,8 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             var o_response = JSON.parse(response.body)
             if (o_response.status){
                 var output = url.resolveRecord({
-                    recordType: 'salesorder',
-                    recordId: o_response.txn.id
+                    recordType: o_response.fromType,
+                    recordId: o_response.fromId
                 });
                 console.log(output)
                 window.location = output;
@@ -102,14 +102,14 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             var response = https.get({
                 url: suitelet_url
             });
-            console.log(response)
+            console.log('response')
             console.log(response.body)
             //alert(suitelet_url);
             var o_response = JSON.parse(response.body)
             if (o_response.status){
                 var output = url.resolveRecord({
-                    recordType: 'salesorder',
-                    recordId: o_response.txn.id
+                    recordType: o_response.fromType,
+                    recordId: o_response.fromId
                 });
                 console.log(output)
                 window.location = output;
@@ -149,8 +149,8 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             var o_response = JSON.parse(response.body)
             if (o_response.status){
                 var output = url.resolveRecord({
-                    recordType: 'salesorder',
-                    recordId: o_response.txn.id
+                    recordType: o_response.fromType,
+                    recordId: o_response.fromId
                 });
                 console.log(output)
                 window.location = output;

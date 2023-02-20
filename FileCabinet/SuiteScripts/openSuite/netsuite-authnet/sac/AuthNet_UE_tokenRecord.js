@@ -227,6 +227,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         'firstname',
                         'lastname',
                         'companyname',
+                        'billaddressee',
                         'billaddress1',
                         'billaddress2',
                         'billcity',
@@ -277,6 +278,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         firstName : '',
                         lastName : '',
                         company : '',
+                        addressee : o_customerData.billaddressee,
                         address : s_address,
                         city : o_customerData.billcity,
                         state : o_customerData.billstate[0] ? o_customerData.billstate[0].value : '',
@@ -394,14 +396,22 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     var fld_echeckType = context.form.getField({id: 'custrecord_an_token_bank_echecktype'}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
+                    var s_helpMessage = '';
+                    if (!o_customerData.billaddressee && !o_customerData.billaddress1 && !o_customerData.billzipcode)
+                    {
+                        s_helpMessage += '<p><b style="color:red;">Customer Record does NOT have a DEFAULT BILLING ADDRESS</b></p>'
+                    }
+                    s_helpMessage += 'All customer payment profiles will use attempt to use the DEFAULT BILLING ADDRESS set on the customer ' +
+                        'at the time of creation to generate the profile. ' +
+                        '<ul><li><b>CREDIT CARD</b> : To generate a profile using a different billing address, you must edit ' +
+                        '"Payment Method Details" section and change the billing address used on the card.</li>' +
+                        '<li><b>eCHECK (ACH)</b> : The bank information under "Method Details" is not the address, the profile will use the DEFAULT BILLING ADDRESS on the customer record.  If it is blank, the profile in Authorize.Net will have a blank address.</li></ul>' +
+                        'This is by design to ensure the address is tightly bound to the payment method and the cardholder/account. Values enetered on this screen will NOT change information on the customer record. '
+
                     //HELP field for eCheck Setup
                     var fld_guidance = context.form.addField({
                         id: 'custpage_echeck_mode',
-                        label: 'All customer payment profiles will use attempt to use the DEFAULT BILLING address set on the customer ' +
-                            'at the time of creation to generate the profile. To generate a profile using a different billing address, you must edit ' +
-                            'Payment Method Details and change the billing address used on the card. This is by design to ensure the address ' +
-                            'is tightly bound to the payment method and the cardholder. This will NOT change the customer information. ' +
-                            'The token will to use the address on this form upon creation.',
+                        label: s_helpMessage,
                         type: ui.FieldType.HELP
                     });
                     context.form.insertField({

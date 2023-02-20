@@ -134,6 +134,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 {
                     //some general variables here
                     var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type),
+                        b_overide = context.newRecord.getValue({fieldId :'custbody_authnet_override'}),
                         b_responseFailure = (context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) || !o_history.isValid),
                         b_hasToken = (+context.newRecord.getValue('custbody_authnet_cim_token') !== 0 && !_.isNaN(+context.newRecord.getValue('custbody_authnet_cim_token'))),
                         s_paymentVehicle = b_hasToken ? 'Token' : 'Credit Card',
@@ -145,27 +146,30 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //authNet.homeSysLog('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
                     authNet.homeSysLog('b_responseFailure', b_responseFailure);
                     //authNet.homeSysLog('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
-                    if (b_responseFailure && b_isAuthNet)
+                    if (!b_overide)
                     {
-                        var s_title = '';
-                        if (context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}) === '(IMPORTED)'){
-                            s_title = 'IMPORTED AUTH : ';
+                        if (b_responseFailure && b_isAuthNet)
+                        {
+                            var s_title = '';
+                            if (context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}) === '(IMPORTED)'){
+                                s_title = 'IMPORTED AUTH : ';
+                            }
+                            s_title += o_history.status + ' ' + o_history.errorCode
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: s_title,
+                                message: o_history.message
+                            });
                         }
-                        s_title += o_history.status + ' ' + o_history.errorCode
-                        context.form.addPageInitMessage({
-                            type: message.Type.ERROR,
-                            title: s_title,
-                            message: o_history.message
-                        });
-                    }
-                    else if (o_history.showBanner)
-                    {
-                        //this is used if the transaction passes but has some sort of pending issue
-                        context.form.addPageInitMessage({
-                            type: message.Type.WARNING,
-                            title: o_history.responseCodeText,
-                            message: o_history.message
-                        });
+                        else if (o_history.showBanner)
+                        {
+                            //this is used if the transaction passes but has some sort of pending issue
+                            context.form.addPageInitMessage({
+                                type: message.Type.WARNING,
+                                title: o_history.responseCodeText,
+                                message: o_history.message
+                            });
+                        }
                     }
                     _.forEach(authNet.CCFIELDS, function (fd) {
                         var fld = 'custbody_authnet_' + fd;
@@ -327,14 +331,17 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             break;
                         case 'cashrefund':
                         case 'customerrefund':
-                            if(!context.newRecord.getValue({fieldId:'custbody_authnet_done'}) && (context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || context.newRecord.getValue({fieldId: 'paymentmethod'})) === o_config2.custrecord_an_paymentmethod.val) {
-                                if (!o_history.isValid) {
-                                    log.error('parsehistory ERROR : customerrefund', o_history);
-                                    context.form.addPageInitMessage({
-                                        type: message.Type.ERROR,
-                                        title: 'Refund Error',
-                                        message: o_history.message
-                                    });
+                            if (!context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
+                            {
+                                if(!context.newRecord.getValue({fieldId:'custbody_authnet_done'}) && (context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || context.newRecord.getValue({fieldId: 'paymentmethod'})) === o_config2.custrecord_an_paymentmethod.val) {
+                                    if (!o_history.isValid) {
+                                        log.error('parsehistory ERROR : customerrefund', o_history);
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.ERROR,
+                                            title: 'Refund Error',
+                                            message: o_history.message
+                                        });
+                                    }
                                 }
                             }
                             try {
@@ -346,16 +353,19 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                             break;
                         case 'cashsale':
-                            if(!context.newRecord.getValue({fieldId:'custbody_authnet_done'}) && (context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || context.newRecord.getValue({fieldId: 'paymentmethod'})) === o_config2.custrecord_an_paymentmethod.val) {
-                                var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type);
-                                if (!o_history.isValid) {
-                                    log.error('parsehistory ERROR : cashsale', o_history);
-                                    //fldWarning.defaultValue = s_field;
-                                    context.form.addPageInitMessage({
-                                        type: message.Type.ERROR,
-                                        title: 'Error',
-                                        message: o_history.message
-                                    });
+                            if (!context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
+                            {
+                                if (!context.newRecord.getValue({fieldId: 'custbody_authnet_done'}) && (context.newRecord.getValue({fieldId: 'custbody_authnet_use'}) || context.newRecord.getValue({fieldId: 'paymentmethod'})) === o_config2.custrecord_an_paymentmethod.val) {
+                                    //var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type);
+                                    if (!o_history.isValid) {
+                                        log.error('parsehistory ERROR : cashsale', o_history);
+                                        //fldWarning.defaultValue = s_field;
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.ERROR,
+                                            title: 'Error',
+                                            message: o_history.message
+                                        });
+                                    }
                                 }
                             }
                             try {
@@ -389,14 +399,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             break;
                     }
                     if (context.newRecord.getValue('custbody_authnet_override')){
-                        //s_field = s_field.replace(/%TYPE%/g, 'warning');
-                        //s_field = s_field.replace('%TITLE%', 'Authorize.Net Override');
-                        //s_field = s_field.replace('%DESCR%', 'This transaction will not process via Authorize.Net');
-                        //fldWarning.setDefaultValue(s_field);
-                        //fldWarning.defaultValue = s_field;
                         context.form.addPageInitMessage({
                             type: message.Type.WARNING,
-                            title: 'Authorize.Net Override',
+                            title: 'Authorize.Net Override Checked',
                             message: 'This transaction will not process via Authorize.Net and will not make any further calls to Authorize.Net'
                         });
                     }
@@ -416,7 +421,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             log.error('MISSING A CCENTRY FIELD!', fld)
                         }
                     });
-
                 }
                 //else if (context.type === context.UserEventType.CREATE && context.newRecord.getValue({fieldId :'custbody_authnet_use'}) && !context.newRecord.getValue({fieldId :'custbody_authnet_override'}))
                 else if (context.type === context.UserEventType.CREATE)
@@ -425,12 +429,14 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //ENSURE the response fields are hidden on a create since they would be empty
                     log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + i_createdfrom);
                     //hide the override on a create - you would not do that normally
-                    try {
-                        form.getField({id: 'custbody_authnet_override'}).updateDisplayType({
-                            displayType: ui.FieldDisplayType.HIDDEN
-                        });
-                    } catch (e){
-                        log.error('MISSING OVERRIDE CODE FIELD!', fld)
+                    if (_.includes(['salesorder'], context.newRecord.type)) {
+                        try {
+                            form.getField({id: 'custbody_authnet_override'}).updateDisplayType({
+                                displayType: ui.FieldDisplayType.HIDDEN
+                            });
+                        } catch (e) {
+                            log.error('MISSING OVERRIDE CODE FIELD!', fld);
+                        }
                     }
                     //should be disabled
                     var setFields = (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})) ? ui.FieldDisplayType.DISABLED : ui.FieldDisplayType.HIDDEN;
@@ -508,7 +514,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             log.error('MISSING A CCENTRY FIELD!', fld)
                                         }
                                     });
-                                    //custbody_authnet_override
                                 }
                             } else {
 
@@ -549,8 +554,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             log.error('MISSING A CCENTRY FIELD!', fld)
                                         }
                                     });
-                                    //custbody_authnet_override
-
                                 }
                             }
                             break;
@@ -701,42 +704,21 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 }
                 else if (context.type === context.UserEventType.CREATE && context.newRecord.getValue('custbody_authnet_use') && context.newRecord.getValue({fieldId: 'orderstatus'}) === 'A' && o_config2.custrecord_an_generate_token_pend_approv.val)
                 {
-                    //so this is the create of a pending approval SO that can tokenize now
-                    //can we tokenize:
-                    if (!context.newRecord.getValue('custbody_authnet_cim_token')){
-                        //no token on the transaction - so let's form a token out of the card data
-                        //throw 'Dev Build - adding token on pending approval logic right now'
-                    }
 
-                    //log.audit('SO Approved & Has Token', 'Calling direct Auth on SO without plugin');
-                    //todo - token logic goes here
-                    //context.newRecord.setValue('custbody_token_instant_auth', true);
-                    //authNet.getAuth(context.newRecord);
                 }
                 else if (context.type === context.UserEventType.APPROVE && +context.newRecord.getValue('custbody_authnet_cim_token') !== 0)
                 {
-                    //log.audit('SO Approved & Has Token', 'Calling direct Auth on SO without plugin');
-                    //todo - token logic goes here
-                    //context.newRecord.setValue('custbody_token_instant_auth', true);
-                    //authNet.getAuth(context.newRecord);
+
                 }
                 else if (context.newRecord.getValue('custbody_authnet_override'))
                 {
-                    //context.newRecord.setValue('custbody_token_instant_auth', true);
                     context.newRecord.setValue('custbody_authnet_datetime','');
-                    //context.newRecord.setValue('custbody_authnet_accountnumber','');
-                    //context.newRecord.setValue('custbody_authnet_description','Credit card processing was overridden in NetSuite - no further credit card processing will occur on any related transaction in NetSuite');
-                    //context.newRecord.setValue('custbody_authnet_reqrefid','');
-                    //context.newRecord.setValue('custbody_authnet_responsecode','');
                 }
-                /*else if (context.type === context.UserEventType.XEDIT && context.newRecord.getValue('custbody_token_instant_auth') && +context.newRecord.getValue('custbody_authnet_responsecode') === 0){
-                    authNet.getAuth(record.load({
-                        type: record.Type.SALES_ORDER,
-                        id: context.newRecord.id,
-                        isDynamic: true
-                    }));
-                }*/
                 log.debug('ENDING authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type + ' COMPLETED');
+            }
+            if (context.newRecord.getValue({fieldId: 'custbody_authnet_override'}))
+            {
+                context.newRecord.setValue({fieldId: 'custbody_authnet_use', value : false});
             }
         }
         function authNetAfterSubmit(context) {
@@ -774,7 +756,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 //log.debug('newRecord.orderstatus', context.newRecord.getValue('orderstatus')); //B when just approved
                 //log.debug('oldRecord.orderstatus', context.oldRecord.getValue('orderstatus')); //A when pending approval
                 var s_newStatus = context.newRecord.getValue('orderstatus');
-                var s_oldStatus = (context.type === context.UserEventType.CREATE) ? 'A' : context.oldRecord.getValue('orderstatus');
+                //var s_oldStatus = (context.type === context.UserEventType.CREATE) ? 'A' : context.oldRecord.getValue('orderstatus');
                 //log.debug('status old and new', s_oldStatus + ' : ' + s_newStatus);
                 switch (context.newRecord.type) {
                     case 'salesorder':
@@ -1031,16 +1013,35 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         }
                         break;
                     case 'customerpayment':
-                        log.debug('customerpayment - status old and new');
+                        //log.debug('customerpayment - status old and new');
                         var pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCP(context.newRecord);
-                        if (pluginResult.process) {
+                        if (pluginResult.process)
+                        {
                             //if there was a cc number, its auth.net and it's not already approved, let's do it!
                             var o_response = authNet.getAuthCapture(context.newRecord);
                             authNet.homeSysLog('customerpayment - getAuthCapture - o_response', o_response);
                             authNet.handleResponse(o_response, context, true);
                         }
+                        if (context.type === context.UserEventType.EDIT) {
+                            if ((context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}) !== context.oldRecord.getValue({fieldId: 'custbody_authnet_refid'}))
+                                &&
+                                runtime.executionContext === runtime.ContextType.USER_INTERFACE) {
+                                //added logic to auto settle this realtime if possible for externally transacted transactions
+                                try {
+                                    if (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})) {
+                                        txn = record.load({
+                                            type: context.newRecord.type,
+                                            id: context.newRecord.id
+                                        });
+                                        authNet.doSettlement(txn);
+                                    }
+                                } catch (e) {
+                                    log.error(e.name, e.message);
+                                    log.error(e.name, e.stack);
+                                }
+                            }
+                        }
                         break;
-
                     case 'customerrefund':
                         log.debug(context.newRecord.type + ' - evaluating');
                         var pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCustR(context,o_config2);

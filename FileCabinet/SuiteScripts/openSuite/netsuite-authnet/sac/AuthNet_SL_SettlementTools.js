@@ -112,13 +112,13 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                     }).updateDisplayType({
                         displayType : serverWidget.FieldDisplayType.DISABLED
                     });
-                    sublist.addField({
+                    /*sublist.addField({
                         id: 'delta',
                         type: serverWidget.FieldType.CURRENCY,
                         label: 'DELTA'
                     }).updateDisplayType({
                         displayType : serverWidget.FieldDisplayType.DISABLED
-                    });
+                    });*/
                     sublist.addField({
                         id: 'delta2',
                         type: serverWidget.FieldType.TEXT,
@@ -178,6 +178,8 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                             search.create({
                                 type: 'transaction',
                                 filters: [
+                                    ['type', 'anyof', ["CashRfnd", "CashSale", "CustDep","CustRfnd","CustPymt"]],
+                                    "AND",
                                     ["custbody_authnet_batchid", "is", batch.batchId],
                                     "AND",
                                     ["mainline", "is", 'T']
@@ -188,7 +190,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                     'memo'
                                 ]
                             }).run().each(function (result) {
-                                log.debug('result', result);
+                                //log.debug('result', result);
                                 o_aNetResponse.settleInforInNs.nsTotal += +result.getValue('amount');
                                 o_aNetResponse.settleInforInNs.nsTxnCount++;
                                 o_nsTxns[result.getValue('custbody_authnet_refid')] = {
@@ -199,7 +201,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                 };
                                 return true;
                             });
-                            log.debug('Searched and mathed o_aNetResponse', o_aNetResponse)
+                            log.debug('Searched and mathed o_aNetResponse', o_aNetResponse);
 
                             _.forEach(o_aNetResponse.fullResponse.transactions, function (txn) {
                                 if (txn.transactionStatus === 'settledSuccessfully') {
@@ -263,18 +265,18 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                             sublist.setSublistValue({
                                 id: 'nscount',
                                 line: i_line,
-                                value: o_aNetResponse.settleInforInNs.nsTxnCount.toString() + ' <a target="_blank" href="/app/common/search/searchresults.nl?searchtype=Transaction&CUSTBODY_AUTHNET_BATCHID='+batch.batchId+'&style=NORMAL&CUSTBODY_AUTHNET_BATCHIDtype=IS&CUSTBODY_AUTHNET_BATCHIDfooterfilter=T&report=&grid=&searchid=customsearch_ans_batch_settlement_detail&dle=T&sortcol=Transction_ORDTYPE9_raw&sortdir=ASC&csv=HTML&OfficeXML=F&pdf=&size=50&twbx=F">(Details)</a>'
+                                value: '<b>'+o_aNetResponse.settleInforInNs.nsTxnCount.toString() + '</b> <a target="_blank" href="/app/common/search/searchresults.nl?searchtype=Transaction&CUSTBODY_AUTHNET_BATCHID='+batch.batchId+'&style=NORMAL&CUSTBODY_AUTHNET_BATCHIDtype=IS&CUSTBODY_AUTHNET_BATCHIDfooterfilter=T&report=&grid=&searchid=customsearch_ans_batch_settlement_detail&dle=T&sortcol=Transction_ORDTYPE9_raw&sortdir=ASC&csv=HTML&OfficeXML=F&pdf=&size=50&twbx=F">(Details)</a>'
                             });
                             sublist.setSublistValue({
                                 id: 'nsamount',
                                 line: i_line,
                                 value: o_aNetResponse.settleInforInNs.nsTotal
                             });
-                            sublist.setSublistValue({
+                            /*sublist.setSublistValue({
                                 id: 'delta',
                                 line: i_line,
                                 value: o_aNetResponse.settleInforInNs.anetTotal - o_aNetResponse.settleInforInNs.nsTotal
-                            });
+                            });*/
                             sublist.setSublistValue({
                                 id: 'delta2',
                                 line: i_line,
@@ -295,9 +297,15 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                     });
                                     var s_invNumber = _.isUndefined(missingTxn.invoiceNumber) ? '' : ' : '+missingTxn.invoiceNumber;
                                     s_missing +=
-                                        ' <a target="_blank" href="'+s_missingLink+'">' + missingTxn.transId + s_invNumber + '</a>\r\n'
+                                        ' <a target="_blank" href="'+s_missingLink+'">' + missingTxn.transId + s_invNumber + '</a>\r\n';
+                                    if (s_missing.length > 3900)
+                                    {
+                                        s_missing += ' (more)'
+                                        return false;
+                                    }
                                         //'(' + missingTxn.transId + ' : '+missingTxn.invoiceNumber + ')\r\n';//missingTxn.transId +
                                 });
+
                                 sublist.setSublistValue({
                                     id: 'missinginns',
                                     line: i_line,
@@ -310,7 +318,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                     }
                     else
                     {
-                        assist.errorHtml =  o_batches.message;
+                        form.errorHtml =  o_batches.message;
                         //context.response.write(o_batches.message);
                     }
 
@@ -329,58 +337,112 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                     {
                         o_missingTxn = AUTHNET.getStatusCheck(o_params.missingtranid);
                     }
+                    log.debug('o_missingTxn', o_missingTxn);
                     if (o_missingTxn)
                     {
                         var o_matchedTranId, o_matchedCustomer;
-                        search.create({
-                            type: 'transaction',
-                            filters: [
-                                ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
-                                "AND",
-                                ['mainline', 'is', 'T'],
-                            ],
-                            columns: [
-                                {name: 'tranid'},
-                                {name: 'entity'},
-                            ]
-                        }).run().each(function (result) {
-                            o_matchedTranId = {id : result.id, type : result.recordType, tranid : result.getValue('tranid'), entity : +result.getValue('entity')};
-                            log.debug('FOUND TRANSACTION', o_matchedTranId);
-                        });
+                        if (o_missingTxn.fullResponse.order.invoiceNumber) {
+                            search.create({
+                                type: 'transaction',
+                                filters: [
+                                    ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
+                                    "AND",
+                                    ['mainline', 'is', 'T'],
+                                    "AND",
+                                    ['type', 'anyof', ["CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt"]]
+                                ],
+                                columns: [
+                                    {name: 'tranid'},
+                                    {name: 'entity'},
+                                ]
+                            }).run().each(function (result) {
+                                o_matchedTranId = {
+                                    id: result.id,
+                                    type: result.recordType,
+                                    tranid: result.getValue('tranid'),
+                                    entity: +result.getValue('entity')
+                                };
+                                log.debug('FOUND TRANSACTION', o_matchedTranId);
+                            });
+                            if (o_matchedTranId) {
+                                if (o_matchedTranId.type === 'invoice') {
+                                    //probally need to create a payment from this transaction
+                                    search.create({
+                                        type: 'transaction',
+                                        filters: [
+                                            ['appliedtotransaction.internalid', 'anyof', o_matchedTranId.id],
+                                        ],
+                                        columns: [
+                                            {name: 'tranid'},
+                                            {name: 'entity'},
+                                        ]
+                                    }).run().each(function (result) {
+                                        o_matchedTranId.applied = {
+                                            id: result.id,
+                                            type: result.recordType,
+                                            tranid: result.getValue('tranid')
+                                        };
+                                        log.debug('FOUND TRANSACTION APPLIED', o_matchedTranId.applied);
+                                    });
+                                }
+                            }
+                        }
+                        //if (o_missingTxn.fullResponse.customer.email || o_missingTxn.fullResponse.customer.id) {
+                        var a_filters = [['isinactive', 'is', 'F'], "AND"];
+                        var a_subFilter = [];
+                        if (o_missingTxn.fullResponse.customer.email)
+                        {
+                            a_subFilter.push(['email', 'is', o_missingTxn.fullResponse.customer.email]);
+                        }
+                        if (o_missingTxn.fullResponse.customer.id)
+                        {
+                            if (a_subFilter.length > 0)
+                            {
+                                a_subFilter.push("OR");
+                            }
+                            a_subFilter.push(['entityid', 'contains', o_missingTxn.fullResponse.customer.id]);
+                        }
+                        if (a_subFilter.length > 0)
+                        {
+                            a_subFilter.push("OR");
+                        }
+                        a_subFilter.push(['altname', 'is', o_missingTxn.fullResponse.billTo.firstName + ' ' + o_missingTxn.fullResponse.billTo.lastName])
+                        a_filters.push(a_subFilter)
+                        //log.debug('a_filters', a_filters);
                         search.create({
                             type: 'customer',
-                            filters: [
-                                ['email', 'is', o_missingTxn.fullResponse.customer.email],
-                                "AND",
-                                ['isinactive', 'is', 'F'],
-                            ],
+                            filters :a_filters,
                             columns: [
                                 {name: 'entityid'},
                             ]
                         }).run().each(function (result) {
                             //log.debug('result', result);
-                            if (o_matchedTranId)
-                            {
-                                if (+result.id === o_matchedTranId.entity)
-                                {
-                                    o_matchedCustomer = {id : +result.id, type : result.recordType, entityid : result.getValue('entityid')};
+                            if (o_matchedTranId) {
+                                if (+result.id === o_matchedTranId.entity) {
+                                    o_matchedCustomer = {
+                                        id: +result.id,
+                                        type: result.recordType,
+                                        entityid: result.getValue('entityid')
+                                    };
                                     log.debug('FOUND CUSTOMER', o_matchedCustomer);
                                     return false;
                                 }
-                            }
-                            else
-                            {
-                                o_matchedCustomer = {id : +result.id, type : result.recordType, entityid : result.getValue('entityid')};
+                            } else {
+                                o_matchedCustomer = {
+                                    id: +result.id,
+                                    type: result.recordType,
+                                    entityid: result.getValue('entityid')
+                                };
                             }
                             return true;
                         });
+                        //}
                         var grp_matching = form.addFieldGroup({
                             id: 'grp_matching',
                             label: 'Possible Related Transaction within NetSuite'
                         });
                         if (o_matchedTranId)
                         {
-
                             form.addField({
                                 id: 'matchedtxn',
                                 type: serverWidget.FieldType.SELECT,
@@ -393,9 +455,19 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                             form.updateDefaultValues({
                                 matchedtxn: o_matchedTranId.id,
                             });
-                            if (o_matchedTranId.type === 'invoice')
-                            {
-                                //probally need to create a payment from this transaction
+                            if (o_matchedTranId.applied) {
+                                form.addField({
+                                    id: 'matchedtxnapplied',
+                                    type: serverWidget.FieldType.SELECT,
+                                    source: 'transaction',
+                                    label: 'Likely NetSuite Payment Transaction',
+                                    container: 'grp_matching'
+                                }).updateDisplayType({
+                                    displayType: serverWidget.FieldDisplayType.INLINE
+                                });
+                                form.updateDefaultValues({
+                                    matchedtxnapplied: o_matchedTranId.applied.id,
+                                });
                             }
                         }
                         if (o_matchedCustomer)
@@ -431,6 +503,18 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                         });
 
                         form.addField({
+                            id: 'ext_tranid',
+                            type: serverWidget.FieldType.TEXT,
+                            label: 'Authorize.Net TranID',
+                            container:'grp_missing'
+                        }).updateDisplayType({
+                            displayType : serverWidget.FieldDisplayType.INLINE
+                        });
+                        form.updateDefaultValues({
+                            ext_tranid:o_missingTxn.fullResponse.transId
+                        });
+
+                        form.addField({
                             id: 'ext_invid',
                             type: serverWidget.FieldType.TEXT,
                             label: 'Missing Transaction #',
@@ -438,10 +522,17 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                         }).updateDisplayType({
                             displayType : serverWidget.FieldDisplayType.INLINE
                         });
-                        form.updateDefaultValues({
-                            ext_invid:o_missingTxn.fullResponse.order.invoiceNumber
-                        });
-
+                        if (o_missingTxn.fullResponse.order.invoiceNumber) {
+                            form.updateDefaultValues({
+                                ext_invid: o_missingTxn.fullResponse.order.invoiceNumber
+                            });
+                        }
+                        else
+                        {
+                            form.updateDefaultValues({
+                                ext_invid: 'Not found in Authorize.Net'
+                            });
+                        }
                         form.addField({
                             id: 'ext_date',
                             type: serverWidget.FieldType.DATE,

@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.05';
+    exports.VERSION = '3.2.06';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -163,7 +163,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     "orderDescending": "true"
                 },
                 "paging": {
-                    "limit": "100",
+                    "limit": "1000",
                     "offset": "1"
                 }
             }
@@ -1915,6 +1915,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
 
             var parsed = parseANetResponse(rec_response, realTxn, response);
             parsed.fromId = txn.id;
+            parsed.fromType = histRec.getValue('custrecord_an_calledby');
             //log.debug('parsed.status', parsed.status);
             //log.debug('parsed.history', parsed.history);
             //log.debug('parsed.txn', parsed.txn);
@@ -2014,19 +2015,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             o_profile.paymentProfile = {};
             o_profile.paymentProfile.paymentProfileId = o_token.getValue('custrecord_an_token_token');
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.profile = o_profile;
-        } /*else {
-            //this section is irrelevant in eCheck world
-            var o_creditCard = {};
-            o_creditCard.cardNumber = txn.getValue({ fieldId:'custbody_authnet_ccnumber'});
-            o_creditCard.expirationDate = txn.getValue({ fieldId:'custbody_authnet_ccexp'});
-            o_creditCard.cardCode = txn.getValue({ fieldId:'custbody_authnet_ccv'});
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = {'creditCard' : o_creditCard};
-            //added 9/3/2019 to trigger on profile settings
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.profile = {createProfile : o_ccAuthSvcConfig.custrecord_an_cim_auto_generate.val};
-        }*/
+        }
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.solution = o_ccAuthSvcConfig.solutionId;
         //added 9/3/2019 to provide more details on this transaction
-
         //now build the whole order like you do for an auth -
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest = exports.generateANetTransactionRequestJSON(txn, b_isToken, exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest);
         //now ensure all the prior auth data is GONE!
@@ -2606,12 +2597,20 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
             }
             else
+            //this is used for echeck only - and becasue the address record does not have first / last name, we need to cobble here
             {
                 if (o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType === 'individual')
                 {
                     delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
-                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName = o_billingAddressObject.firstname;
-                    o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName = o_billingAddressObject.lastname;
+                    if (o_billingAddressObject.billaddressee)
+                    {
+                        var a_addressee = o_billingAddressObject.billaddressee.split(' ');
+                        o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName = a_addressee[0];
+                        if (a_addressee.length > 1) {
+                            o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName = a_addressee[a_addressee.length - 1];
+                        }
+                    }
+
                 }
                 else
                 {
@@ -2931,10 +2930,16 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                             fieldId: 'custrecord_an_token_token',
                             value: profile.customerPaymentProfileId
                         });
-                        rec_cimProfile.setValue({
-                            fieldId: 'custrecord_an_token_entity_email',
-                            value: o_importProfileResponse.email.replace(/\s/g, '')
-                        });
+                        //validate email pattern
+                        var s_email = o_importProfileResponse.email.replace(/\s/g, '');
+                        //thank you https://www.w3resource.com/javascript/form/email-validation.php
+                        if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(s_email))
+                        {
+                            rec_cimProfile.setValue({
+                                fieldId: 'custrecord_an_token_entity_email',
+                                value:s_email
+                            });
+                        }
                         if (!_.isUndefined(profile.payment.creditCard)) {
                             rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value: 1});
                             rec_cimProfile.setValue({
@@ -3163,33 +3168,51 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     var getTransactionListRequest = function(o_ccAuthSvcConfig, batchId){
-            var o_summaryStatus = {};
-
-            var o_request = o_getTransactionListRequest(o_ccAuthSvcConfig);
-            o_request.getTransactionListRequest.batchId = batchId;
-
-            log.debug('getTransactionListRequest request', o_request);
-            try {
-                var response = https.post({
+        var o_summaryStatus = {};
+        var o_request = o_getTransactionListRequest(o_ccAuthSvcConfig);
+        o_request.getTransactionListRequest.batchId = batchId;
+        o_request.getTransactionListRequest.paging.limit = 1000
+        //log.debug('getTransactionListRequest request', o_request);
+        try {
+            var offSet = +o_request.getTransactionListRequest.paging.offset;
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: o_ccAuthSvcConfig.authSvcUrl,
+                body: JSON.stringify(o_request)
+            });
+            //log.debug('getTransactionListRequest response.body', response.body);
+            var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
+            var i_responseCount = o_body.totalNumInResultSet;
+            while (i_responseCount === o_request.getTransactionListRequest.paging.offset)
+            {
+                offSet++;
+                o_request.getTransactionListRequest.paging.offset = offSet.toString();
+                //log.debug('NEW o_request', o_request)
+                var newResponse = https.post({
                     headers: {'Content-Type': 'application/json'},
                     url: o_ccAuthSvcConfig.authSvcUrl,
                     body: JSON.stringify(o_request)
                 });
-                log.debug('getTransactionListRequest response.body', response.body);
-                var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
-                if (o_body.transactions){
-                    o_summaryStatus.fullResponse = o_body;
-                } else {
-                }
-            } catch (e) {
-                log.error(e);
-            } finally {
-
+                //log.debug('getTransactionListRequest newResponse.body OFFSET '+offSet, newResponse.body);
+                var o_newBody = JSON.parse(response.body.replace('\uFEFF', ''));
+                //log.debug(offSet, o_newBody.totalNumInResultSet)
+                i_responseCount = +o_newBody.totalNumInResultSet;
+                //log.debug('need to get more! - got '+i_responseCount, offSet);
+                o_body.transactions = _.concat(o_body.transactions, o_newBody.transactions);
             }
-            return o_summaryStatus;
+
+            if (o_body.transactions){
+                o_summaryStatus.fullResponse = o_body;
+            } else {
+            }
+        } catch (e) {
+            log.error(e.name, e.message);
+            log.error(e.name, e.stack);
+        } finally {
+
         }
-
-
+        return o_summaryStatus;
+    }
 
         return exports;
 });
