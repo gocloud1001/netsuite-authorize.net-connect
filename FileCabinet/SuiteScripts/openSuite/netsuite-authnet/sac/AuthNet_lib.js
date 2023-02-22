@@ -1,7 +1,7 @@
 
 /**
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2023 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.06';
+    exports.VERSION = '3.2.07';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -2542,7 +2542,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         if (o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}))
         {
             o_billingAddressObject = JSON.parse(o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}));
+            log.debug('PRE MOD o_billingAddressObject', o_billingAddressObject);
         }
+        log.debug('PRE MOD o_newProfileRequest', o_newProfileRequest);
         //is this JSON and can we get the billing address from it?
         try
         {
@@ -2581,11 +2583,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             {
                 s_address += ', '+o_billingAddressObject.billaddress2;
             }
-            log.debug('o_billingAddressObject', o_billingAddressObject);
+            log.debug('POST MOD o_billingAddressObject', o_billingAddressObject);
             o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = {
                 firstName : o_billingAddressObject.firstname,
                 lastName : o_billingAddressObject.lastname,
-                company : '',
+                company : o_billingAddressObject.companyname,
                 address : s_address,
                 city : o_billingAddressObject.city,
                 state : o_billingAddressObject.state,
@@ -2594,14 +2596,17 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
             if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1)
             {
-                delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
+                if (!_.isUndefined(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.firstName))
+                {
+                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
+                }
             }
             else
             //this is used for echeck only - and becasue the address record does not have first / last name, we need to cobble here
             {
+
                 if (o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType === 'individual')
                 {
-                    delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
                     if (o_billingAddressObject.billaddressee)
                     {
                         var a_addressee = o_billingAddressObject.billaddressee.split(' ');
@@ -2609,6 +2614,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         if (a_addressee.length > 1) {
                             o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.lastName = a_addressee[a_addressee.length - 1];
                         }
+                        delete o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company;
                     }
 
                 }
@@ -2619,6 +2625,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.company = o_billingAddressObject.companyname;
                 }
             }
+            log.debug('FINAL o_billingAddressObject', o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo);
             //clean anything empty to prevent errors
             o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo = _.omitBy(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo, _.isEmpty);
             //the fact the JSON is really just XML is annoying right here - order matters...
@@ -2671,15 +2678,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             var profileResponse = JSON.parse(response.body.replace('\uFEFF', ''));
             rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
             //log.debug('response.body.messages', profileResponse.messages)
-
             rec_response.setValue({fieldId: 'custrecord_an_response_status', value : profileResponse.messages.resultCode});
-
             rec_response.setValue({fieldId: 'custrecord_an_calledby', value : 'newPaymentMethod'});
             rec_response.setValue({fieldId: 'custrecord_an_customer', value : o_profile.getValue({fieldId: 'custrecord_an_token_entity'})});
             rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileRequest'});
             rec_response.setValue({fieldId: 'custrecord_an_message_code', value : profileResponse.messages.message[0].code});
             rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text.substring(0, 300)});
-
             if (_.toUpper(profileResponse.messages.resultCode) !== 'OK'){
                 var errorObj = _.find(codes.anetCodes, {'code':profileResponse.messages.message[0].code});
                 var s_suggestion = errorObj.integration_suggestions.replace(/&amp;lt;br \/&amp;gt;/g, '<br>');
@@ -2721,7 +2725,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         }
         exports.homeSysLog('o_createNewProfileResponse', o_createNewProfileResponse);
         return o_createNewProfileResponse;
-
     };
     mngCustomerProfile.createProfileFromTxn = function(txn, o_ccAuthSvcConfig) {
         var o_createProfileResponse = {success:true, customerProfileId:null, txn : txn, histId:null};

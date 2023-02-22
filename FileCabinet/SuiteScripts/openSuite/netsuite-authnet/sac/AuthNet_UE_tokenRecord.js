@@ -3,7 +3,7 @@
  *
  * @exports XXX
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2023 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -275,9 +275,9 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         s_address += ', '+o_customerData.billaddress2;
                     }
                     var o_billingAddressObject = {
-                        firstName : '',
-                        lastName : '',
-                        company : '',
+                        firstName : o_customerData.firstname,
+                        lastName : o_customerData.lastname,
+                        companyname : o_customerData.companyname,
                         addressee : o_customerData.billaddressee,
                         address : s_address,
                         city : o_customerData.billcity,
@@ -449,9 +449,6 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
             var o_config = authNet.getConfigFromCache();
             if (o_config.mode === 'subsidiary'){
                 o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'custrecord_an_token_subsidiary'}), o_config);
-                log.debug('seeing config sub ID', context.newRecord.getValue({fieldId : 'custrecord_an_token_subsidiary'}));
-                log.debug('sub specific o_config', o_config);
-                log.audit('subsidiary mode : Processing with '+o_config.configname, o_config.subname);
             }
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception
