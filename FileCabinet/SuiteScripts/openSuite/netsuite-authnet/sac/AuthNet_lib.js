@@ -1761,6 +1761,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         exports.AuthNetRequest.authorize.createTransactionRequest.refId = txn.id;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = '';
         var f_authTotal = getBaseCurrencyTotal(txn);
+        //todo 3.2.10+ - add field in configs to add a percent to the total
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'authOnlyTransaction';
         //token vs ccredit card

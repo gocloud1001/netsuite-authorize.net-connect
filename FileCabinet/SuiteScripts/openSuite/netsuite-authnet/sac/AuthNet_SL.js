@@ -270,13 +270,14 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         id: 'custpage_rawconfig',
                         type: ui.FieldType.LONGTEXT,
                         label: 'custpage_rawconfig',
+                        container: 'bottom'
                     }).defaultValue = JSON.stringify(o_config2);
                     var o_subConfig = o_config2;
-                    var currentConfig = form.addField({
+                    /*var currentConfig = form.addField({
                         id: 'custpage_currentconfig',
                         type: ui.FieldType.LONGTEXT,
                         label: 'Current Config',
-                    }).defaultValue = '{}';
+                    }).defaultValue = '{}';*/
                     //cache management
                     var grp_cache = form.addFieldGroup({
                     id: 'grpcache',
@@ -498,8 +499,13 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'Added JSON Payload (Body)',
                         container: 'grpgeneric'
                     });
-
-
+                    var fld_configLink = form.addField({
+                        id: 'custpage_configlink',
+                        type: ui.FieldType.INLINEHTML,
+                        label: 'Tool Configuration Information',
+                        container: 'grpgeneric'
+                    });
+                    fld_configLink.defaultValue = '<a target="_blank" href="https://developer.authorize.net/hello_world/testing_guide.html">Authorize.Net Testing Values for cards, bank accounts and responses';
                     //unit testing
                     var grp_authin = form.addFieldGroup({
                         id: 'grpunit',
@@ -914,11 +920,12 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         label: 'historyid',
                         container: 'grphistory'
                     });
-
+                    form.addFieldGroup({
+                        id: 'bottom',
+                        label: 'Config Window'
+                    });
                     //error parser test URL to laod history record
                     //https://tstdrv1273352.app.netsuite.com/app/site/hosting/scriptlet.nl?script=632&deploy=1&compid=TSTDRV1273352&historyId=256&from=cashrefund&orgid=10223&whence=&cmid=1562071995479_1458
-
-
                     form.addSubmitButton({
                         label: 'Perform Test'
                     });
@@ -928,8 +935,6 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                 else if (o_params.seeRecord === 'true' && o_params._id && o_params._type)
                 {
                     try {
-
-
                         var recordJSON = record.load({
                             type: o_params._type,
                             id: o_params._id

@@ -1,7 +1,7 @@
 <entryForm scriptid="custform_anet_cim_record_csv" standard="STANDARDCUSTOMRECORD_AUTHNET_TOKENSFORM">
   <name>CSV Raw Data Import Authorize.Net Token Form</name>
   <recordType>[scriptid=customrecord_authnet_tokens]</recordType>
-  <inactive>F</inactive>
+  <inactive>T</inactive>
   <preferred>F</preferred>
   <storedWithRecord>F</storedWithRecord>
   <mainFields>

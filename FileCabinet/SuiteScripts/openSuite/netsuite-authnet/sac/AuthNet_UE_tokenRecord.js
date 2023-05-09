@@ -160,7 +160,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
         function beforeLoad(context) {
             //when loading validate the hash and throw an alert if it's invalid
            //(runtime.executionContext, context.type)
-            if (context.request.parameters.bypass)
+            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE && context.request.parameters.bypass)
             {
                 log.audit('Bypassing Script Code', ' This is allows beforeLoad without validation of PBLK values!');
             }

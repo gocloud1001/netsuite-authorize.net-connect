@@ -31,6 +31,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
     function(currentRecord, search, message, dialog, _, moment) {
         var exports = {
             sac : [],
+            refundMethods : []
         };
 
         exports.aNetFields = ['custbody_authnet_cim_token'];
@@ -186,15 +187,19 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                     {name: 'internalid'},
                                     {name: 'custbody_authnet_refid'},
                                     {name: 'custbody_authnet_datetime'},
+                                    {name: 'custbody_authnet_cim_token'},
+                                    {name: 'custbody_authnet_cim_token_type'},
                                     {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
                                 ]
                             }).run().each(function (result) {
                                 if (result.getValue('custbody_authnet_refid')) {
                                     exports.sac.push(+result.getValue('internalid'));
+                                    exports.refundMethods.push(restult.getValue({name: 'custbody_authnet_cim_token_type'}));
                                 }
                                 //console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
                                 return true;
                             });
+                            exports.refundMethods = _.uniq(exports.refundMethods);
                         }
                     }
 
@@ -601,15 +606,19 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                     {name: 'internalid'},
                                     {name: 'custbody_authnet_refid'},
                                     {name: 'custbody_authnet_datetime'},
+                                    {name: 'custbody_authnet_cim_token'},
+                                    {name: 'custbody_authnet_cim_token_type'},
                                     {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
                                 ]
                             }).run().each(function (result) {
                                 if (result.getValue('custbody_authnet_refid')) {
                                     exports.sac.push(+result.getValue('internalid'));
+                                    exports.refundMethods.push(restult.getValue({name: 'custbody_authnet_cim_token_type'}));
                                 }
                                 console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
                                 return true;
                             });
+                            exports.refundMethods = _.uniq(exports.refundMethods);
                         }
 
                         if (currentRecord.getValue('custbody_authnet_use')) {
@@ -619,6 +628,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 } else {
                                     currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod_echeck.val, ignoreFieldChange: true});
                                 }
+                                currentRecord.setValue({fieldId :'chargeit', value: false});
                             } catch (e) {
                                 log.audit('Account does not have native cc-processing enabled');
                             }

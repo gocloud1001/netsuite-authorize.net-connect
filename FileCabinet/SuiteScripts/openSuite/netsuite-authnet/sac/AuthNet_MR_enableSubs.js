@@ -118,7 +118,7 @@ function (exports, record, search, runtime, _, authNet) {
 
     exports.map = function (context) {
         var recToChange = JSON.parse(context.value);
-        //log.debug('recToChange', recToChange)
+        log.debug('recToChange', recToChange)
         try {
             //load and save - xedit's will kill the hash and mark the token as tampered!
             var o_profile = record.load({

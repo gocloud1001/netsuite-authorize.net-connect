@@ -135,18 +135,24 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //some general variables here
                     var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type),
                         b_overide = context.newRecord.getValue({fieldId :'custbody_authnet_override'}),
+                        b_pendingAuthNoError = context.newRecord.getValue({fieldId :'orderstatus'}) === 'A' && o_config2.custrecord_an_auth_so_on_approval.val,
                         b_responseFailure = (context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) || !o_history.isValid),
                         b_hasToken = (+context.newRecord.getValue('custbody_authnet_cim_token') !== 0 && !_.isNaN(+context.newRecord.getValue('custbody_authnet_cim_token'))),
                         s_paymentVehicle = b_hasToken ? 'Token' : 'Credit Card',
                         b_isAuthNet = context.newRecord.getValue({fieldId :'custbody_authnet_use'})
                             || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'})
                             || _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: 'paymentmethod'}));
+                    //log.debug(context.newRecord.getValue({fieldId :'orderstatus'}), o_config2.custrecord_an_auth_so_on_approval.val)
                     authNet.homeSysLog('history parsed', o_history);
                     authNet.homeSysLog('b_isAuthNet', b_isAuthNet);
                     //authNet.homeSysLog('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
                     authNet.homeSysLog('b_responseFailure', b_responseFailure);
                     //authNet.homeSysLog('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
-                    if (!b_overide)
+                    if (b_pendingAuthNoError)
+                    {
+                        log.audit('No Error Display', 'This SO is pending approval and the config has the setting "Perform Authorization On Approval of Sales Order Not Create/Save"')
+                    }
+                    else if (!b_overide)
                     {
                         if (b_responseFailure && b_isAuthNet)
                         {
@@ -403,6 +409,13 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             type: message.Type.WARNING,
                             title: 'Authorize.Net Override Checked',
                             message: 'This transaction will not process via Authorize.Net and will not make any further calls to Authorize.Net'
+                        });
+                    }
+                    if (context.newRecord.getValue('custbody_authnet_settle_status') === 'voided'){
+                        context.form.addPageInitMessage({
+                            type: message.Type.WARNING,
+                            title: 'Authorize.Net Settlement Status is VOIDED',
+                            message: 'This transaction has a status of VOIDED and therefore will never capture funds.  You should either delete this transaction, mark it voided if allowed, or issue a reversal (refund) of this in NetSuite to ensure you are not overstating revenue.'
                         });
                     }
 
@@ -695,8 +708,18 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
 
 
                 }
-                else if (context.type === context.UserEventType.DELETE && (context.newRecord.getValue({fieldId : 'custbody_authnet_refid'}) || context.oldRecord.getValue({fieldId : 'custbody_authnet_refid'})) && (context.newRecord.getValue({fieldId : 'custbody_authnet_datetime'}) || context.oldRecord.getValue({fieldId : 'custbody_authnet_datetime'}))){
-                    if (!context.newRecord.getValue({fieldId : 'custbody_authnet_override'})){
+                else if (context.type === context.UserEventType.DELETE
+                    &&
+                    (context.newRecord.getValue({fieldId : 'custbody_authnet_refid'}) || context.oldRecord.getValue({fieldId : 'custbody_authnet_refid'}))
+                    &&
+                    (context.newRecord.getValue({fieldId : 'custbody_authnet_datetime'}) || context.oldRecord.getValue({fieldId : 'custbody_authnet_datetime'}))
+                ){
+                    if (context.newRecord.getValue('custbody_authnet_settle_status') === 'voided')
+                    {
+                        log.audit('This transaction was deleted', 'The settment reported this as voided so - removal is allowed');
+                    }
+                    else if (!context.newRecord.getValue({fieldId : 'custbody_authnet_override'}))
+                    {
                         throw '<span style=color:black;font-weight:bold;font-size:24px><p>TRANSACTION IS LINKED TO AUTHORIZE.NET - CAN NOT DELETE</p></span>'+
                             '<span style=color:red;font-weight:bold;font-size:24px>This transaction has been processed through a payment gateway <p> REFID is : ' + context.oldRecord.getValue('custbody_authnet_refid') + '</p>' +
                                 '<p>You must use the appropriate transaction in NetSuite to undo / change this transaction (or save the record with override authorize.net checked and then edit / delete the record)</p></span>';
