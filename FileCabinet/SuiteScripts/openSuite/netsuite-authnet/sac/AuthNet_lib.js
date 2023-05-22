@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.10';
+    exports.VERSION = '3.2.11';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -1761,7 +1761,13 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         exports.AuthNetRequest.authorize.createTransactionRequest.refId = txn.id;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = '';
         var f_authTotal = getBaseCurrencyTotal(txn);
-        //todo 3.2.10+ - add field in configs to add a percent to the total
+        //3.2.11 - add field in configs to add a percent to the total
+        //log.debug('PCT markup', o_ccAuthSvcConfig.custrecord_an_auth_pct_markup.val);
+        if (+o_ccAuthSvcConfig.custrecord_an_auth_pct_markup.val > 0)
+        {
+            f_authTotal = (+f_authTotal + (+f_authTotal * (+o_ccAuthSvcConfig.custrecord_an_auth_pct_markup.val / 100))).toFixed(2);
+            log.audit('Account configured to increase auth by '+o_ccAuthSvcConfig.custrecord_an_auth_pct_markup.val+'%', 'From '+getBaseCurrencyTotal(txn)+ ' to ' + f_authTotal);
+        }
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'authOnlyTransaction';
         //token vs ccredit card

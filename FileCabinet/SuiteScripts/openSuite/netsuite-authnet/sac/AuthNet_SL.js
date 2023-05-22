@@ -324,7 +324,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 columns : 'custrecord_ancs_subsidiary'
                             });
                             o_subConfig = o_config2.subs['subid' + o_sub.custrecord_ancs_subsidiary[0].value];
-                            currentConfig.defaultValue = JSON.stringify(o_subConfig)
+                            sel_configs.defaultValue = JSON.stringify(o_subConfig)
                         }
                         form.addField({
                             id: 'custpage_sub_note',
@@ -351,7 +351,8 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         {
                             sel_configs.defaultValue = o_params.config;
                         }
-                        currentConfig.defaultValue = JSON.stringify(o_config2);
+                        //sel_configs.defaultValue = JSON.stringify(o_config2);
+                        sel_configs.defaultValue = o_config2.id;
                     }
                     //generic for all tests
                     var generic = form.addFieldGroup({
@@ -1015,7 +1016,9 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     testSo.selectNewLine({sublistId:'item'});
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
-                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'price', value : -1});
+                    if (+testSo.getCurrentSublistValue({sublistId:'item', fieldId:'price'}) !== -1 ) {
+                        testSo.setCurrentSublistValue({sublistId: 'item', fieldId: 'price', value: -1});
+                    }
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'amount', value: +(moment().format('M')+'.'+moment().format('DD'))});
                     try {
                         if (o_params.linejson)
@@ -1071,14 +1074,25 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                             value: o_params.externalorderid
                         });
                     }
+                    log.debug('orderjson', o_params.orderjson)
                     try {
                         if (o_params.orderjson)
                         {
                             _.forEach(JSON.parse(o_params.orderjson), function(val, kie) {
-                                testSo.setValue({fieldId:kie, value: val  });
+                                log.debug(kie, val);
+                                if (val === 'date')
+                                {
+                                    testSo.setValue({fieldId:kie, value: moment().toDate() });
+                                }
+                                else
+                                {
+                                    testSo.setValue({fieldId:kie, value:  val});
+                                }
+
                             });
                         }
                     } catch (e){
+                        log.error(e.name, e.message);
                         o_response.bodyJSONError = e.name +' : '+ e.message;
                     }
                     var i_soId = testSo.save({ignoreMandatoryFields:true});

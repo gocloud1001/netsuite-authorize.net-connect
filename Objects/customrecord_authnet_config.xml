@@ -1269,6 +1269,46 @@ Leaving this box unchecked while the  &quot;Allow Token Generation on Pending Ap
       <storevalue>T</storevalue>
       <subtab></subtab>
     </customrecordcustomfield>
+    <customrecordcustomfield scriptid="custrecord_an_auth_pct_markup">
+      <accesslevel>2</accesslevel>
+      <allowquickadd>F</allowquickadd>
+      <applyformatting>T</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <encryptatrest>F</encryptatrest>
+      <fieldtype>PERCENT</fieldtype>
+      <globalsearch>F</globalsearch>
+      <help>Sometimes due to unknown shipping or other charges to be added after an order is taken, you may find that the amount that was authorized is less than the final order amount.  Because Authorize.Net will only allow a SINGLE capture off an authorization and because the capture can only be up to the amount authorized, this allows for INCREASING the auth amount by a percentage to cover fees added prior to billing.&#xd;
+The increase will be a PERCENTAGE of the amount.  i.e. if you put in 10%, a $100 Sales Order will authorize for $110.</help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <isparent>F</isparent>
+      <label>Increase Authorization Amount By Percent</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue>0</minvalue>
+      <onparentdelete></onparentdelete>
+      <parentsubtab></parentsubtab>
+      <rolerestrict>F</rolerestrict>
+      <searchcomparefield></searchcomparefield>
+      <searchdefault></searchdefault>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <showinlist>F</showinlist>
+      <sourcefilterby></sourcefilterby>
+      <sourcefrom></sourcefrom>
+      <sourcelist></sourcelist>
+      <storevalue>T</storevalue>
+      <subtab></subtab>
+    </customrecordcustomfield>
   </customrecordcustomfields>
   <subtabs>
     <subtab scriptid="tab_288_5521729_sb1_705">

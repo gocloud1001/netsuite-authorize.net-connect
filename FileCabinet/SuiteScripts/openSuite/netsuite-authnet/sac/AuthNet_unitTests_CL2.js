@@ -34,7 +34,7 @@ define(['N/record', 'N/search', 'N/url', 'N/currentRecord'],
         function fieldChanged(context){
             console.log(context);
             console.log(context.fieldId)
-            var o_config = JSON.parse(context.currentRecord.getValue('custpage_currentconfig'));
+            var o_config = JSON.parse(context.currentRecord.getValue('custpage_rawconfig'));
             if (context.fieldId === 'custpage_configrec'){
                 //set the selected config to a hidden field for teh rest of the process (token getting)
                 if (context.currentRecord.getValue('custpage_configrec'))
@@ -47,7 +47,7 @@ define(['N/record', 'N/search', 'N/url', 'N/currentRecord'],
                     });
                     var o_masterConfig = JSON.parse(context.currentRecord.getValue('custpage_rawconfig'));
                     var o_newConfig = o_masterConfig.subs['subid' + o_sub.custrecord_ancs_subsidiary[0].value];
-                    context.currentRecord.setValue('custpage_currentconfig', JSON.stringify(o_newConfig));
+                    //context.currentRecord.setValue('custpage_currentconfig', JSON.stringify(o_newConfig));
                     if (window.onbeforeunload) {
                         window.onbeforeunload = function () { null; };
                     }
