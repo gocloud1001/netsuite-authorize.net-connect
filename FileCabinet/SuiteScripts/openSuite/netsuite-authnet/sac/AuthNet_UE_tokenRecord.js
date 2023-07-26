@@ -501,10 +501,9 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         recordId: o_newProfile.histId,
                         isEditMode: false
                     });
-                    var s_error = 'Unable to validate payment method - error received:<br>'+
+                    throw 'Unable to validate payment method - error received:<br>'+
                         'CODE : '+ o_newProfile.code + '<br>' +
-                        'MESSAGE : ' +o_newProfile.message + '<br>' + 'Click <a href="'+historyURL+'" target="_blank">here</a> to view the Authorize.Net Response if you need additional information.'
-                    throw s_error;
+                        'MESSAGE : ' +o_newProfile.message + '<br>' + 'Click <a href="'+historyURL+'" target="_blank">here</a> to view the Authorize.Net Response if you need additional information.';
                 }
                 //flags this haveing used liveMode upon creation - meaning it's a "better" token
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_usedlivemode', value :o_config.custrecord_an_cim_live_mode.val});

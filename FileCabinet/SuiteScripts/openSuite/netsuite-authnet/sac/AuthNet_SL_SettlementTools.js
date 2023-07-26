@@ -101,7 +101,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                     sublist.addField({
                         id: 'nscount',
                         type: serverWidget.FieldType.TEXTAREA,
-                        label: 'Number Matched In NS'
+                        label: 'All Transactions Matched In NS'
                     }).updateDisplayType({
                         displayType : serverWidget.FieldDisplayType.DISABLED
                     });
@@ -112,18 +112,17 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                     }).updateDisplayType({
                         displayType : serverWidget.FieldDisplayType.DISABLED
                     });
-                    /*sublist.addField({
-                        id: 'delta',
-                        type: serverWidget.FieldType.CURRENCY,
-                        label: 'DELTA'
-                    }).updateDisplayType({
-                        displayType : serverWidget.FieldDisplayType.DISABLED
-                    });*/
+
                     sublist.addField({
                         id: 'delta2',
                         type: serverWidget.FieldType.TEXT,
                         label: 'DELTA'
-                    })
+                    });
+                    sublist.addField({
+                        id: 'missing',
+                        type: serverWidget.FieldType.TEXT,
+                        label: '# Transactions Missing in NS'
+                    });
 
                     sublist.addField({
                         id: 'missinginns',
@@ -272,16 +271,19 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                 line: i_line,
                                 value: o_aNetResponse.settleInforInNs.nsTotal
                             });
-                            /*sublist.setSublistValue({
-                                id: 'delta',
+                            var _missing = (o_aNetResponse.settleInforInNs.anetTxnSettledCount + o_aNetResponse.settleInforInNs.anetTxnRefundedCount - o_aNetResponse.settleInforInNs.nsTxnCount);
+                            sublist.setSublistValue({
+                                id: 'missing',
                                 line: i_line,
-                                value: o_aNetResponse.settleInforInNs.anetTotal - o_aNetResponse.settleInforInNs.nsTotal
-                            });*/
+                                value: _missing !== 0 ? '<span style="color:red;font-weight: bold;">'+_missing.toString()+'</span>' : _missing.toString()
+                            });
+                            var _delta = format.format({value: o_aNetResponse.settleInforInNs.anetTotal - o_aNetResponse.settleInforInNs.nsTotal, type: format.Type.CURRENCY});
                             sublist.setSublistValue({
                                 id: 'delta2',
                                 line: i_line,
-                                value: o_aNetResponse.settleInforInNs.anetTotal - o_aNetResponse.settleInforInNs.nsTotal > 0 ? '<span style="color:red;">'+(o_aNetResponse.settleInforInNs.anetTotal - o_aNetResponse.settleInforInNs.nsTotal).toFixed(2)+'</span>' : '0'
+                                value: +_delta !== 0 ? '<span style="color:red;font-weight: bold;">'+_delta+'</span>' : _delta
                             });
+                            log.debug('_delta',_delta);
                             if (o_aNetResponse.settleInforInNs.missingInNs.length > 0) {
                                 var s_missing = '';
                                 _.forEach(o_aNetResponse.settleInforInNs.missingInNs, function (missingTxn) {

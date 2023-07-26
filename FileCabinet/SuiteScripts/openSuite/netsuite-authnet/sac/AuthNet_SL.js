@@ -1322,14 +1322,23 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
 
                     case 'getstatus':
                         o_response.OK = true;
-                        if (o_params.custpage_configrec)
+                        if (o_config2.mode === 'subsidiary')
                         {
-                            o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid, o_params.custpage_configrec);
+                            if (o_params.custpage_configrec)
+                            {
+                                log.debug('using custpage_configrec', o_params.custpage_configrec)
+                                o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid, o_params.custpage_configrec);
+                            }
+                            else
+                            {
+                                o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
+                            }
                         }
                         else
                         {
                             o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_tranrefid);
                         }
+
 
                         break;
                     case 'makehistory':

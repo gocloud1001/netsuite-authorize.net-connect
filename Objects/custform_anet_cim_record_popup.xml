@@ -21,6 +21,15 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
+          <id>ISINACTIVE</id>
+          <label>Inactive</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
           <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity]</id>
           <label>Entity</label>
           <visible>T</visible>
@@ -356,15 +365,6 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
-          <id>ISINACTIVE</id>
-          <label>Inactive</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
           <id>PARENT</id>
           <label>Parent</label>
           <visible>F</visible>
@@ -394,22 +394,6 @@
         <subList>
           <id>RECORDSYSTEMNOTES</id>
           <label>System Notes</label>
-          <visible>T</visible>
-          <neverEmpty>F</neverEmpty>
-        </subList>
-      </subItems>
-    </tab>
-    <tab>
-      <id>RECORDTRANSLATION</id>
-      <label>Translation</label>
-      <visible>F</visible>
-      <fieldGroups>
-        <defaultFieldGroup/>
-      </fieldGroups>
-      <subItems>
-        <subList>
-          <id>RECORDTRANSLATIONS</id>
-          <label>Translation</label>
           <visible>T</visible>
           <neverEmpty>F</neverEmpty>
         </subList>

@@ -34,7 +34,7 @@
       <recordtype>CUSTOMERDEPOSIT</recordtype>
       <status>RELEASED</status>
     </scriptdeployment>
-    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cp">
+    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_so">
       <allemployees>T</allemployees>
       <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
@@ -44,7 +44,7 @@
       <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
-      <recordtype>CUSTOMERPAYMENT</recordtype>
+      <recordtype>SALESORDER</recordtype>
       <status>RELEASED</status>
     </scriptdeployment>
     <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cref">
@@ -60,7 +60,7 @@
       <recordtype>CUSTOMERREFUND</recordtype>
       <status>RELEASED</status>
     </scriptdeployment>
-    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_so">
+    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cp">
       <allemployees>T</allemployees>
       <alllocalizationcontexts>T</alllocalizationcontexts>
       <allpartners>F</allpartners>
@@ -70,7 +70,20 @@
       <executioncontext>ACTION|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FIPARSER|MAPREDUCE|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBAPPLICATION|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
-      <recordtype>SALESORDER</recordtype>
+      <recordtype>CUSTOMERPAYMENT</recordtype>
+      <status>RELEASED</status>
+    </scriptdeployment>
+    <scriptdeployment scriptid="customdeploy_sac_txn_ui_fixes_cr">
+      <allemployees>T</allemployees>
+      <alllocalizationcontexts>T</alllocalizationcontexts>
+      <allpartners>F</allpartners>
+      <allroles>F</allroles>
+      <audslctrole></audslctrole>
+      <eventtype></eventtype>
+      <executioncontext>ACTION|ADVANCEDREVREC|BANKCONNECTIVITY|BANKSTATEMENTPARSER|BUNDLEINSTALLATION|CLIENT|CONSOLRATEADJUSTOR|CSVIMPORT|CUSTOMGLLINES|CUSTOMMASSUPDATE|DATASETBUILDER|DEBUGGER|EMAILCAPTURE|FICONNECTIVITY|FIPARSER|MAPREDUCE|OCRPLUGIN|OTHER|PAYMENTGATEWAY|PAYMENTPOSTBACK|PLATFORMEXTENSION|PORTLET|PROMOTIONS|RECORDACTION|RESTLET|RESTWEBSERVICES|SCHEDULED|SDFINSTALLATION|SHIPPINGPARTNERS|SUITELET|TAXCALCULATION|USEREVENT|USERINTERFACE|WEBSERVICES|WORKBOOKBUILDER|WORKFLOW</executioncontext>
+      <isdeployed>T</isdeployed>
+      <loglevel>DEBUG</loglevel>
+      <recordtype>CASHREFUND</recordtype>
       <status>RELEASED</status>
     </scriptdeployment>
   </scriptdeployments>

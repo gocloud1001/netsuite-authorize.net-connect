@@ -126,7 +126,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             }
 
             //context = {"currentRecord":{"id":"8045","type":"salesorder","isDynamic":true,"prototype":{}},"mode":"edit"}
-            if (_.includes(['salesorder', 'cashsale','customerdeposit','customerpayment'],context.currentRecord.type)) {
+            if (_.includes(['salesorder', 'cashsale','customerdeposit','customerpayment', 'cashrefund'],context.currentRecord.type)) {
                 if (_.includes(['create', 'copy', 'edit'], context.mode)) {
                     _.forEach(exports.aNetFields, function(field){
                         try {
@@ -522,7 +522,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             }
                             //window.nlapiDisableField('bullshit')
                         } else {
-                            currentRecord.setText({fieldId:'paymentmethod', text:'', ignoreFieldChange: true});
+                            currentRecord.setValue({fieldId:'paymentmethod', value:'', ignoreFieldChange: true});
                             _.forEach(exports.aNetFields, function (field) {
                                 try {
                                     currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange: true});
@@ -548,6 +548,11 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             currentRecord.setValue({
                                 fieldId: 'custbody_authnet_use',
                                 value: false,
+                                ignoreFieldChange: true
+                            });
+                            currentRecord.setValue({
+                                fieldId: 'paymentmethod',
+                                value: '',
                                 ignoreFieldChange: true
                             });
                             currentRecord.setValue({

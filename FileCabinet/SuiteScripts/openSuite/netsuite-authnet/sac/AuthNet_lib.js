@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.11';
+    exports.VERSION = '3.2.12';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -78,8 +78,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             "resultCode":"Error",
             "message":[
                 {
-                    "code":"Service Connection Failure",
-                    "text":"There was an issue connecting from NetSuite to Authorize.Net<p>Confirm there is not a system outage for either platform"
+                    "code":"Service Connection Failure / Unable to communicate with Authorize.Net",
+                    "text":"There was an issue establishing a connection from NetSuite to Authorize.Net<p>Confirm there is not a system outage for either platform and retry this transaction.</p><p>Often this is just a temporary issue and simply resubmitting the transaction will remove the error.</p>"
                 }
             ],
             codeZeroResponse : {}
@@ -804,7 +804,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 type: 1,
                 mode: '',
                 recType : rec.type,
-                masterid:rec.id,
+                masterid: rec.id,
                 configid : '',
                 configname : rec.getValue({fieldId : 'name'}) + ' (MAIN CONFIG)',
                 subid : ''
@@ -837,7 +837,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 o_response[fieldId] = o_masterConfig[fieldId]
             });
 
-            //these 4 fields fro mthe main config are required for setting up a transaction before a sub is known
+            //these 4 fields from the main config are required for setting up a transaction before a sub is known
             o_response.custrecord_an_break_pci = o_masterConfig.custrecord_an_break_pci;
             o_response.custrecord_an_verbose_logging = o_masterConfig.custrecord_an_verbose_logging;
             o_response.custrecord_an_enable = o_masterConfig.custrecord_an_enable;
@@ -1799,6 +1799,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
         try {
+            rec_response.setValue('custrecord_an_txn', txn.id);
+            rec_response.setValue('custrecord_an_calledby', txn.type);
+            rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
+            rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
+            rec_response.setValue('custrecord_an_amount', f_authTotal);
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
                 url: authSvcUrl,
@@ -1809,13 +1814,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 log.debug('&#x2623; NON-PCI-COMPLAINT Authorize.net response &#x2623;', response.body);
             }
             exports.homeSysLog('authOnlyTransaction request', exports.AuthNetRequest.authorize);
-            exports.homeSysLog('response.body', response.body);
-            rec_response.setValue('custrecord_an_txn', txn.id);
-            rec_response.setValue('custrecord_an_calledby', txn.type);
-            rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
-            rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
-            rec_response.setValue('custrecord_an_amount', f_authTotal);
-
+            exports.homeSysLog('response.body : '+response.code, response.body);
             var realTxn = txn ;
             /*var realTxn =  (b_isToken) ? txn : record.load({
                 type : record.Type.SALES_ORDER,
@@ -1833,8 +1832,13 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
         } catch (e) {
             log.error(e.name, e.message);
-            var o_errorResponse = exports.fauxResponse.codeZeroResponse = response;
-            rec_response.setValue('custrecord_an_response', JSON.stringify(exports.fauxResponse));
+            /*log.debug('exports.fauxResponse.messages.resultCode', exports.fauxResponse.messages.resultCode)
+            rec_response.setValue({fieldId: 'custrecord_an_response_status', value : exports.fauxResponse.messages.resultCode});
+            rec_response.setValue({fieldId: 'custrecord_an_response_message', value : exports.fauxResponse.messages.message[0].code});
+            rec_response.setValue({fieldId: 'custrecord_an_response_ig_advice', value : exports.fauxResponse.messages.message[0].text});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : exports.fauxResponse.messages.httpCode});
+            txn.setValue({fieldId: 'custbody_authnet_error_status', value: exports.fauxResponse.messages.httpCode})*/
+            realTxn = txn;
             if (e.name === 'DENIAL'){
                 //this is hack for tokens
                 rec_response.save({ignoreMandatoryFields : true});
@@ -2139,13 +2143,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             var b_skipLine = false;
             var obj = {
                 'itemId': (i + 1).toString(),
-                'name': txn.getSublistValue({sublistId: 'item', fieldId: 'item', line: i}).substring(0, 29),
+                'name': txn.getSublistText({sublistId: 'item', fieldId: 'item', line: i}).substring(0, 29),
                 'quantity': txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}) ? txn.getSublistValue({sublistId: 'item', fieldId: 'quantity', line: i}).toString() : '1',
+                'unitPrice' : '0'
             };
             //not all folks use a description
             if (txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}))
             {
-                obj.description = txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}).substring(0, 29);
+                //obj.description = txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i}).substring(0, 29);
             }
             //ensure we are not sending over discount and subtotal lines incorrectly
             var unitPrice = 0;
@@ -2960,6 +2965,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                                 fieldId: 'custrecord_an_token_last4',
                                 value: profile.payment.creditCard.cardNumber
                             });
+                            //todo - is this where we an option to save the exp date off config setting
                             rec_cimProfile.setValue({
                                 fieldId: 'custrecord_an_token_expdate',
                                 value: profile.payment.creditCard.expirationDate

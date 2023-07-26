@@ -139,9 +139,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         b_responseFailure = (context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) || !o_history.isValid),
                         b_hasToken = (+context.newRecord.getValue('custbody_authnet_cim_token') !== 0 && !_.isNaN(+context.newRecord.getValue('custbody_authnet_cim_token'))),
                         s_paymentVehicle = b_hasToken ? 'Token' : 'Credit Card',
-                        b_isAuthNet = context.newRecord.getValue({fieldId :'custbody_authnet_use'})
-                            || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'})
-                            || _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: 'paymentmethod'}));
+                        //this is only auth net if theres an auth net payment method (for this banner)
+                        b_isAuthNet = ((context.newRecord.getValue({fieldId :'custbody_authnet_use'})
+                            || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) )
+                            && _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: 'paymentmethod'})));
                     //log.debug(context.newRecord.getValue({fieldId :'orderstatus'}), o_config2.custrecord_an_auth_so_on_approval.val)
                     authNet.homeSysLog('history parsed', o_history);
                     authNet.homeSysLog('b_isAuthNet', b_isAuthNet);
@@ -270,7 +271,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 if (b_hasToken && thisRecord.getValue('orderstatus') === 'A') {
                                     //there's no error - theres a token and it's not been run, so no response failure
                                     b_responseFailure = false;
-                                    log.audit('This Transaction is Pending Approval', 'Displayign any error has been supressed becasue this is not done yet!');
+                                    log.audit('This Transaction is Pending Approval', 'Displaying any error has been supressed becasue this is not done yet!');
                                 }
                                 if ((b_responseFailure && thisRecord.getValue({fieldId: 'paymentmethod'}) === o_config2.custrecord_an_paymentmethod.val))
                                 {
@@ -281,14 +282,16 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     {
                                         s_field = s_field.replace('%TITLE%', 'Payment Error - Suspected Fraud');
                                         s_field = s_field.replace('%DESCR%', o_history.responseCodeText + '<br/> Review the Authorize.net History record to approve or decline this pending authorization.');
+                                        fldWarning.defaultValue = s_field;
                                     }
-                                    else
+                                    //dont really need 2 boxes screaming at you for anything except the odd fraud issue
+                                    /*else
                                     {
                                         s_field = s_field.replace('%TITLE%', s_paymentVehicle + ' Payment Error');
                                         s_field = s_field.replace('%DESCR%', o_history.message);
-                                    }
+                                    }*/
                                     //fldWarning.setDefaultValue(s_field);
-                                    fldWarning.defaultValue = s_field;
+
                                     //do not allow approval as SO does not have captured funds
                                     form.removeButton({id: 'approve'});
                                     form.removeButton({id: 'nextbill'});
