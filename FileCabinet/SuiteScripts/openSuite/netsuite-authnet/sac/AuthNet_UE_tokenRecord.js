@@ -482,7 +482,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_paymenttype', value : 1});
                 }
             }
-            else if (context.type === 'create' && (_.includes([runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT], runtime.executionContext) ))
+            else if (context.type === 'create' && (_.includes([runtime.ContextType.SUITELET, runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT], runtime.executionContext) ))
             {
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
                 //clean the heck out of the user entered fields

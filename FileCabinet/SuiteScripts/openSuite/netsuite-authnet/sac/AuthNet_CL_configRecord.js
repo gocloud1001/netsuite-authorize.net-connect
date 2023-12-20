@@ -118,7 +118,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/ui/dialog'],
                     var options = {
                         title: '&#10071; PCI COMPLIANCE WARNING &#10071; ',
                         message: 'You are about to be in <b style="color:red;">VIOLATION OF PCI STANDARDS AND COMPLIANCE</b>. ' +
-                            'This change may result in the logging of PII including customer names, credit card information and values.',
+                            'This change may result in the logging of PII including customer names, credit card information and values.  This is a global setting, you CAN enable this on a per script setting on the User Event deployment of the "SuiteAuthConnect Transaction Manager" script on the record you want to debug.  This is the recommended approach vs enabling this global setting.',
                         buttons: [button2, button1]
                     };
 

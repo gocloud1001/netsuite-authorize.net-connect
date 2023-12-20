@@ -119,7 +119,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
         function SAC_pageInit(context) {
 
             if(_.isNull(context.currentRecord.getField({fieldId: 'custpage_an_config'}))){
-                Ext.MessageBox.alert('Configuration is Missing', 'The Authorize.Net User Event Script Is Not Deployed On This Form.  This transaction will not capture funds as expected without that script deployed.');
+                dialog.alert({title:'Configuration is Missing', message:'The Authorize.Net User Event Script Is Not Deployed On This Form.  This transaction will not capture funds as expected without that script deployed.'});
             } else {
                 window.sessionStorage.setItem("config", context.currentRecord.getValue({fieldId: 'custpage_an_config'}));
                 console.log('Giggity giggity - we are a GO for SuiteAuthConnect in '+JSON.parse(window.sessionStorage.getItem("config")).mode+' mode! ' + JSON.stringify(context));
@@ -475,13 +475,13 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'}) !== +currentRecord.getValue({fieldId: 'payment'}))
                                 {
-                                    Ext.MessageBox.alert('Payment Already Settled', 'This payment has already settled with Authorize.Net for $'+currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'})+'. You can not change the amount on this transaction.' );
+                                    dialog.alert({title:'Payment Already Settled', message : 'This payment has already settled with Authorize.Net for $'+currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'})+'. You can not change the amount on this transaction.' });
                                     currentRecord.setValue({fieldId :'payment', value: currentRecord.getValue({fieldId: 'custbody_authnet_settle_amount'}), ignoreFieldChange: true});
                                 }
                             }
                             else if (currentRecord.getValue({fieldId: 'custbody_authnet_datetime'}))
                             {
-                                Ext.MessageBox.alert('Payment Pending Settlement', 'This payment was submitted to Authorize.Net at '+currentRecord.getValue({fieldId: 'custbody_authnet_datetime'})+'. You can not change the amount on this transaction.' );
+                                dialog.alert({title:'Payment Pending Settlement', message: 'This payment was submitted to Authorize.Net at '+currentRecord.getValue({fieldId: 'custbody_authnet_datetime'})+'. You can not change the amount on this transaction.' });
                             }
                         }
                     }
@@ -701,7 +701,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             line: context.line
                         })) {
                             if (!b_useAuthNet && b_hasSAC) {
-                                Ext.MessageBox.alert('Selected transaction <span style="color:red;">used</span> Authorize.Net', 'You are attempting to issue this Customer Refund on a transaction that captured funds using Authorize.Net.  To refund this transaction, you must first check the box "Use Authorize.Net" and then select this transaction');
+                                dialog.alert({title:'Selected transaction <span style="color:red;">used</span> Authorize.Net', message:'You are attempting to issue this Customer Refund on a transaction that captured funds using Authorize.Net.  To refund this transaction, you must first check the box "Use Authorize.Net" and then select this transaction'});
                                 context.currentRecord.setCurrentSublistValue({
                                     sublistId: context.sublistId,
                                     fieldId: 'apply',
@@ -716,13 +716,13 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             } else if (b_useAuthNet && !b_hasSAC) {
                                 if (context.sublistId === 'apply')
                                 {
-                                    Ext.MessageBox.alert('Credit Memo\'s <span style="color:red;">CAN NOT</span> use Authorize.Net',
-                                        'Because a Credit Memo may be issued against an Invoice with multiple Payments / Deposits applied, it\'s not possiable to use Authorize.Net here to issue a refund. You may either refund the customer via a check (most common) or issue the refund here via Refund Method of Cash and then utilize your Authorize.Net account to refund individual payments equaling the total refund - note that these will not show in your settlement reporting tools within NetSuite. <br><br>While this is frustrating, this issue is due to how both NetSuite and Authorize.Net work / do not work together.' );
+                                    dialog.alert({title:'Credit Memo\'s <span style="color:red;">CAN NOT</span> use Authorize.Net',
+                                        message: 'Because a Credit Memo may be issued against an Invoice with multiple Payments / Deposits applied, it\'s not possiable to use Authorize.Net here to issue a refund. You may either refund the customer via a check (most common) or issue the refund here via Refund Method of Cash and then utilize your Authorize.Net account to refund individual payments equaling the total refund - note that these will not show in your settlement reporting tools within NetSuite. <br><br>While this is frustrating, this issue is due to how both NetSuite and Authorize.Net work / do not work together.' });
                                 }
                                 else
                                 {
-                                    Ext.MessageBox.alert('Selected transaction did <span style="color:red;">not</span> use Authorize.Net',
-                                        'You are attempting to issue this Customer Refund with Authorize.Net on a transaction that was not generated with Authorize.Net, you can only select transactions that captured funds using Authorize.Net. To refund this transaction, you must first uncheck the box "Use Authorize.Net" and then select this transaction');
+                                    dialog.alert({title:'Selected transaction did <span style="color:red;">not</span> use Authorize.Net',
+                                        message: 'You are attempting to issue this Customer Refund with Authorize.Net on a transaction that was not generated with Authorize.Net, you can only select transactions that captured funds using Authorize.Net. To refund this transaction, you must first uncheck the box "Use Authorize.Net" and then select this transaction'});
                                 }
                                 context.currentRecord.setCurrentSublistValue({
                                     sublistId: context.sublistId,

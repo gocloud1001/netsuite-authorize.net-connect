@@ -108,15 +108,10 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                                 label: 'Request Token',
                                 functionName: 'getCIM' //set it to P
                             });
-
                         }
                     }
                 }
             }
-
-
-
-
         }
         function beforeSubmit(context) {
             //when context.type === create, hash things and add to the transaction so it matches

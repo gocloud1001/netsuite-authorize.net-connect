@@ -188,7 +188,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             console.log(response.body)
             //alert(suitelet_url);
             var o_response = JSON.parse(response.body)
-            if (o_response.status){
+            if (o_response.success){
                 var output = url.resolveRecord({
                     recordType: 'customer',
                     recordId: o_response.customer

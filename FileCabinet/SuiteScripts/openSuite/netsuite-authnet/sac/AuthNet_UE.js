@@ -33,7 +33,14 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             log.audit('authNetBeforeLoad via : '+runtime.executionContext, context.type +' on '+context.newRecord.type);
             if (runtime.executionContext === runtime.ContextType.USER_INTERFACE) {
                 var form = context.form;
-
+                if (runtime.getCurrentScript().getParameter({name:'custscript_sac_debug_logs'}) === 'Y')
+                {
+                    context.form.addPageInitMessage({
+                        type: message.Type.WARNING,
+                        title: 'Authorize.Net Script Enhanced Logging Enabled',
+                        message: 'This script deployment ('+runtime.getCurrentScript().deploymentId+') has "Enable Debugging Logs - NON-PCI Compliant!" enabled and may be logging non-PCI compliant data to the logs as well as other PII.  You should confirm you want this behavior enabled with an Administrator before entering any credit card or other sensitive data.'
+                    });
+                }
                 //if we have transaction records that the auth net fields appear on but shouldn't - do this
                 if(_.includes(['creditmemo', 'invoice'], context.newRecord.type))
                 {
@@ -135,7 +142,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //some general variables here
                     var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type),
                         b_overide = context.newRecord.getValue({fieldId :'custbody_authnet_override'}),
-                        b_pendingAuthNoError = context.newRecord.getValue({fieldId :'orderstatus'}) === 'A' && o_config2.custrecord_an_auth_so_on_approval.val,
+                        b_pendingAuthNoError = context.newRecord.getValue({fieldId :'orderstatus'}) === 'A' && (o_config2.custrecord_an_auth_so_on_approval && o_config2.custrecord_an_auth_so_on_approval.val),
                         b_responseFailure = (context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) || !o_history.isValid),
                         b_hasToken = (+context.newRecord.getValue('custbody_authnet_cim_token') !== 0 && !_.isNaN(+context.newRecord.getValue('custbody_authnet_cim_token'))),
                         s_paymentVehicle = b_hasToken ? 'Token' : 'Credit Card',
@@ -443,7 +450,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 {
                     var i_createdfrom = context.newRecord.getValue({fieldId: 'createdfrom'}) ? context.newRecord.getValue({fieldId: 'createdfrom'}) : context.newRecord.getValue({fieldId: 'salesorder'});
                     //ENSURE the response fields are hidden on a create since they would be empty
-                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + i_createdfrom);
+                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + _.isUndefined(i_createdfrom) ? 'SCRATCH' : i_createdfrom);
                     //hide the override on a create - you would not do that normally
                     if (_.includes(['salesorder'], context.newRecord.type)) {
                         try {
@@ -746,8 +753,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             {
                 context.newRecord.setValue({fieldId: 'custbody_authnet_use', value : false});
             }
+            log.debug('authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type + ' exiting...');
         }
         function authNetAfterSubmit(context) {
+            log.debug('here?')
             if(_.includes(['creditmemo'], context.newRecord.type))
             {
                 return;
@@ -963,7 +972,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             });
                             //todo if this is from a RMA - what was that created from... if invoice - find payment on invoice
                             var f_refundTotal = +refund.getValue({fieldId : 'total'});
-                            authNet.homeSysLog('o_cratedFrom', o_cratedFrom);
+                            authNet.homeSysLog('o_createdFrom', o_cratedFrom);
                             var m_authDate = moment(o_cratedFrom.custbody_authnet_datetime, 'MM/DD/YYYY hh:mm:ss a');
                             var m_midnight = moment().endOf('day').subtract(59, 'seconds');
                             //if this is less than the total - we can only issue a refund

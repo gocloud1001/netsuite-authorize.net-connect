@@ -324,7 +324,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 columns : 'custrecord_ancs_subsidiary'
                             });
                             o_subConfig = o_config2.subs['subid' + o_sub.custrecord_ancs_subsidiary[0].value];
-                            sel_configs.defaultValue = JSON.stringify(o_subConfig)
+                            rawConfig.defaultValue = JSON.stringify(o_subConfig)
                         }
                         form.addField({
                             id: 'custpage_sub_note',
@@ -352,7 +352,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                             sel_configs.defaultValue = o_params.config;
                         }
                         //sel_configs.defaultValue = JSON.stringify(o_config2);
-                        sel_configs.defaultValue = o_config2.id;
+                        rawConfig.defaultValue = o_config2.id;
                     }
                     //generic for all tests
                     var generic = form.addFieldGroup({
@@ -389,6 +389,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     });
                     if (o_params.customer)
                     {
+                        log.debug('custoerm lookup using subConfig:', o_subConfig);
                         customer.defaultValue = o_params.customer;
                         //now build the token choices for the customer
                         var a_filters = [

@@ -28,8 +28,8 @@
  */
 
 
-define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'lodash', 'moment'],
-    function(record, url, currentRecord, https, search,_, moment) {
+define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'N/ui/dialog', 'lodash', 'moment'],
+    function(record, url, currentRecord, https, search, dialog,_, moment) {
         function getParameterByName(name) {
             name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
             var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
@@ -205,13 +205,15 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'lodash',
             else if (scriptContext.fieldId === 'custrecord_an_token_expdate'){
                 if (scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_expdate'})){
                     var expDate = scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_expdate'});
-                    var m_expDate = moment(expDate);
+                    var m_expDate = moment(expDate, 'MMYY');
                     if (expDate.length === 0){
-                        Ext.MessageBox.alert('Missing Expiration Date', 'This is a required value.');
-                    } else if (expDate.length !== 4){
-                        Ext.MessageBox.alert( 'Invalid Expiration Date', 'Format must be MMYY.  No other characters are needed or accepted.');
-                    } else if (m_expDate.isSameOrAfter(moment().endOf('month'))) {
-                        Ext.MessageBox.alert( 'Invalid Expiration Date', moment(expDate, 'MMYY').format('MMMM YYYY') + ' has passed making the card expired.');
+                        dialog.alert({title:'Missing Expiration Date', message: 'This is a required value.'});
+                    } else if (expDate.length !== 4 || !(/^\d+$/.test(expDate)) ){
+                        dialog.alert({title: 'Invalid Expiration Date', message: 'Format must be MMYY.  No other characters are needed or accepted.'});
+                        scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_expdate', value : ''});
+                    } else if (m_expDate.isSameOrBefore(moment().subtract(1, 'month').endOf('month'))) {
+                        dialog.alert({title: 'Invalid Expiration Date', message: moment(expDate, 'MMYY').format('MMMM YYYY') + ' has passed making the card expired.'});
+                        scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_expdate', value : ''});
                     }
                 }
 
@@ -221,7 +223,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'lodash',
                 var ccv = scriptContext.currentRecord.getValue({fieldId: 'custrecord_an_token_cardcode'});
                 var b_goodcvv = ccv.length <= 4 && ccv.length > 2;
                 if (!b_goodcvv) {
-                    Ext.MessageBox.alert('Invalid CVV Format', 'Value must be 3 or 4 numbers');
+                    dialog.alert({title:'Invalid CVV Format', message: 'Value must be 3 or 4 numbers'});
                 }
             }
             else if ((scriptContext.fieldId === 'custrecord_an_token_cardnumber'))
@@ -247,7 +249,7 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'lodash',
                     if( _.isUndefined(o_ccTypes[cardNum[0]])){
                         s_cardType = ' unidentifiable credit card'
                     }
-                    Ext.MessageBox.alert('Invalid Card Number', 'Recheck the entered information for the '+ s_cardType);
+                    dialog.alert({title:'Invalid Card Number', message:'Recheck the entered information for the '+ s_cardType})
                 }
             }
             else if (scriptContext.fieldId === 'custpage_customertype')
@@ -269,11 +271,11 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'lodash',
                 {
                     if (scriptContext.currentRecord.getValue({fieldId: 'custpage_achtype'}) === 'PPD' && scriptContext.currentRecord.getValue({fieldId: 'custpage_banktype'}) === 'businessChecking')
                     {
-                        Ext.MessageBox.alert('Bank Account and ACH Type Mismatch', 'Usually a PPD (Personal) ACH type is not associated with a Business Checking account. Please double check your selections before saving this record.');
+                        dialog.alert({title:'Bank Account and ACH Type Mismatch', message: 'Usually a PPD (Personal) ACH type is not associated with a Business Checking account. Please double check your selections before saving this record.'});
                     }
                     else if (scriptContext.currentRecord.getValue({fieldId: 'custpage_achtype'}) === 'CCD' && _.includes(['checking', 'savings'], scriptContext.currentRecord.getValue({fieldId: 'custpage_banktype'})))
                     {
-                        Ext.MessageBox.alert('Bank Account and ACH Type Mismatch', 'Usually a CCD (Company) ACH type is not associated with a personal checking or savings account. Please double check your selections before saving this record.');
+                        dialog.alert({title:'Bank Account and ACH Type Mismatch', message: 'Usually a CCD (Company) ACH type is not associated with a personal checking or savings account. Please double check your selections before saving this record.'});
                     }
                 }
             }

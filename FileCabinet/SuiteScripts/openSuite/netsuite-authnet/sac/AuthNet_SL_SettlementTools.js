@@ -300,7 +300,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                     var s_invNumber = _.isUndefined(missingTxn.invoiceNumber) ? '' : ' : '+missingTxn.invoiceNumber;
                                     s_missing +=
                                         ' <a target="_blank" href="'+s_missingLink+'">' + missingTxn.transId + s_invNumber + '</a>\r\n';
-                                    if (s_missing.length > 3900)
+                                    if (s_missing.length > 3800)
                                     {
                                         s_missing += ' (more)'
                                         return false;
@@ -351,7 +351,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                     "AND",
                                     ['mainline', 'is', 'T'],
                                     "AND",
-                                    ['type', 'anyof', ["CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt"]]
+                                    ['type', 'anyof', ["SalesOrd", "CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt"]]
                                 ],
                                 columns: [
                                     {name: 'tranid'},
