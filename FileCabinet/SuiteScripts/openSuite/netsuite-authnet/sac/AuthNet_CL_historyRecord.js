@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -67,8 +67,8 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https'],
             var o_response = JSON.parse(response.body)
             if (o_response.status){
                 var output = url.resolveRecord({
-                    recordType: o_response.fromType,
-                    recordId: o_response.fromId
+                    recordType: o_response.txn.type,
+                    recordId: o_response.txn.id
                 });
                 console.log(output)
                 window.location = output;

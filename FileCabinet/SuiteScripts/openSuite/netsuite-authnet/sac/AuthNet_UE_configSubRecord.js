@@ -3,7 +3,7 @@
  *
  * @exports XXX
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -48,74 +48,91 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     throw 'You can not create an Authorize.Net Configuration Subsidiary record while the configuration has "<b>USE FOR ALL SUBSIDIARIES</b>" checked.<br/>Go back to the configuration and uncheck that box and carefully consider the instructions given.'
                 }
             }
-
-            if (context.type === 'view' || context.type === 'edit'){
-                //make sure if the Subsidiary feature is enabled - that there is at least 1 record and that it is fully configured
-
-                if (context.newRecord.getValue({fieldId: 'custrecord_ancs_login'}) && context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey'})) {
-                    var o_testResult = authNet.doTest({
-                        url: o_masterConfig.custrecord_an_url,
-                        type: 'production',
-                        auth: {
-                            name: context.newRecord.getValue({fieldId: 'custrecord_ancs_login'}),
-                            transactionKey: context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey'})
-                        }
-                    });
-                    //log.debug('PROD o_testResult', o_testResult)
-                    context.form.addPageInitMessage({
-                        type: o_testResult.level,
-                        title: o_testResult.title,
-                        message: o_testResult.message,
-                        //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
-                    });
-
-                    if (!o_testResult.isValid
-                        &&
-                        context.newRecord.setValue({fieldId: 'custrecord_ancs_islive'}) === 'T'
-                    ) {
-                        log.audit('Disabling the Production Credentials', 'They failed to authenticate!');
-                        record.submitFields({
-                            type: context.newRecord.type,
-                            id: context.newRecord.id,
-                            values: {
-                                'custrecord_ancs_islive': false,
-                            }
-                        });
+            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE)
+            {
+                if (runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}))
+                {
+                    if (context.type === 'edit')
+                    {
+                        context.form.getField({id: 'custrecord_ancs_card_prefix'}).isMandatory = true;
                     }
                 }
-
-                if (context.newRecord.getValue({fieldId: 'custrecord_ancs_login_sb'}) && context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey_sb'})) {
-                    var o_testResult = authNet.doTest({
-                        url: o_masterConfig.custrecord_an_url_sb,
-                        type: 'sandbox',
-                        auth: {
-                            name: context.newRecord.getValue({fieldId: 'custrecord_ancs_login_sb'}),
-                            transactionKey: context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey_sb'})
-                        }
-                    });
-                    //log.debug('SB o_testResult', o_testResult)
-                    context.form.addPageInitMessage({
-                        type: o_testResult.level,
-                        title: o_testResult.title,
-                        message: o_testResult.message,
-                        //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                else
+                {
+                    //if this is not a multi sub enebaled account, this field isn't needed
+                    context.form.getField({id: 'custrecord_ancs_card_prefix'}).updateDisplayType({
+                        displayType: ui.FieldDisplayType.HIDDEN
                     });
                 }
-                if (_.includes(['view', 'edit', 'create'], context.type) && runtime.getCurrentUser().role !== 3) {
-                    //hide the API key fields
-                    context.form.getField({id: 'custrecord_ancs_login_sb'}).updateDisplayType({
-                        displayType: ui.FieldDisplayType.HIDDEN
-                    });
-                    context.form.getField({id: 'custrecord_ancs_trankey_sb'}).updateDisplayType({
-                        displayType: ui.FieldDisplayType.HIDDEN
-                    });
-                    context.form.getField({id: 'custrecord_ancs_login'}).updateDisplayType({
-                        displayType: ui.FieldDisplayType.HIDDEN
-                    });
-                    context.form.getField({id: 'custrecord_ancs_trankey'}).updateDisplayType({
-                        displayType: ui.FieldDisplayType.HIDDEN
-                    });
-                    log.audit('All Credential Fields were hidden', 'Only Administrator Role can see and edit theses fields');
+
+                if (context.type === 'view' || context.type === 'edit') {
+                    //make sure if the Subsidiary feature is enabled - that there is at least 1 record and that it is fully configured
+
+                    if (context.newRecord.getValue({fieldId: 'custrecord_ancs_login'}) && context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey'})) {
+                        var o_testResult = authNet.doTest({
+                            url: o_masterConfig.custrecord_an_url,
+                            type: 'production',
+                            auth: {
+                                name: context.newRecord.getValue({fieldId: 'custrecord_ancs_login'}),
+                                transactionKey: context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey'})
+                            }
+                        });
+                        //log.debug('PROD o_testResult', o_testResult)
+                        context.form.addPageInitMessage({
+                            type: o_testResult.level,
+                            title: o_testResult.title,
+                            message: o_testResult.message,
+                            //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                        });
+
+                        if (!o_testResult.isValid
+                            &&
+                            context.newRecord.setValue({fieldId: 'custrecord_ancs_islive'}) === 'T'
+                        ) {
+                            log.audit('Disabling the Production Credentials', 'They failed to authenticate!');
+                            record.submitFields({
+                                type: context.newRecord.type,
+                                id: context.newRecord.id,
+                                values: {
+                                    'custrecord_ancs_islive': false,
+                                }
+                            });
+                        }
+                    }
+
+                    if (context.newRecord.getValue({fieldId: 'custrecord_ancs_login_sb'}) && context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey_sb'})) {
+                        var o_testResult = authNet.doTest({
+                            url: o_masterConfig.custrecord_an_url_sb,
+                            type: 'sandbox',
+                            auth: {
+                                name: context.newRecord.getValue({fieldId: 'custrecord_ancs_login_sb'}),
+                                transactionKey: context.newRecord.getValue({fieldId: 'custrecord_ancs_trankey_sb'})
+                            }
+                        });
+                        //log.debug('SB o_testResult', o_testResult)
+                        context.form.addPageInitMessage({
+                            type: o_testResult.level,
+                            title: o_testResult.title,
+                            message: o_testResult.message,
+                            //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                        });
+                    }
+                    if (_.includes(['view', 'edit', 'create'], context.type) && runtime.getCurrentUser().role !== 3) {
+                        //hide the API key fields
+                        context.form.getField({id: 'custrecord_ancs_login_sb'}).updateDisplayType({
+                            displayType: ui.FieldDisplayType.HIDDEN
+                        });
+                        context.form.getField({id: 'custrecord_ancs_trankey_sb'}).updateDisplayType({
+                            displayType: ui.FieldDisplayType.HIDDEN
+                        });
+                        context.form.getField({id: 'custrecord_ancs_login'}).updateDisplayType({
+                            displayType: ui.FieldDisplayType.HIDDEN
+                        });
+                        context.form.getField({id: 'custrecord_ancs_trankey'}).updateDisplayType({
+                            displayType: ui.FieldDisplayType.HIDDEN
+                        });
+                        log.audit('All Credential Fields were hidden', 'Only Administrator Role can see and edit theses fields');
+                    }
                 }
             }
         }

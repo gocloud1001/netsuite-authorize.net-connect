@@ -3,7 +3,7 @@
  *
  * @exports XXX
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -98,7 +98,8 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
 
 
                 if (context.type === 'edit' || context.type === 'view') {
-                    if (!context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'})) {
+                    if (!context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'}))
+                    {
                         var b_noConfig = true;
                         search.create({
                             type: 'customrecord_authnet_config_subsidiary',
@@ -157,6 +158,14 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             field: fld_guidance,
                             nextfield: 'lastmodified'
                         });
+                    }
+                    else
+                    {
+                        //when checked - hide the whole subtab from view to make life simpler for everyone!
+                        var sublist = context.form.getSublist({
+                            id : 'recmachcustrecord_ancs_parent_config',
+                        });
+                        sublist.displayType = ui.SublistDisplayType.HIDDEN;
                     }
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_enable'})) {
                         context.form.addPageInitMessage({

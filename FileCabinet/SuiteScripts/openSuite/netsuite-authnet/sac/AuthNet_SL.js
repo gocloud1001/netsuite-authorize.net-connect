@@ -1,7 +1,7 @@
 /**
  * @exports XXX
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -931,6 +931,8 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     form.addSubmitButton({
                         label: 'Perform Test'
                     });
+                    log.debug('IS MULTISUB CUSTOMER?', runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}));
+                    //todo - test for the system parameter of multisubsidiarycustomer
 
                     context.response.writePage( form );
                 }

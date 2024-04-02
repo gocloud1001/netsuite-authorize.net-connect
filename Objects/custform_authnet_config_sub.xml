@@ -110,6 +110,24 @@
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_card_prefix]</id>
+          <label>Multi-Subsidiary Card Prefix</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_auth_pct_markup]</id>
+          <label>Increase Authorization Amount By Percent</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
       </fields>
     </fieldGroup>
     <fieldGroup scriptid="fieldgroup_3_5521729_sb1_258">

@@ -1,5 +1,5 @@
 /**
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -66,6 +66,14 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 }
                 //set the auth free config objct in the custom field for the client scripts to know what to do!
                 form = authNetUI.buildConfigField(form, o_config2);
+                //added field for holding on page information that does not need to be saved
+                form.addField({
+                    id: 'custpage_sac_ui_data',
+                    type: ui.FieldType.LONGTEXT,
+                    label: 'SAC TEMP UI DATA'
+                }).updateDisplayType({
+                    displayType: ui.FieldDisplayType.HIDDEN
+                }).defaultValue = '{}';
 
                 //var b_hasNativeCC = authNet.hasNativeCC();
                 //Is any of this turned on?
@@ -99,19 +107,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         //log.error('Field Not on Form', form + ' missing ' + fld)
                     }
                 });
-
-                //ALWAYS ALLOWED - if tokens are not allowed - hide the token field!
-                /*if (!o_config2.custrecord_an_cim_allow_tokens.val){
-                    try {
-                        form.getField({id: 'custbody_authnet_cim_token'}).updateDisplayType({
-                            displayType: ui.FieldDisplayType.HIDDEN
-                        });
-                    }
-                    catch (ex)
-                    {
-                        //nothing here - this field is not on all transactions
-                    }
-                }*/
 
                 var fldWarning = form.addField({
                     id: 'custpage_c9_error',
@@ -450,7 +445,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 {
                     var i_createdfrom = context.newRecord.getValue({fieldId: 'createdfrom'}) ? context.newRecord.getValue({fieldId: 'createdfrom'}) : context.newRecord.getValue({fieldId: 'salesorder'});
                     //ENSURE the response fields are hidden on a create since they would be empty
-                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + _.isUndefined(i_createdfrom) ? 'SCRATCH' : i_createdfrom);
+                    log.audit(_.toUpper(context.newRecord.type) + ' doing a CREATE here', 'from: ' + _.isUndefined(i_createdfrom) ? 'New Txn' : i_createdfrom);
                     //hide the override on a create - you would not do that normally
                     if (_.includes(['salesorder'], context.newRecord.type)) {
                         try {
@@ -810,7 +805,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 //if we can void - we void
                                 if (m_authDate < m_midnight) {
                                     thisRec = authNet.doVoid(txn);
-                                    thisRec.save({ignoreMandatoryFields : true});
+                                    log.audit('CANCELED SO', thisRec);
                                 }
                             }
                         }
@@ -823,7 +818,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 if (o_config2.custrecord_an_external_auth_allowed.val){
                                     if (context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId : 'custbody_authnet_refid'})) {
                                         //log.debug('the field is ' + o_config2.custrecord_an_external_fieldid.val, context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}));
-                                        var b_continue = authNet.makeIntegrationHistoryRec(context.newRecord, o_config2);
+                                        var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                                        var b_continue = authNet.makeIntegrationHistoryRec(context.newRecord, o_config2, o_status);
                                         if (b_continue) {
                                             if (o_config2.custrecord_an_cim_auto_generate.val) {
                                                 try {
@@ -834,7 +830,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             }
                                             if (o_config2.custrecord_an_make_deposit.val) {
                                                 try {
-                                                    var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+
                                                     //log.debug('o_status', o_status)
                                                     //differne between status and type in the response - type == "transactionType": "authOnlyTransaction",
                                                     //         "transactionStatus": "authorizedPendingCapture",

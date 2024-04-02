@@ -3,7 +3,7 @@
  *
  * @exports XXX
  *
- * @copyright 2023 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -83,6 +83,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     'custrecord_an_token_entity_addr_zip',
                     'custrecord_an_token_entity_addr_zipplus4',
                     'custrecord_an_token_entity_email',
+                    'custrecord_an_token_entity_phone',
                     //'custrecord_an_token_pblkchn',
                 ], function(fldName){
                     context.form.getField({id: fldName}).updateDisplayType({
@@ -136,6 +137,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     'custrecord_an_token_entity_addr_zip',
                     'custrecord_an_token_entity_addr_zipplus4',
                     'custrecord_an_token_entity_email',
+                    'custrecord_an_token_entity_phone',
                 ], function(fldName){
                     context.form.getField({id: fldName}).updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
@@ -226,6 +228,8 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         'isperson',
                         'firstname',
                         'lastname',
+                        'email',
+                        'phone',
                         'companyname',
                         'billaddressee',
                         'billaddress1',
@@ -235,31 +239,125 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         'billstate',
                         'billcountry',
                         'billcountrycode',
+                        'billphone',
                     ];
                     if (o_config2.mode === 'subsidiary')
                     {
+                        if (runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}))
+                        {
+                            //get the sublist of all the allowed subs for this customer
+                        }
                         a_customerFields.push('subsidiary');
-                        o_customerData = search.lookupFields({
-                            type:'customer',
-                            id : i_entity,
-                            columns : a_customerFields
-                        });
-                        context.newRecord.setValue({fieldId: 'custrecord_an_token_subsidiary', value : o_customerData.subsidiary[0].value})
+
                     }
-                    else
+                    if (runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}))
                     {
-                        o_customerData = search.lookupFields({
-                            type:'customer',
-                            id : i_entity,
-                            columns : a_customerFields
-                        });
+                        //get the sublist of all the allowed subs for this customer
+                        a_customerFields.push({name: "internalid", join: "mseSubsidiary"});
+                        a_customerFields.push({name: "name", join: "mseSubsidiary"});
+                        a_customerFields.push('subsidiary');
                     }
-                    log.debug('o_customerData',o_customerData);
+                    search.create({
+                        type: 'customer',
+                        filters: [
+                            ["internalid", "anyof", i_entity]
+                        ],
+                        columns: a_customerFields
+                    }).run().each(function (result) {
+                        if (_.isUndefined(o_customerData)) {
+                            o_customerData = {
+                                "isperson": result.getValue('isperson'),
+                                "firstname": result.getValue('firstname'),
+                                "lastname": result.getValue('lastname'),
+                                "email": result.getValue('email'),
+                                "phone": result.getValue('phone'),
+                                "companyname": result.getValue('companyname'),
+                                "billaddressee": result.getValue('billaddressee'),
+                                "billaddress1": result.getValue('billaddress1'),
+                                "billaddress2": result.getValue('billaddress2'),
+                                "billcity": result.getValue('billcity'),
+                                "billzipcode": result.getValue('billzipcode'),
+                                "billstate": result.getValue('billstate'),
+                                "billcountry": result.getValue('billcountry'),
+                                "billcountrycode": result.getValue('billcountrycode'),
+                                "billphone": result.getValue('billphone'),
+                            };
+                            if (result.getValue('subsidiary')) {
+                                o_customerData.subsidiary = result.getValue('subsidiary');
+                                //log.debug('set primary sub', result.getValue('subsidiary'))
+                            }
+                            if (result.getValue({name: "internalid", join: "mseSubsidiary"})) {
+                                o_customerData.showmultisub = true;
+                                o_customerData.multisub = [{
+                                    id:result.getValue({name: "internalid", join: "mseSubsidiary"}),
+                                    name : result.getValue({name: "name", join: "mseSubsidiary"}),
+                                }];
+                                //log.debug('set alt sub', result.getValue({name: "name", join: "mseSubsidiary"}))
+                            }
+                        }
+                        else
+                        {
+                            o_customerData.multisub.push({id:result.getValue({name: "internalid", join: "mseSubsidiary"}), name : result.getValue({name: "name", join: "mseSubsidiary"})});
+                        }
+
+                        return true;
+                    });
+                    //log.debug('o_customerData', o_customerData);
+                    if (o_customerData.subsidiary)
+                    {
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_subsidiary', value : o_customerData.subsidiary});
+                    }
+                    if (o_customerData.showmultisub)
+                    {
+                        var fld_subselector = context.form.addField({id: 'custpage_an_token_subsidiary', label:'Select Subsidiary For This Payment Profile', type : 'select'})
+                        //log.debug('o_config2', o_config2);
+                        _.forEach(o_customerData.multisub, function(allowedSub){
+                            //filter the list of valid subs with gateways to prune this result set down
+                            //log.debug('allowedSub', allowedSub)
+                            var _allowedGateway = _.find(o_config2.subs, {subid : allowedSub.id.toString()});
+                            //log.debug('_allowedGateway', _allowedGateway)
+                            if (_allowedGateway)
+                            {
+                                if (_allowedGateway.isReady) {
+                                    fld_subselector.addSelectOption({
+                                        value: allowedSub.id +':'+_allowedGateway.configid,
+                                        text: o_customerData.subsidiary === allowedSub.id ? _allowedGateway.configname +' (Default Subsidiary)' : _allowedGateway.configname
+                                    });
+                                }
+                                else
+                                {
+                                    var s_url = url.resolveRecord({
+                                        recordType:'customrecord_authnet_config_subsidiary',recordId:_allowedGateway.configid,isEditMode:true
+                                    });
+                                    context.form.addPageInitMessage({
+                                        type: message.Type.WARNING,
+                                        title: 'An Authorize.Net Configuration (Subsidiary) record is not fully configured',
+                                        message: _allowedGateway.configname + ' ('+_allowedGateway.subname+') is missing required Multi-Subsidiary Card Prefix and can not be selected until the value is provided in the configuration.</br>  Please add a prefix <a target="_base" href="'+s_url+'">here</a>.</br></br> Other configured subsidiary gateways will function as expected.',
+                                    });
+                                }
+                            }
+                            else
+                            {
+                                log.audit('Not allowed gateway', allowedSub.name + ' not configured as a allowed gateway')
+                            }
+                        });
+                        fld_subselector.addSelectOption({
+                            value: '',
+                            text: ''
+                        });
+                        context.form.insertField({
+                            field : fld_subselector,
+                            nextfield : 'custrecord_an_token_gateway'
+                        });
+                        fld_subselector.defaultValue = ''; //o_customerData.subsidiary;
+                        fld_subselector.isMandatory = true;
+                    }
+
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_number', value : o_customerData.billaddress1});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_city', value : o_customerData.billcity});
-                    if (!_.isEmpty(o_customerData.billstate[0]))
+                    if (!_.isEmpty(o_customerData.billstate))
                     {
-                        context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_state', value : o_customerData.billstate[0].text});
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_addr_state', value : o_customerData.billstate});
                     }
                     if (o_customerData.billzipcode)
                     {
@@ -281,7 +379,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                         addressee : o_customerData.billaddressee,
                         address : s_address,
                         city : o_customerData.billcity,
-                        state : o_customerData.billstate[0] ? o_customerData.billstate[0].value : '',
+                        state : o_customerData.billstate ? o_customerData.billstate : '',
                         zip : o_customerData.billzipcode,
                         country : o_customerData.billcountrycode,
                     };
@@ -315,6 +413,13 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_billaddress_json', value : JSON.stringify(o_billingAddressObject)});
                     if (o_customerData.email){
                         context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_email', value : o_customerData.email});
+                    }
+                    if (o_customerData.billphone){
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_phone', value : o_customerData.billphone});
+                    }
+                    else if (o_customerData.phone)
+                    {
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_entity_phone', value : o_customerData.phone});
                     }
                     if (o_customerData.isperson){
                         var guessedName='';
@@ -448,7 +553,15 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
             //get the config for this token - incase we need it
             var o_config = authNet.getConfigFromCache();
             if (o_config.mode === 'subsidiary'){
-                o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'custrecord_an_token_subsidiary'}), o_config);
+                if (o_config.hasMultiSubRuntime)
+                {
+                    //allowedSub.id +':'+_allowedGateway.configid
+                    context.newRecord.setValue({fieldId : 'custrecord_an_token_subsidiary', value:context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':')[0]});
+                    context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway_sub', value:context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':')[1]});
+                }
+
+                o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId: 'custrecord_an_token_subsidiary'}), o_config);
+                //log.debug('o_config', o_config);
             }
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception
@@ -517,7 +630,12 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_token', value : o_newProfile.customerPaymentProfileIdList[0]});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_type', value : o_newProfile.bankAccount.accountType});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_last4', value : o_newProfile.bankAccount.accountNum});
-                    context.newRecord.setValue({fieldId: 'name', value : o_newProfile.bankAccount.accountType + ' ('+o_newProfile.bankAccount.accountNum+')'});
+                    var s_ACHname =o_newProfile.bankAccount.accountType + ' ('+o_newProfile.bankAccount.accountNum+')';
+                    if (o_config.hasMultiSubRuntime)
+                    {
+                        s_ACHname = '('+o_config.ccnameprefix+') '+ s_ACHname;
+                    }
+                    context.newRecord.setValue({fieldId: 'name', value : s_ACHname});
                 }
                 else
                 {
@@ -527,7 +645,12 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_token', value : o_newProfile.customerPaymentProfileIdList[0]});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_last4', value : o_newProfile.creditCard.cardnum});
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_type', value : o_newProfile.creditCard.cardtype});
-                    context.newRecord.setValue({fieldId: 'name', value : o_newProfile.creditCard.cardtype + ' ('+o_newProfile.creditCard.cardnum+')'});
+                    var s_cardName = o_newProfile.creditCard.cardtype + ' ('+o_newProfile.creditCard.cardnum+')';
+                    if (o_config.hasMultiSubRuntime)
+                    {
+                        s_cardName = '('+o_config.ccnameprefix+') '+ s_cardName;
+                    }
+                    context.newRecord.setValue({fieldId: 'name', value : s_cardName});
                 }
             }
             if(context.type === 'create'|| context.type === 'edit')

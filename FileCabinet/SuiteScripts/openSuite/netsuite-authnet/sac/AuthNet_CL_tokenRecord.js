@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -278,6 +278,18 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/https', 'N/search', 'N/ui/dia
                         dialog.alert({title:'Bank Account and ACH Type Mismatch', message: 'Usually a CCD (Company) ACH type is not associated with a personal checking or savings account. Please double check your selections before saving this record.'});
                     }
                 }
+            }
+            else if (scriptContext.fieldId === 'custpage_an_token_subsidiary')
+            {
+                if (scriptContext.currentRecord.getValue({fieldId: 'custpage_an_token_subsidiary'}))
+                {
+                    //format is sub : gateway sub
+                    var _subData = scriptContext.currentRecord.getValue({fieldId: 'custpage_an_token_subsidiary'}).split(":");
+                    //console.log(_subData);
+                    scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_subsidiary', value:_subData[0]});
+                    scriptContext.currentRecord.setValue({fieldId: 'custrecord_an_token_gateway_sub', value:_subData[1]});
+                }
+
             }
         }
 

@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -204,6 +204,9 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
         if (s_notesString){
             log.audit('Upgraded', s_notesString)
         }
+        //purge the cache to make sure any new cache config options are correctly loaded with the new code
+        authNet.purgeCache();
+
         //this can obviously be removed - but it's nice to let us know who is installing and who is updating so we have some idea!
         //we currently do NOT do anything with this information aside from count the number of times things are happening
         //if Cloud 1001, LLC chooses to add any sort of future notification of releases or anything -

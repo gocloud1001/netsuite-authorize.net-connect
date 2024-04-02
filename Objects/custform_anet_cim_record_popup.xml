@@ -235,6 +235,15 @@
           <sameRowAsPrevious>T</sameRowAsPrevious>
         </field>
         <field>
+          <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_phone]</id>
+          <label>Billing Phone</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
           <id>[scriptid=customrecord_authnet_tokens.custrecord_an_token_entity_addr_number]</id>
           <label>Billing Street Address</label>
           <visible>T</visible>

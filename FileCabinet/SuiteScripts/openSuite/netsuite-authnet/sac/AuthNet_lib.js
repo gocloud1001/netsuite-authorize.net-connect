@@ -1,7 +1,7 @@
 
 /**
  *
- * @copyright 2023 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '3.2.13';
+    exports.VERSION = '2024.1.1';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -63,7 +63,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         "2" : "Declined",
         "3" : "Error",
         "4" : "Held for Review",
-    }
+    };
     exports.o_callResponse = {
         success : false,
         record :{},
@@ -720,7 +720,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     //build a history record and return the stubbed out record when using EXTERNAL AUTH
-    exports.makeIntegrationHistoryRec = function(txn, config){
+    exports.makeIntegrationHistoryRec = function(txn, config, o_status){
         var b_isValid = true;
         if (config.custrecord_an_validate_external_txn.val){
             b_isValid = exports.getStatus(txn);
@@ -732,11 +732,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             rec_response.setValue('custrecord_an_calledby', txn.type);
             rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
             //todo fix this to read for payload
-            rec_response.setValue('custrecord_an_call_type', 'authOnlyTransaction');
+            rec_response.setValue('custrecord_an_call_type', o_status.fullResponse.transactionType);
             //todo - setting for webstore of auth or authcapture
             rec_response.setValue('custrecord_an_amount', getBaseCurrencyTotal(txn));
             rec_response.setValue('custrecord_an_reqrefid', txn.getValue({fieldId : config.custrecord_an_external_fieldid.val}));
-            rec_response.setValue('custrecord_an_refid', txn.getValue({fieldId : 'custbody_authnet_refid'}));
+            rec_response.setValue('custrecord_an_refid', o_status.fullResponse.transId);
             rec_response.setValue('custrecord_an_response_status', 'Ok');
             rec_response.setValue('custrecord_an_response_message', 'This transaction is assumed valid and authorized prior to integration with NetSuite.');
             rec_response.setValue('custrecord_an_response_code', '1');
@@ -808,7 +808,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 masterid: rec.id,
                 configid : '',
                 configname : rec.getValue({fieldId : 'name'}) + ' (MAIN CONFIG)',
-                subid : ''
+                subid : '',
+                hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
             };
             //set the general config for the integration
             s_companyId = _.toUpper(rec.getValue({fieldId : 'custrecord_an_instanceid'}));
@@ -876,10 +877,19 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         solutionId : o_response.solutionId,
                         subid : subRec.getValue('custrecord_ancs_subsidiary'),
                         subname : subRec.getText('custrecord_ancs_subsidiary'),
+                        isReady : true,
+                        hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
                         liveAuth : true,
                         auth :{}
                     };
-
+                    if (o_thisSub.hasMultiSubRuntime)
+                    {
+                        o_thisSub.ccnameprefix = subRec.getValue({fieldId:'custrecord_ancs_card_prefix'});
+                        if (!o_thisSub.ccnameprefix)
+                        {
+                            o_thisSub.isReady = false;
+                        }
+                    }
                     o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
                     //undo the standard id with the development id's provided by Authorize.Net
                     if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !subRec.getValue('custrecord_ancs_islive'))
@@ -887,7 +897,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         o_response.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
                         o_response.solutionId.name = 'SuiteAuthConnect (TESTING MODE) v.'+exports.VERSION;
                     }
-
 
                     _.forEach(o_masterConfig, function(val, kie){
                         o_thisSub[kie] = val;
@@ -1589,7 +1598,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 rec_response.setValue({fieldId: 'custrecord_an_cardnum', value : o_body.transaction.payment.cardNumber});
                 rec_response.setValue({fieldId: 'custrecord_an_response_message', value : o_body.transaction.transactionStatus });
                 rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value : o_body.transaction.responseReasonDescription });
-                rec_response.setValue({fieldId: 'custrecord_an_refid', value : o_body.refId});
+                rec_response.setValue({fieldId: 'custrecord_an_refid', value : o_body.transaction.transId});
 
                 if (o_body.transaction.payment.creditCard) {
                     rec_response.setValue({
@@ -1653,7 +1662,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     var doCheckStatus = {};
-    doCheckStatus[1] = function (o_ccAuthSvcConfig, tranid, configId){
+    doCheckStatus[1] = function (o_ccAuthSvcConfig, tranid, configId)
+    {
         exports.homeSysLog('ALL o_ccAuthSvcConfig',o_ccAuthSvcConfig);
         if (configId)
         {
@@ -2590,6 +2600,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     o_billingAddressObject.zip += '-' + o_profile.getValue({fieldId: 'custrecord_an_token_entity_addr_zipplus4'});
                 }
             }
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_entity_phone'}))
+            {
+                o_billingAddressObject.phoneNumber = o_profile.getValue({fieldId: 'custrecord_an_token_entity_phone'});
+            }
             var s_address = o_billingAddressObject.address
             if (o_billingAddressObject.billaddress2)
             {
@@ -2605,6 +2619,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 state : o_billingAddressObject.state,
                 zip : o_billingAddressObject.zip,
                 country : o_billingAddressObject.country,
+            }
+            if (o_billingAddressObject.phoneNumber)
+            {
+                o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.billTo.phoneNumber = o_billingAddressObject.phoneNumber;
             }
             if (+o_profile.getValue({fieldId: 'custrecord_an_token_paymenttype'}) === 1)
             {

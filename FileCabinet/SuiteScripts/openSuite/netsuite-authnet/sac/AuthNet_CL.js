@@ -1,6 +1,6 @@
 /**
  *
- * @copyright 2022 Cloud 1001, LLC
+ * @copyright 2024 Cloud 1001, LLC
  *
  * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
  * You may not use this file except in compliance with the License.
@@ -51,8 +51,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
 
         function getDefaultCard(currentRecord, o_config){
             try {
-               console.log('getting DefaultCard - this might take a second or 2...')
-                //console.log(o_config)
+               console.log('getting DefaultCard - this might take a second or 2...');
+               console.log(o_config);
                 if (!o_config){
                     alert('getDefaultCard missing a config object');
                 }
@@ -60,14 +60,21 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 var a_filters = [
                     ['custrecord_an_token_entity', search.Operator.ANYOF, custId],
                     "AND",
-                    ['custrecord_an_token_default', search.Operator.IS, "T"],
-                    "AND",
+                    //['custrecord_an_token_default', search.Operator.IS, "T"],
+                    //"AND",
                     ['custrecord_an_token_pblkchn_tampered', search.Operator.IS, "F"],
                     "AND",
                     ['isinactive', search.Operator.IS, "F"],
                     "AND",
                     ['custrecord_an_token_token', 'isnotempty', ''],
                 ];
+                var a_columns = [
+                    'name',
+                    'custrecord_an_token_paymenttype',
+                    'custrecord_an_token_default',
+                    'custrecord_an_token_gateway',
+
+                ]
                 if (o_config.isSubConfig)
                 {
                     a_filters.push("AND");
@@ -76,6 +83,12 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     a_filters.push(['custrecord_an_token_gateway_sub', search.Operator.ANYOF, o_config.configid.toString()]);
                     a_filters.push("AND");
                     a_filters.push(['custrecord_an_token_subsidiary', search.Operator.ANYOF, o_config.subid.toString()]);
+                    //a_filters.push(['custrecord_an_token_subsidiary', search.Operator.ANYOF, currentRecord.getValue({fieldId: 'subsidiary'})]);
+                    a_columns.push('custrecord_an_token_gateway_sub');
+                    a_columns.push('custrecord_an_token_subsidiary');
+                    //set up the UI object for cars / subs
+                    var o_uidata = JSON.parse(currentRecord.getValue({fieldId: 'custpage_sac_ui_data'}));
+                    o_uidata.cards = [];
                 }
                 else
                 {
@@ -86,20 +99,30 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 search.create({
                     type: 'customrecord_authnet_tokens',
                     filters: a_filters,
-                    columns: [
-                        'name',
-                        'custrecord_an_token_paymenttype'
-                    ]
+                    columns: a_columns
                 }).run().each(function (result) {
-                    log.debug('result', result)
-                    currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
-                    var tokenTypeId = result.getValue('custrecord_an_token_paymenttype') ? result.getValue('custrecord_an_token_paymenttype') : 1;
-                    currentRecord.setValue({
-                        fieldId: 'custbody_authnet_cim_token_type',
-                        value: tokenTypeId
-                    });
+                    log.debug('result', result);
+                    if (result.getValue('custrecord_an_token_default'))
+                    {
+                        currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
+                        var tokenTypeId = result.getValue('custrecord_an_token_paymenttype') ? result.getValue('custrecord_an_token_paymenttype') : 1;
+                        currentRecord.setValue({
+                            fieldId: 'custbody_authnet_cim_token_type',
+                            value: tokenTypeId
+                        });
+                    }
+                    if (o_config.isSubConfig)
+                    {
+                        var _card = {id : result.id, subsidiary : result.getValue('custrecord_an_token_subsidiary')};
+                        o_uidata.cards.push(_card);
+                    }
                     return true;
                 });
+                if (o_config.isSubConfig)
+                {
+                    console.log(o_uidata)
+                    currentRecord.setValue({fieldId: 'custpage_sac_ui_data', value : JSON.stringify(o_uidata)});
+                }
             }
             catch (e)
             {
@@ -135,6 +158,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 //skip hiding the token
                             }
                             else {
+                                log.debug('rehiding token field')
                                 window.nlapiGetField(field).setDisplayType('hidden');
                             }
 
@@ -158,6 +182,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         'custbody_authnet_authcode',
                         'custbody_authnet_override',
                         'custbody_authnet_cim_token',
+                        'custpage_authnet_cim_token',
                     ],function(fld){
                         window.nlapiGetField(fld).setDisplayType('hidden');
                     });
@@ -220,6 +245,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             {
                 if (o_config.mode === 'subsidiary') {
                     if (context.currentRecord.getValue({fieldId: 'subsidiary'})) {
+                        log.debug('source sub change >>'+context.currentRecord.getValue({fieldId: 'subsidiary'}));
                         o_config = o_config.subs['subid' + context.currentRecord.getValue({fieldId: 'subsidiary'})];
                         if (!o_config)
                         {
@@ -243,6 +269,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         {
                             window.nlapiGetField('custbody_authnet_use').setDisplayType('normal');
                             window.nlapiGetField('custbody_authnet_override').setDisplayType('normal');
+                            //load the cards fos this sub
+                            getDefaultCard(context.currentRecord, o_config);
                         }
                         log.debug('postSourcing mode : subsidiary of '+ fieldName, o_config);
                     }
@@ -326,7 +354,10 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
         function SAC_fieldChanged(context) {
             var currentRecord = context.currentRecord;
             var fieldName = context.fieldId;
-            console.log(currentRecord.type + ' : '+fieldName)
+            //console.log(currentRecord.type + ' : '+fieldName);
+            //this ensures the subsidary clears the token
+
+
             //this section is a bit of a mess and should be refactored to be cleaner...
             if (_.includes([
                 'custbody_authnet_use',
@@ -335,11 +366,23 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 'orderstatus',
                 'apply',
                 'paymentmethod',
-                'payment'
+                'payment',
+                'subsidiary'
             ], fieldName))
             {
+                //console.log(currentRecord.type + ' : '+fieldName);
                 var o_config = JSON.parse(window.sessionStorage.getItem("config"));
                 if (o_config.mode === 'subsidiary') {
+                    if (fieldName === 'subsidiary')
+                    {
+                        if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}))
+                        {
+                            context.currentRecord.setValue({
+                                fieldId: 'custbody_authnet_cim_token',
+                                value: ''
+                            });
+                        }
+                    }
                     if (context.currentRecord.getValue({fieldId: 'subsidiary'})) {
                         o_config = o_config.subs['subid' + context.currentRecord.getValue({fieldId: 'subsidiary'})];
 
@@ -488,6 +531,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     if (fieldName === 'custbody_authnet_use') {
                         if (currentRecord.getValue({fieldId: 'custbody_authnet_use'})) {
                             getDefaultCard(context.currentRecord, o_config);
+
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
                                     currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
@@ -510,7 +554,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                     window.nlapiGetField(field).setDisplayType('hidden');
                                     currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange: true});
                                 } catch (e) {
-                                    log.error('issue with client hide / show . ', 'Missing field : ' + field);
+                                    //log.error('issue with client hide / show native ', 'Missing field : ' + field);
                                 }
                             });
 
@@ -618,7 +662,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             }).run().each(function (result) {
                                 if (result.getValue('custbody_authnet_refid')) {
                                     exports.sac.push(+result.getValue('internalid'));
-                                    exports.refundMethods.push(restult.getValue({name: 'custbody_authnet_cim_token_type'}));
+                                    exports.refundMethods.push(result.getValue({name: 'custbody_authnet_cim_token_type'}));
                                 }
                                 console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
                                 return true;
@@ -776,10 +820,29 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
         function SAC_saveRecord(context){
             var b_canSave = true;
             console.log('SuiteAuthConnect >> FORM VALIDATION on SAVE! ');
+            var o_config = JSON.parse(window.sessionStorage.getItem("config") );
             //context = {"currentRecord":{"id":"8045","type":"salesorder","isDynamic":true,"prototype":{}},"mode":"edit"}
             if (_.includes(['salesorder', 'customerdeposit','customerpayment'],context.currentRecord.type) ||
-                (context.currentRecord.type === 'cashsale' && !context.currentRecord.getValue({fieldId: 'createdfrom'})) ) {
-                if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && !context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})) {
+                (context.currentRecord.type === 'cashsale' && !context.currentRecord.getValue({fieldId: 'createdfrom'})) )
+            {
+                if (o_config.hasMultiSubRuntime && context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}))
+                {
+                    var o_uidata = JSON.parse(context.currentRecord.getValue({fieldId: 'custpage_sac_ui_data'}))
+                    //console.log(o_uidata)
+                    //var i_cardId = context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'});
+                    var o_usedCard = {id:context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}), subsidiary: context.currentRecord.getValue({fieldId: 'subsidiary'})};
+
+                    if (!_.find(o_uidata.cards, o_usedCard))
+                    {
+                        dialog.alert({
+                            title: 'Payment Token / Subsidiary Mismatch',
+                            message: 'You have selected a Customer Profile / Token that is incompatible with the subsidiary of the transaction.  Please review the card prefix and the transaction subsidiary.'
+                        });
+                        b_canSave = false;
+                    }
+                }
+                else if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && !context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}))
+                {
                     if (context.mode === 'create') {
                         //b_canSave = isReady(context.currentRecord);
                         b_canSave = false;
