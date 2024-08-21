@@ -1,10 +1,15 @@
 # netsuite-authorize.net-connect
 NetSuite <> Authorize.Net Integration as a SDF project that runs completely inside NetSuite that is available under the [Apache License, Version 2.0 with Common Clause Version 1.0 license](https://www.gocloud1001.com/cloud1001-software-licence/ "Apache License, Version 2.0 with Common Clause Version 1.0 license") as part of the Cloud 1001, LLC Free & Open Suite Initiative.
 
+## URGENT NOTE about SHOPIFY'S Authorize.Net Gateway Plugin Change mandated by September 30, 2024
+Authorize.Net has been forced to change their plugin for Shopify per their [article here](https://support.authorize.net/knowledgebase/Knowledgearticle/?code=KA-04246) and all Shopify stores will be required to install this gateway plugin update by September 30th, 2024.  The issue here is how Shopify has changed the requirements (see section title *### What are the known changes or gaps with the new integration?* in the above linked article).  The Authorize.Net plugin no longer is allowed to store the actual Authorize.Net transaction ID that links to Authorize.Net.  This is clearly a bullying tactic used by Shopify to push store owners to use the Shopify Payments option (and make Shopify more money).  We currently have a workaround to this imposed limitation but it is not NOT part of the current netsuite-authorize.net-connect codebase as it is being actively refined.  If you are connecting your Shopify store to NetSuite and expect card processing to continue as it has, need this functionality, for the time being, please [contact us](https://www.gocloud1001.com/contact-us/) and we will discuss the options we have as we work to solidify a viable workaround for this solution. (updated 21-August-2024)
+
 ## READ THIS BEFORE PROCEEDING
-Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) make this as clear as we can make it - it needs to be reiterated : **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In**, because it is not allowed to, per Oracle. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.  
+
+Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) makes this as clear as we can make it - it needs to be reiterated : **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In**, because it is not allowed to, per Oracle. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.  
 Here's a checklist and grades of things it does and does not do (version 3.1+):
-- [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, Shopify, WooCommerce, BigCommerce, etc* inside of NetSuite
+- [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, ~~Shopify,~~ WooCommerce, BigCommerce, etc* inside of NetSuite
+- [**F**] *Shopify* currently is breaking this - see above note about the current workaround we have developed.
 - [**A+**] Allows for direct processing of authorizations or authorizations+captures inside of NetSuite on the appropriate transaction type following native card processing logic
 - [**A+**] Provides VERY ROBUST batch settlement tracking and processing features making daily reconciliations and deposits simple and efficient while also making any discrepancies easy to spot and resolve
 - [**A+**] Storage of card data using Authorize.Net CIM for PCI complaint tokens - no raw card data is preserved
@@ -53,12 +58,14 @@ Really wish we had a better answer here - but the folks at Oracle do not provide
 ## Questions
 Cloud 1001, LLC provides this software for free under the above license and is the only consulting firm that you should pay to assist you with this software.  That's the point of the license - to make it free to anyone to obtain, use and modify - for their OWN purposes...  if another consulting group or individual is asking to be paid to in any way to modify or assist with this software - they are in violation of the license.<br/>  
 Feel free to [reach out to us](https://www.gocloud1001.com "reach out to us") if you have any bugs!
-If you need help installing, configuring or have other questions - we do provide pre-paid ad-hoc assistance for installation in [30 minute](https://calendly.com/cloud1001-andy/authorize-net-software-support-session-half-hour) and [1 hour](https://calendly.com/cloud1001-andy/authorize-net-software-support-session) blocks. We WILL NOT log into your system - these are screen share sessions where you can use the time for anything you need.
+If you need help installing, configuring or have other questions - we do provide pre-paid ad-hoc assistance for installation in [1 hour](https://calendly.com/cloud1001-andy/authorize-net-software-support-session) and [remote installation](https://calendly.com/cloud1001-andy/authorize-net-software-remote-installation) options.
 
 ## Roadmap
+2024.x.x is LIVE and is the new numbering scheme - releases include enhanced options and bug suppression!
 3.2.x is LIVE and includes multi-subsidiary support, even better reconciliation tools and enhanced token entry for better AVS validation support!
 3.1.x is LIVE and includes eCheck support (ACH) using Authorize.net, default payments by customer and sets the stage for "pay by link" logic to let people pay their invoices directly!
 
 This readme is made pretty by https://stackedit.io
+
 
 
