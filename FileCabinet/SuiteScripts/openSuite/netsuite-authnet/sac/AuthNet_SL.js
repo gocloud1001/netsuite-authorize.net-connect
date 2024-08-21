@@ -81,6 +81,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                     template = template.replace(/%%transHash%%/g, '');
                                     template = template.replace(/%%cardData%%/g, '');
                                     template = template.replace(/%%LOG%%/g, historyUrl);
+                                    template = template.replace(/%%TXN_NOTICE%%/g, 'This transaction was not saved');
 
                                 } else {
                                     var s_restResponse = o_anResponse.transactionResponse.responseCode;
@@ -98,6 +99,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                     template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
                                     template = template.replace(/%%cardData%%/g, o_history.getValue({fieldId: 'custrecord_an_card_type'}) + ' ending in ' + o_history.getValue({fieldId: 'custrecord_an_cardnum'}));
                                     template = template.replace(/%%LOG%%/g, historyUrl);
+                                    template = template.replace(/%%TXN_NOTICE%%/g, 'This transaction was not saved');
                                 }
                                 context.response.write(template);
                                 break;
@@ -117,6 +119,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 //https://sandbox.authorize.net/ui/themes/sandbox/transaction/transactiondetail.aspx?transID=60202853669
                                 template = template.replace(/%%cardData%%/g, o_history.getValue({fieldId: 'custrecord_an_card_type'}) + ' ending in ' + o_history.getValue({fieldId: 'custrecord_an_cardnum'}));
                                 template = template.replace(/%%LOG%%/g, historyUrl);
+                                template = template.replace(/%%TXN_NOTICE%%/g, 'This transaction was not saved');
                                 context.response.write(template);
                                 //orgid is the payment ot pull data from before
                                 break;
@@ -130,11 +133,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
                                 template = template.replace(/%%cardData%%/g, o_history.getValue({fieldId: 'custrecord_an_card_type'}) + ' ending in ' + o_history.getValue({fieldId: 'custrecord_an_cardnum'}));
                                 template = template.replace(/%%LOG%%/g, historyUrl);
+                                template = template.replace(/%%TXN_NOTICE%%/g, 'This transaction was not saved');
                                 context.response.write(template);
                                 break;
                             case 'cashrefund':
                             case 'depositapplication':
-                            case 'creditmemo':
                                 log.debug('object o_anResponse', o_anResponse);
                                 var error_string = '';
                                 if (o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})){
@@ -155,9 +158,34 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
                                 template = template.replace(/%%cardData%%/g, o_history.getValue({fieldId: 'custrecord_an_card_type'}) + ' ending in ' + o_history.getValue({fieldId: 'custrecord_an_cardnum'}));
                                 template = template.replace(/%%LOG%%/g, historyUrl);
+                                template = template.replace(/%%TXN_NOTICE%%/g, 'This transaction was not saved');
                                 context.response.write(template);
                                 break;
-
+                            case 'creditmemo':
+                            case 'customerrefund':
+                                log.debug('object o_anResponse', o_anResponse);
+                                var error_string = '';
+                                if (o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})){
+                                    error_string = '<p><i>'+o_history.getValue({fieldId: 'custrecord_an_response_ig_advice'})+'</i>'
+                                }
+                                if (o_history.getValue({fieldId: 'custrecord_an_response_ig_other'})){
+                                    error_string = '<p><i>'+o_history.getValue({fieldId: 'custrecord_an_response_ig_other'})+'</i>'
+                                }
+                                template = template.replace(/%%ERROR%%/g, o_history.getValue({fieldId: 'custrecord_an_response_message'}) + ' (' +o_history.getValue({fieldId: 'custrecord_an_error_code'}) + ')');
+                                template = template.replace(/%%MESSAGES%%/g, error_string);
+                                var s_messages = '<p>PROCESSING ERROR</p>';
+                                _.forEach(o_anResponse.messages.message, function (message) {
+                                    if (message.code !== 'I00001') {
+                                        s_messages += '<p>' + message.code + ' : ' + message.text + '</p>'
+                                    }
+                                });
+                                template = template.replace(/%%CODE%%/g, s_messages);
+                                template = template.replace(/%%transHash%%/g, 'ID: ' + o_history.getValue({fieldId: 'custrecord_an_refid'}));
+                                template = template.replace(/%%cardData%%/g, o_history.getValue({fieldId: 'custrecord_an_card_type'}) + ' ending in ' + o_history.getValue({fieldId: 'custrecord_an_cardnum'}));
+                                template = template.replace(/%%LOG%%/g, historyUrl);
+                                template = template.replace(/%%TXN_NOTICE%%/g, 'This transaction was WAS saved and should be reviewed / adjusted / deleted as needed');
+                                context.response.write(template);
+                                break;
 
                             default:
                                 context.response.write('Nothing provided - so maybe you are just saying hello! Hi!');
@@ -207,7 +235,35 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         txn.setValue({fieldId:'custbody_authnet_datetime', value: ''});
                         txn.save({ignoreMandatoryFields : true});
                     }
-                    context.response.write(JSON.stringify(o_parsed))
+                    context.response.write(JSON.stringify(o_parsed));
+                    //call the auth to see if we can void it
+                }
+                else if (o_params.doAuthClear)
+                {
+                    var historyRecord = record.load({
+                        type: o_params._type,
+                        id: o_params._id,
+                        isDynamic : true
+                    });
+
+                    var txn = record.load({
+                        type: historyRecord.getValue({fieldId: 'custrecord_an_calledby'}),
+                        id: historyRecord.getValue({fieldId: 'custrecord_an_txn'}),
+                        isDynamic : true
+                    });
+                    txn.setValue({fieldId: 'custrecord_an_txn', value : historyRecord.getValue({fieldId:'custbody_authnet_refid'})});
+
+                    historyRecord.setValue({fieldId:'custrecord_an_response_status', value: 'EXPIRED'});
+                    historyRecord.save();
+                    //now clear the transaction
+                    txn.setValue({fieldId:'custbody_authnet_use', value: false});
+                    txn.setValue({fieldId:'custbody_authnet_cim_token', value: ''});
+                    txn.setValue({fieldId:'custbody_authnet_refid', value: ''});
+                    txn.setValue({fieldId:'custbody_authnet_authcode', value: ''});
+                    txn.setValue({fieldId:'custbody_authnet_datetime', value: ''});
+                    txn.save({ignoreMandatoryFields : true});
+
+                    context.response.write(JSON.stringify({status : true, type:txn.type, id: txn.id}));
                     //call the auth to see if we can void it
                 }
                 else if (o_params.fraudAuthApprove)
@@ -253,7 +309,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         deploymentId: 'customdeploy_sac_update_profiles_up',
                         scriptId: 'customscript_sac_update_profiles'
                     }).submit();
-                    context.response.write('The proces to upgrade your payment tokens to this version is currently running in the background.  It will take as long as it takes - based on the number of tokens you have and how fast your instance of NetSuite is based on time of day and system load.  ' +
+                    context.response.write('The process to upgrade your payment tokens to this version is currently running in the background.  It will take as long as it takes - based on the number of tokens you have and how fast your instance of NetSuite is based on time of day and system load.  ' +
                         '<p>You WILL NOT be able to enable multi-subsidary functionality until this process has completed.</p>'+
                         '<p>Processing status will be shown on the configuration record</p>'
                     );
@@ -271,7 +327,11 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         type: ui.FieldType.LONGTEXT,
                         label: 'custpage_rawconfig',
                         container: 'bottom'
-                    }).defaultValue = JSON.stringify(o_config2);
+                    });
+                    rawConfig.defaultValue = JSON.stringify(o_config2);
+                    rawConfig.updateDisplayType({
+                        displayType : ui.FieldDisplayType.HIDDEN
+                    });
                     var o_subConfig = o_config2;
                     /*var currentConfig = form.addField({
                         id: 'custpage_currentconfig',
@@ -425,7 +485,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 'custrecord_an_token_default'
                             ]
                         }).run().each(function (result) {
-                            log.debug('token result', result);
+                            //log.debug('token result', result);
                             fld_token.addSelectOption({
                                 value: result.id,
                                 text: result.getValue('name') + (result.getValue('custrecord_an_token_default') === true ? ' (Default)' : '')
@@ -509,9 +569,22 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     });
                     fld_configLink.defaultValue = '<a target="_blank" href="https://developer.authorize.net/hello_world/testing_guide.html">Authorize.Net Testing Values for cards, bank accounts and responses';
                     //unit testing
-                    var grp_authin = form.addFieldGroup({
-                        id: 'grpunit',
-                        label: 'Some Unit Testing'
+                    var grp_rawdata = form.addFieldGroup({
+                        id: 'grpraw',
+                        label: 'Raw API Calls'
+                    });
+                    form.addField({
+                        id: 'custpage_test',
+                        type: ui.FieldType.RADIO,
+                        label: 'getTransactionDetails',
+                        source: 'transdetails',
+                        container: 'grpraw'
+                    });
+                    form.addField({
+                        id: 'custpage_transid',
+                        type: ui.FieldType.TEXT,
+                        label: 'Authorize.Net Transid',
+                        container: 'grpraw'
                     });
                     /*form.addField({
                         id: 'custpage_test',
@@ -715,7 +788,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 'appliedtotransaction'
                             ]
                         }).run().each(function (result) {
-                            log.debug('deposit pick list result', result);
+                            //log.debug('deposit pick list result', result);
                             if (!result.getValue('applyingtransaction')) {
                                 //we dont want any that may have been refunded already to mess with - this is a unit test, remember
                                 fld_depTxnToRefund.addSelectOption({
@@ -774,7 +847,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                                 {name : 'type', join : 'applyingtransaction'}
                             ]
                         }).run().each(function (result) {
-                            log.debug('invoice pick list result', result);
+                            //log.debug('invoice pick list result', result);
                             if (o_invoicesToProcess[result.getValue('tranid')])
                             {
                                 if (!result.getValue({name : 'type', join : 'applyingtransaction'}) === 'CustPymt')
@@ -1028,12 +1101,19 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         {
                             _.forEach(JSON.parse(o_params.linejson), function(val, kie) {
                                 log.debug(kie, val)
-                                testInv.setCurrentSublistValue({sublistId:'item', fieldId:kie, value : val});
+                                testSo.setCurrentSublistValue({sublistId:'item', fieldId:kie, value : val});
                             });
                         }
 
                     } catch (e){
-                        o_response.bodyJSONError = e.name +' : '+ e.message;
+                        if (_.isObject(e))
+                        {
+                            o_response.bodyJSONError = e.name +' : '+ e.message;
+                        }
+                        else
+                        {
+                            o_response.bodyJSONError = e;
+                        }
                         log.error('Line JSON Error', o_response.bodyJSONError);
                     }
                     testSo.commitLine({sublistId:'item'});
@@ -1308,6 +1388,18 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                 }
 
                 switch (o_params.custpage_test){
+                    case 'transdetails':
+                        if (!o_params.custpage_transid)
+                        {
+                            o_response.OK = false;
+                            o_response.message = 'You must provide a transid';
+                        }
+                        else
+                        {
+                            o_response.OK = true;
+                            o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(o_params.custpage_transid);
+                        }
+                        break;
                     case 'purgecache':
                         authNet.purgeCache();
                         o_response.OK = true;
@@ -1346,24 +1438,32 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         break;
                     case 'makehistory':
                         o_response.OK = true;
-                        //todo - make actually work
+
                         if (o_params.custpage_rectohist)
                         {
-
-                            log.debug('o_params.custpage_rectohist', o_params.custpage_rectohist.id)
-                            _.forEach([718390, 718392, 718394, 718396, 718398, 718402, 718404, 718487, 718587, 718687, 718787 ], function (id){
-                                var txn = record.load({type : 'customerdeposit', id : id});
-
+                            log.debug('makehistory', o_params.custpage_rectohist)
+                            var o_target = JSON.parse(o_params.custpage_rectohist)
+                            log.debug('makehistory', _.isObject(o_target))
+                            var txn = record.load(o_target);
+                            o_response.statusUpdate = authNet.getStatus(txn);
+                            /*if (o_config2.mode === 'subsidiary')
+                            {
                                 if (o_params.custpage_configrec)
                                 {
-                                    o_response.responseFrom_fixIntegrationHistoryRec = authNet.fixIntegrationHistoryRec(txn, o_params.custpage_configrec);
+                                    log.debug('using custpage_configrec', o_params.custpage_configrec)
+                                    o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(txn.getValue({fieldId:'custbody_authnet_refid'}), o_params.custpage_configrec);
                                 }
                                 else
                                 {
-                                    o_response.responseFrom_fixIntegrationHistoryRec = authNet.fixIntegrationHistoryRec(txn, o_config2);
+                                    o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(txn.getValue({fieldId:'custbody_authnet_refid'}));
                                 }
-                            })
+                            }
+                            else
+                            {
+                                o_response.responseFrom_getStatusCheck = authNet.getStatusCheck(txn.getValue({fieldId:'custbody_authnet_refid'}));
+                            }
 
+                            o_response.newHistoryRecord = authNet.makeIntegrationHistoryRec(txn, o_config2, o_response.responseFrom_getStatusCheck)*/
                         }
 
                         break;
@@ -1663,7 +1763,7 @@ var template = "<!DOCTYPE html>\n" +
     "        <p>Authorize.net Transaction %%transHash%%</p>\n" + //https://sandbox.authorize.net/ui/themes/sandbox/transaction/transactiondetail.aspx?transID=60128875331
     "    </article>\n" +
     "\n" +
-    "    <footer style='color:red'>This transaction was not saved</footer>\n" +
+    "    <footer style='color:red'>\%%TXN_NOTICE%%\</footer>\n" +
     "\n" +
     "</div>\n" +
     "\n" +

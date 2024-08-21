@@ -94,12 +94,17 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
                             var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custrecord_an_refid'}));
                             log.debug('o_status', o_status)
                             authNet.homeSysLog('authNet.getStatusCheck() -> o_status', o_status);
-                            if (o_status.transactionStatus === 'authorizedPendingCapture') {
+                            if (o_status.transactionStatus === 'authorizedPendingCapture')
+                            {
                                 form.addButton({
                                     id: 'custpage_voidauth',
                                     label: 'Void Authorization',
                                     functionName: 'setAuthVoid' //set it to P
                                 });
+                            }
+                            else if (o_status.transactionStatus === 'expired')
+                            {
+
                             }
                         } else if (context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'createCustomerProfileFromTransactionRequest'){
 

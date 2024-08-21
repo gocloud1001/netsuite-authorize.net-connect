@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2024.1.1';
+    exports.VERSION = '2024.2.1';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -169,6 +169,21 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
         }
     }
+    var o_getUnsettledTransactionListRequest = function(o_ccAuthSvcConfig){
+        return {
+            "getUnsettledTransactionListRequest": {
+                "merchantAuthentication": o_ccAuthSvcConfig.auth,
+                "sorting": {
+                    "orderBy": "submitTimeUTC",
+                    "orderDescending": "true"
+                },
+                "paging": {
+                    "limit": "1000",
+                    "offset": "1"
+                }
+            }
+        }
+    }
 
     exports.normalizeRecType = function(type){
         //the keys are the "type" values returned when searching for a transaction
@@ -209,7 +224,40 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var b_singleScriptOverride = runtime.getCurrentScript().getParameter({name:'custscript_sac_debug_logs'}) === 'Y';
         if (o_config.custrecord_an_break_pci) {
             if (o_config.custrecord_an_break_pci.val || runtime.envType === runtime.EnvType.SANDBOX || b_singleScriptOverride) {
-                log.debug('&#10071; ' + name, body);
+                if (runtime.envType === runtime.EnvType.SANDBOX)
+                {
+
+                    log.debug('‼️⏳📦 ' + name, body);
+                }
+                else
+                {
+                    log.debug('‼️ PCI ALERT!!! ‼️' + name, body);
+                }
+
+            }
+        }
+        else
+        {
+            log.emergency('CACHE ISSUE', 'The cache is incorrectly cached!')
+        }
+    };
+
+    exports.verboseLogging = function(name, body)
+    {
+        var o_config = this.getConfigFromCache();
+
+        if (o_config.custrecord_an_verbose_logging) {
+            if (o_config.custrecord_an_verbose_logging.val || runtime.envType === runtime.EnvType.SANDBOX) {
+                if (runtime.envType === runtime.EnvType.SANDBOX)
+                {
+
+                    log.debug('🗣️⏳📦 ' + name, body);
+                }
+                else
+                {
+                    log.debug('🗣️🗣️🗣️' + name, body);
+                }
+
             }
         }
         else
@@ -423,16 +471,24 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     exports.getBulkRefunds = function (orgtxn, obj){
-        this.homeSysLog('getBulkRefunds(obj)', obj);
-        //loop through object f
+        this.verboseLogging('getBulkRefunds(obj)', obj);
+        //this.verboseLogging('getBulkRefunds(orgtxn)', orgtxn);
+        //loop through object
         //search ID's for transaction types, date / time created
         //log.debug('??', _.map(obj, 'id'))
         var a_filters = [
             ['internalid', 'anyof', _.map(obj, 'id')],
             "AND",
-            ["mainline","is","T"]
+            ["mainline","is","T"],
         ];
-        this.homeSysLog('txnInfo filters', a_filters);
+        if (obj.length === 1)
+        {
+            if (obj[0].applyType === "Credit Memo")
+            {
+                a_filters.push('AND');
+                a_filters.push(["appliedToTransaction.internalid","anyof",obj[0].from]);
+            }
+        }
         var txnInfo = search.create({
             type: 'transaction',
             filters: a_filters,
@@ -443,7 +499,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 {name : 'custbody_authnet_refid'},
                 {name : 'tranid'},
                 {name : 'entity'},
-                {name:"custbody_authnet_refid", join:"appliedToTransaction"}
+                {name:"custbody_authnet_refid", join:"appliedToTransaction"},
+                {name:"internalid", join:"appliedToTransaction"},
+                {name:"tranid", join:"appliedToTransaction"},
             ]
         }).run();
         var a_toProcess = [];
@@ -455,12 +513,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 customerName : result.getText('entity'),
                 otherrefnum : result.getValue('otherrefnum'),
                 nsTxnId : result.getValue('tranid')
-                //todo - get adddress billing?
-                //todo - get additional info?Tax :
-                // Duty :
-                // Freight :
-                // Tax Exempt :
-                // PO Number :
             };
             if (resultObj.type === 'DepAppl') {
                 resultObj.anetRefId = result.getValue({name:"custbody_authnet_refid", join:"appliedToTransaction"});
@@ -468,7 +520,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 resultObj.anetRefId = result.getValue({name : 'custbody_authnet_refid'});
             }
             resultObj.amount = _.find(obj, {id:resultObj.id}).amount;
-            exports.homeSysLog('resultObj', resultObj)
+            //exports.homeSysLog('resultObj', resultObj)
             a_toProcess.push(resultObj);
             return true;
         });
@@ -494,7 +546,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
            idx++;
         });
         a_aNetFilters.push(a_refIds);
-        this.homeSysLog('a_aNetFilters',a_aNetFilters);
+        this.verboseLogging('a_aNetFilters',a_aNetFilters);
         var authNetRecs = search.create({
             type: 'customrecord_authnet_history',
             filters: a_aNetFilters,
@@ -517,36 +569,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 cardnum : result.getValue('custrecord_an_cardnum'),
                 timestamp : result.getValue('created')
             };
-            exports.homeSysLog('authNetRecs.each as o_aNet', o_aNet);
-            /*
-            Not sure we need this as the callBulkRefund does all this there as well
-            var i_idx = _.findIndex(a_toProcess, {'anetRefId':o_aNet.refid});
-            if (i_idx !== -1){
-                var live_txnLookup = exports.getStatusCheck(o_aNet.refid);
-                o_aNet.status = live_txnLookup.transactionStatus;
-                //if there is no credit card information to factor into the refund due to how the transaction was created
-                //go back to authorize.net to get the card information based off the transaction id
-                if (!o_aNet.cardnum && o_aNet.refid) {
-                    if (live_txnLookup.fullResponse.payment.creditCard)
-                    {
-                        o_aNet.cardnum = live_txnLookup.fullResponse.payment.creditCard.cardNumber;
-                        o_aNet.card = live_txnLookup.fullResponse.payment.creditCard.cardType;
-                    }//also do this for echeck!
-                    else if(live_txnLookup.fullResponse.payment.bankAccount)
-                    {
-                        o_aNet.cardnum = live_txnLookup.fullResponse.payment.bankAccount.accountNumber;
-                        o_aNet.card = live_txnLookup.fullResponse.payment.bankAccount.accountType;
-                    }
-                }
-                //add to the array of things to be processed
-                a_toProcess[i_idx].anet = o_aNet;
-            }*/
+            exports.verboseLogging('authNetRecs.each as o_aNet', o_aNet);
             return true;
         });
         //then for credit memos
-        this.homeSysLog('processable records', a_toProcess);
-        //loop over types doing refunds based on date - if the date is before today midnight - do a void else - refund
-        //var o_ccAuthSvcConfig = getConfig(orgtxn);
+        this.verboseLogging('processable records', a_toProcess);
         var o_ccAuthSvcConfig = this.getConfigFromCache(orgtxn);
         return callBulkRefund[o_ccAuthSvcConfig.type](orgtxn, o_ccAuthSvcConfig, a_toProcess);
     };
@@ -578,12 +605,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         exports.homeSysLog('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
         return callAuth[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
-    exports.getStatus = function (txn) {
+    exports.getStatus = function (txn, s_callType) {
         log.debug('getTxnStatus. 3rd Party Status Call', 'getStatus()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
         //log.debug('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
-        return getTxnStatus[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
+        return getTxnStatus[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig, s_callType);
     };
     exports.getStatusCheck = function (tranid, configId) {
         log.debug('getCallStatus. 3rd Party Status Call', 'getCallStatus()');
@@ -707,6 +734,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 parameters: {
                     orgid : response.fromId,
                     from : context.newRecord.type,
+                    fromId : context.newRecord.id,
                     historyId  : response.historyId
                 }
             });
@@ -737,9 +765,16 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             rec_response.setValue('custrecord_an_amount', getBaseCurrencyTotal(txn));
             rec_response.setValue('custrecord_an_reqrefid', txn.getValue({fieldId : config.custrecord_an_external_fieldid.val}));
             rec_response.setValue('custrecord_an_refid', o_status.fullResponse.transId);
-            rec_response.setValue('custrecord_an_response_status', 'Ok');
-            rec_response.setValue('custrecord_an_response_message', 'This transaction is assumed valid and authorized prior to integration with NetSuite.');
-            rec_response.setValue('custrecord_an_response_code', '1');
+            rec_response.setValue('custrecord_an_response_code', o_status.fullResponse.responseCode);
+            if (o_status.fullResponse.responseCode === 1)
+            {
+                rec_response.setValue('custrecord_an_response_status', 'Ok');
+                rec_response.setValue('custrecord_an_response_message', 'This transaction is assumed valid and authorized prior to integration with NetSuite.');
+            }
+            else
+            {
+                rec_response.setValue('custrecord_an_response_status', 'Error');
+            }
             rec_response.setValue('custrecord_an_response_ig_other', 'Date Created is NOT the timestamp for the event, that is when the record was sent to NetSuite');
             rec_response.save({ignoreMandatoryFields : true});
         }
@@ -810,6 +845,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 configname : rec.getValue({fieldId : 'name'}) + ' (MAIN CONFIG)',
                 subid : '',
                 hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
+                hasPaymentInstruments : runtime.isFeatureInEffect({feature: 'paymentinstruments'}),
             };
             //set the general config for the integration
             s_companyId = _.toUpper(rec.getValue({fieldId : 'custrecord_an_instanceid'}));
@@ -1086,8 +1122,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         histRec.setValue('custrecord_an_txn', txnRec.id);
         histRec.setValue('custrecord_an_customer', _.isEmpty(txnRec.getText('customer')) ? txnRec.getValue('entity'): txnRec.getValue('customer'));
         histRec.setValue('custrecord_an_response', JSON.stringify(o_body));
-        exports.homeSysLog('parseANetResponse response.code', response.code)
-        exports.homeSysLog('parseANetResponse response.body', response.body)
+        exports.verboseLogging('parseANetResponse response : '+response.code, response.body);
         if (response.code === 200){
             var messages = '';
             var s_suggestion = '', s_otherSuggestions = '', a_errorCodes = [];
@@ -1558,7 +1593,17 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     var getTxnStatus = {};
-    getTxnStatus[1] = function (txn, o_ccAuthSvcConfig){
+    getTxnStatus[1] = function (txn, o_ccAuthSvcConfig, s_callType){
+        //check for format and type to ensure authnet
+        //do not do anything if this is not a valid authnet transaction to validate
+        if (
+            !txn.getValue({fieldId : 'custbody_authnet_refid'})
+        ||
+            (txn.getValue({fieldId : 'custbody_authnet_settle_status'}) && txn.getValue({fieldId : 'custbody_authnet_settle_status'}))
+        )
+        {
+            return true;
+        }
         var b_canContinue = true;
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
@@ -1588,7 +1633,18 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     rec_response.setValue({fieldId: 'custrecord_an_response_status', value: 'Error'});
                     b_canContinue = false;
                 }
-                rec_response.setValue({fieldId: 'custrecord_an_call_type', value : o_body.transaction.transactionType});
+                if (s_callType)
+                {
+                    rec_response.setValue({fieldId: 'custrecord_an_call_type', value : s_callType});
+                }
+                else
+                {
+                    rec_response.setValue({fieldId: 'custrecord_an_call_type', value : o_body.transaction.transactionType});
+                }
+                if (o_body.transaction.transactionStatus === 'settledSuccessfully')
+                {
+                    rec_response.setValue({fieldId: 'custrecord_an_settle_status', value : o_body.transaction.transactionStatus });
+                }
                 rec_response.setValue({fieldId: 'custrecord_an_amount', value : o_body.transaction.authAmount});
                 rec_response.setValue({fieldId: 'custrecord_an_error_code', value : o_body.transaction.responseReasonCode});
                 rec_response.setValue({fieldId: 'custrecord_an_response_code', value : o_body.transaction.responseCode});
@@ -1816,10 +1872,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 url: authSvcUrl,
                 body: JSON.stringify(exports.AuthNetRequest.authorize)
             });
-            if (o_ccAuthSvcConfig.custrecord_an_break_pci.val){
-                log.debug('&#x2623; NON-PCI-COMPLAINT Authorize.net request &#x2623;', exports.AuthNetRequest.authorize);
-                log.debug('&#x2623; NON-PCI-COMPLAINT Authorize.net response &#x2623;', response.body);
-            }
             exports.homeSysLog('authOnlyTransaction request', exports.AuthNetRequest.authorize);
             exports.homeSysLog('response.body : '+response.code, response.body);
             var realTxn = txn ;
@@ -2248,19 +2300,19 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
 
     var callBulkRefund = {};
     callBulkRefund[1] = function(txn, o_ccAuthSvcConfig, a_toProcess){//orgtxn, o_ccAuthSvcConfig, a_toProcess
-        log.debug('STARTING callBulkRefund - heres the config', o_ccAuthSvcConfig);
+        exports.verboseLogging('STARTING callBulkRefund - here\'s the config', o_ccAuthSvcConfig);
         if (o_ccAuthSvcConfig.mode === 'subsidiary')
         {
             o_ccAuthSvcConfig = exports.getSubConfig(txn.getValue({fieldId:'subsidiary'}), o_ccAuthSvcConfig);
         }
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl, o_response = [];
-
+        //log.debug('***********************', a_toProcess);
         _.forEach(a_toProcess, function(toRefund){
             //{"id":8791,"type":"DepAppl","created":"5/29/2018 11:31 am","anetTxnId":8524,"amount":0.35,"anet":{"refid":"40011619623","card":"Visa","timestamp":"3/19/2018 4:19 pm"}}
-            exports.homeSysLog('bulkrefund (toRefund)', toRefund);
+            exports.verboseLogging('bulkrefund (toRefund)', toRefund);
             //GET the original transaction details
             var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, toRefund.anetRefId);
-            exports.homeSysLog('bulkrefund (o_orgTxnResponse)', o_orgTxnResponse);
+            exports.verboseLogging('bulkrefund (o_orgTxnResponse)', o_orgTxnResponse);
             exports.AuthNetRequest.authorize.createTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
             //note the order of how this object is built is critical
             exports.AuthNetRequest.authorize.createTransactionRequest.refId = toRefund.nsTxnId;
@@ -2303,7 +2355,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = o_orgTxnResponse.fullResponse.order.invoiceNumber;
             exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.description = 'Customer Refund';
             //does not use enhanced field data
-
+            log.error('REFUND CALL TO VALIDATE', exports.AuthNetRequest.authorize);
             var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
             rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
             rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
@@ -2313,9 +2365,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     url: authSvcUrl,
                     body: JSON.stringify(exports.AuthNetRequest.authorize)
                 });
-                exports.homeSysLog('response.body', response.body);
-                var s_txnType = (toRefund.type === 'DepAppl') ? 'depositapplication' : 'creditmemo';
-
+                exports.homeSysLog('callBulkRefund response : '+response.code, response.body);
+                var s_txnType = (txn.type === 'customerrefund') ? txn.type : (toRefund.type === 'DepAppl') ? 'depositapplication' : 'creditmemo';
+                log.debug('TESTING NEW VARIABLE HERE', txn.type);
                 rec_response.setValue('custrecord_an_txn', toRefund.id);
                 rec_response.setValue('custrecord_an_calledby', s_txnType);
                 rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
@@ -2555,7 +2607,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         }
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles = {};
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType = o_profile.getValue({fieldId: 'custpage_customertype'}) ? o_profile.getValue({fieldId: 'custpage_customertype'}) : o_profile.getValue({fieldId: 'custrecord_an_token_customer_type'});
-        if(_.isNull(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType))
+        if(_.isEmpty(o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.customerType))
         {
             throw 'No valid Customer Type was provided (individual / business) - this is a mandatory field per Authorize.Net'
         }

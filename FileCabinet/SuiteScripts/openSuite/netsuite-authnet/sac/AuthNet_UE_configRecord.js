@@ -175,10 +175,33 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 'This is fine if you are not yet ready to enable the configuration throughout NetSuite.'
                         });
                     }
+                    if(runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}) && context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'}))
+                    {
+                        context.form.addPageInitMessage({
+                            type: message.Type.ERROR,
+                            title: 'Your system is configured to allow Multi Subsidiary Customer',
+                            message: 'Your system has Multi Subsidiary Customer enabled (<i>Setup > Enable Features >> Company >>> ERP General</i>)<br>This feature REQUIRES you to enable multiple subsidiary support in the Authorize.Net Configuration. (Sometimes this is set on accounts and never used, if you are not using this NetSuite feature, do yourself a favor and just disable it, return to this page, click the "Debug & Testing Tool" link at the bottom of this screen and select the Purge Cache" option)<br/>' +
+                                'To configure The SuiteAuth Connect Authorize.Net connector to operate in this environment, you must uncheck the box "Use for all Subsidaries" in the configuration on this screen and follow the prompts.<br/>' +
+                                'You must fully configure at least one subsidary as well on this screen. You can use the same authorize.net credentails / processing gateway for all your subsadaries if you want, although that would be odd.<br/>' +
+                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguid subsidaries apart. This is purely cosmetic but may be confusing)',
+                            //duration: 0
+                        });
+                    }
+                    if(runtime.isFeatureInEffect({feature: 'paymentinstruments'}))
+                    {
+                        context.form.addPageInitMessage({
+                            type: message.Type.WARNING,
+                            title: 'Your system is configured to use Payment Instruments',
+                            message: 'Your system has Payment Instruments enabled (<i>Setup > Enable Features >> Transactions >>>  Payment Instruments</i>)<br>This feature has not been fully tested with Authorize.Net as it\'s a specific extension used by NetSuite Payment Card Gateways to provide functionality already included in the Authorize.Net integration.  It is <b>HIGHLY RECOMMENDED</b> you disable this feature to prevent unexpected issues.',
+                            //duration: 0
+                        });
+                    }
 
                 }
 
                 if (context.type === 'view') {
+
+
                     //make sure if the Subsidiary feature is enabled - that there is at least 1 record and that it is fully configured
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'})) {
                         var b_majorIssue = false;
@@ -202,7 +225,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 type: message.Type.ERROR,
                                 title: 'A Subsidiary Record is Misconfigured',
                                 message: 'Immediately review and fix the subsidiary configuration <a target="_blank" href="' + _recordlink + '">' + result.getValue('name') + '</a>  failure to resolve this will result in transaction proeccing errors!',
-                                duration: 60000
+                                //duration: 60000
                             });
                             b_majorIssue = true;
                         });
@@ -289,14 +312,14 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                         type: message.Type.ERROR,
                                         title: 'A Subsidiary failed credential validation',
                                         message: s_issue,
-                                        duration: 60000
+                                        //duration: 60000
                                     });
                                 }
                             }
                         }
 
                     } else {
-
+                        log.audit('Valudating non-sub config', 'Checking credentials');
                         if (context.newRecord.getValue({fieldId: 'custrecord_an_login_sb'}) && context.newRecord.getValue({fieldId: 'custrecord_an_trankey_sb'})) {
                             var o_testResult = authNet.doTest({
                                 url: context.newRecord.getValue({fieldId: 'custrecord_an_url_sb'}),
@@ -311,8 +334,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 type: o_testResult.level,
                                 title: o_testResult.title,
                                 message: o_testResult.message,
-                                duration: 6000
-                                //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                                //duration: +o_testResult.level === 3 ? 0 : 6000
                             });
                         }
 
@@ -330,8 +352,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 type: o_testResult.level,
                                 title: o_testResult.title,
                                 message: o_testResult.message,
-                                duration: 6000
-                                //duration : _.isUndefined(o_testResult.duration) ? '' : o_testResult.duration
+                                //duration: +o_testResult.level === 3 ? 0 : 6000
                             });
 
                             if (!o_testResult.isValid
@@ -419,7 +440,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             start: 0, //Index number of the first result to return, inclusive
                             end: 1 //Index number of the last result to return, exclusive
                         });
-                        log.debug('results', results)
+                        //log.debug('results', results)
                         _.forEach(results, function (val) {
                             var upgradeLink = url.resolveScript({
                                 scriptId: 'customscript_c9_authnet_screen_svc',
@@ -430,8 +451,8 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 type: message.Type.WARNING,
                                 title: 'A manual update your customers Payment Profiles / Tokens is required',
                                 message: 'An updated is needed to support the added functionality of this release.' +
+                                    '<p>Only proceed in this message if there are no other messages or warnings displayed</p>' +
                                     '<p>You should <a target="_blank" href="'+upgradeLink+'">click this link</a> to initiate the batch processing of token updates.  You can do this at a time when other processes will not be impacted.</p>',
-                                duration: 600000
                             });
                         });
                     }
@@ -446,10 +467,10 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             var s_remoteVersion = s_body.match(/VERSION =(.*);/gm)[0].split("'")[1];
                             if (authNet.VERSION !== s_remoteVersion) {
                                 context.form.addPageInitMessage({
-                                    type: message.Type.WARNING,
+                                    type: message.Type.INFORMATION,
                                     title: 'Your version of SuiteAuthConnect is not the current version',
                                     message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You may want to consider updating your version if you are behind to ensure you have the latest bug fixes and added features.',
-                                    duration: 60000
+                                    //duration: 60000
                                 });
                             }
                         }

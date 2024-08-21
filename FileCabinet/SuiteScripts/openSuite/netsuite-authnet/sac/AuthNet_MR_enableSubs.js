@@ -41,6 +41,8 @@ function (exports, record, search, runtime, _, authNet) {
                 filters: [
                     ['custrecord_an_token_pblkchn_tampered', 'is', 'F'],
                     "AND",
+                    ['isinactive', 'is', 'F'],
+                    "AND",
                     ['custrecord_an_token_gateway_sub', 'anyof', '@NONE@'],
                     "AND",
                     ['custrecord_an_token_subsidiary', 'anyof', '@NONE@']

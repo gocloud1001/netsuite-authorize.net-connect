@@ -169,15 +169,18 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                 anetTxnSettledTotal: 0,
                                 anetTxnRefundedCount: 0,
                                 anetTxnRefundedTotal: 0,
+                                anetTxnVoidedCount: 0,
+                                anetTxnVoidedTotal: 0,
                                 nsTotal: 0,
                                 nsTxnCount: 0,
+                                shouldNotPost: [],
                                 oddballs: [],
                                 missingInNs: [],
                             };
                             search.create({
                                 type: 'transaction',
                                 filters: [
-                                    ['type', 'anyof', ["CashRfnd", "CashSale", "CustDep","CustRfnd","CustPymt"]],
+                                    ['type', 'anyof', ["CashRfnd", "CashSale", "CustDep","CustRfnd","CustPymt", "CustCred"]],
                                     "AND",
                                     ["custbody_authnet_batchid", "is", batch.batchId],
                                     "AND",
@@ -216,15 +219,36 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                     o_aNetResponse.settleInforInNs.anetTxnRefundedCount++;
                                     o_aNetResponse.settleInforInNs.anetTotal -= txn.settleAmount;
                                     o_aNetResponse.settleInforInNs.anetTxnCount++;
-                                } else if (txn.transactionStatus === "declined") {
-                                    //o_aNetResponse.settleInforInNs.anetTxnDeclinedTotal += txn.settleAmount;
-                                    //o_aNetResponse.settleInforInNs.anetTxnDeclinedCount++;
-                                } else {
+                                    if (!o_nsTxns[txn.transId]) {
+                                        o_aNetResponse.settleInforInNs.missingInNs.push(txn)
+                                    }
+                                } else if (txn.transactionStatus === "voided") {
+                                    o_aNetResponse.settleInforInNs.anetTxnVoidedTotal += txn.settleAmount;
+                                    o_aNetResponse.settleInforInNs.anetTxnVoidedCount++;
+                                    //o_aNetResponse.settleInforInNs.anetTotal -= txn.settleAmount;
+                                    //o_aNetResponse.settleInforInNs.anetTxnCount++;
+                                    if (o_nsTxns[txn.transId]) {
+                                        //need to show this because it's voided and should not be a posting transaction!
+                                        //o_aNetResponse.settleInforInNs.missingInNs.push(txn)
+                                        o_aNetResponse.settleInforInNs.shouldNotPost.push(txn.transactionStatus);
+                                    }
+                                }
+                                else {
                                     o_aNetResponse.settleInforInNs.oddballs.push(txn.transactionStatus);
                                 }
-
                             });
                             log.debug(batch.batchId + ' :: o_aNetResponse.settleInfoInNs', o_aNetResponse.settleInforInNs)
+
+                            if (o_aNetResponse.settleInforInNs.shouldNotPost.length > 0)
+                            {
+                                sublist.addField({
+                                    id: 'voided',
+                                    type: serverWidget.FieldType.TEXTAREA,
+                                    label: 'Voided but posting'
+                                }).updateDisplayType({
+                                    displayType : serverWidget.FieldDisplayType.DISABLED
+                                });
+                            }
 
                             sublist.setSublistValue({
                                 id: 'batchid',
@@ -261,17 +285,19 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                 line: i_line,
                                 value: -o_aNetResponse.settleInforInNs.anetTxnRefundedTotal
                             });
+                            var _message = o_aNetResponse.settleInforInNs.nsTxnCount === (o_aNetResponse.settleInforInNs.anetTxnSettledCount + o_aNetResponse.settleInforInNs.anetTxnRefundedCount)? 'Details' : 'Details';
                             sublist.setSublistValue({
                                 id: 'nscount',
                                 line: i_line,
-                                value: '<b>'+o_aNetResponse.settleInforInNs.nsTxnCount.toString() + '</b> <a target="_blank" href="/app/common/search/searchresults.nl?searchtype=Transaction&CUSTBODY_AUTHNET_BATCHID='+batch.batchId+'&style=NORMAL&CUSTBODY_AUTHNET_BATCHIDtype=IS&CUSTBODY_AUTHNET_BATCHIDfooterfilter=T&report=&grid=&searchid=customsearch_ans_batch_settlement_detail&dle=T&sortcol=Transction_ORDTYPE9_raw&sortdir=ASC&csv=HTML&OfficeXML=F&pdf=&size=50&twbx=F">(Details)</a>'
+                                value: '<b>'+o_aNetResponse.settleInforInNs.nsTxnCount.toString() + '</b> <a target="_blank" href="/app/common/search/searchresults.nl?searchtype=Transaction&CUSTBODY_AUTHNET_BATCHID='+batch.batchId+'&style=NORMAL&CUSTBODY_AUTHNET_BATCHIDtype=IS&CUSTBODY_AUTHNET_BATCHIDfooterfilter=T&report=&grid=&searchid=customsearch_ans_batch_settlement_detail&dle=T&sortcol=Transction_ORDTYPE9_raw&sortdir=ASC&csv=HTML&OfficeXML=F&pdf=&size=50&twbx=F">('+ _message +')</a>'
                             });
                             sublist.setSublistValue({
                                 id: 'nsamount',
                                 line: i_line,
                                 value: o_aNetResponse.settleInforInNs.nsTotal
                             });
-                            var _missing = (o_aNetResponse.settleInforInNs.anetTxnSettledCount + o_aNetResponse.settleInforInNs.anetTxnRefundedCount - o_aNetResponse.settleInforInNs.nsTxnCount);
+                            var _missing = Math.abs((o_aNetResponse.settleInforInNs.anetTxnSettledCount + o_aNetResponse.settleInforInNs.anetTxnRefundedCount - o_aNetResponse.settleInforInNs.nsTxnCount));
+
                             sublist.setSublistValue({
                                 id: 'missing',
                                 line: i_line,
@@ -284,9 +310,11 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                 value: +_delta !== 0 ? '<span style="color:red;font-weight: bold;">'+_delta+'</span>' : _delta
                             });
                             log.debug('_delta',_delta);
+                            log.debug('o_aNetResponse.settleInforInNs.missingInNs',o_aNetResponse.settleInforInNs.missingInNs);
                             if (o_aNetResponse.settleInforInNs.missingInNs.length > 0) {
                                 var s_missing = '';
                                 _.forEach(o_aNetResponse.settleInforInNs.missingInNs, function (missingTxn) {
+                                    log.debug('missingTxn', missingTxn)
                                     var o_config = {missingtranid:missingTxn.transId};
                                     if (context.request.parameters.config_sub)
                                     {
@@ -298,8 +326,13 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                         params: o_config
                                     });
                                     var s_invNumber = _.isUndefined(missingTxn.invoiceNumber) ? '' : ' : '+missingTxn.invoiceNumber;
+                                    var amount = '$'+missingTxn.settleAmount;
+                                    if (missingTxn.transactionStatus === 'refundSettledSuccessfully')
+                                    {
+                                        amount =  '<span style="color:red;font-weight: bold;">('+'$'+missingTxn.settleAmount+')</span>'
+                                    }
                                     s_missing +=
-                                        ' <a target="_blank" href="'+s_missingLink+'">' + missingTxn.transId + s_invNumber + '</a>\r\n';
+                                        ' <a target="_blank" href="'+s_missingLink+'">' +amount + ' : '+ missingTxn.transId + s_invNumber + '</a>\r\n';
                                     if (s_missing.length > 3800)
                                     {
                                         s_missing += ' (more)'
@@ -330,29 +363,47 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                 {
                     form.title = 'Missing Authorize.Net Transaction Id '+o_params.missingtranid;
                     //lookup the missing transaction and pull details to show to the user here
-                    var o_missingTxn;
+                    var o_missingTxn, o_config2;
                     if (o_params.config_sub)
                     {
                         o_missingTxn = AUTHNET.getStatusCheck(o_params.missingtranid, o_params.config_sub);
+                        o_config2 = AUTHNET.getConfigFromCache(o_params.config_sub);
                     }
                     else
                     {
                         o_missingTxn = AUTHNET.getStatusCheck(o_params.missingtranid);
+                        o_config2 = AUTHNET.getConfigFromCache();
                     }
-                    log.debug('o_missingTxn', o_missingTxn);
+                    //log.debug('o_config2', o_config2);
+                    //log.debug('o_missingTxn', o_missingTxn);
                     if (o_missingTxn)
                     {
                         var o_matchedTranId, o_matchedCustomer;
                         if (o_missingTxn.fullResponse.order.invoiceNumber) {
-                            search.create({
-                                type: 'transaction',
-                                filters: [
-                                    ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
+                            var a_filters = [
+                                ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
+                                "AND",
+                                ['type', 'anyof', ["SalesOrd", "CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt"]],
+                                "AND",
+                                ['mainline', 'is', 'T'],
+                            ];
+                            if (o_config2.custrecord_an_external_fieldid.val)
+                            {
+                                a_filters = [
+                                    [
+                                        ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
+                                        "OR",
+                                        [o_config2.custrecord_an_external_fieldid.val, 'is', o_missingTxn.fullResponse.order.invoiceNumber]
+                                    ],
+                                    "AND",
+                                    ['type', 'anyof', [ "CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt", "CustCred"]],
                                     "AND",
                                     ['mainline', 'is', 'T'],
-                                    "AND",
-                                    ['type', 'anyof', ["SalesOrd", "CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt"]]
-                                ],
+                                ]
+                            }
+                            search.create({
+                                type: 'transaction',
+                                filters: a_filters,
                                 columns: [
                                     {name: 'tranid'},
                                     {name: 'entity'},
@@ -385,6 +436,35 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                             tranid: result.getValue('tranid')
                                         };
                                         log.debug('FOUND TRANSACTION APPLIED', o_matchedTranId.applied);
+                                    });
+                                }
+
+                                else if (o_matchedTranId.type === 'creditmemo')
+                                {
+                                    //see what it's applied to
+                                    search.create({
+                                        type: 'transaction',
+                                        filters: [
+                                            ['internalid', 'anyof', o_matchedTranId.id],
+                                        ],
+                                        columns: [
+                                            {name: 'tranid'},
+                                            {name: 'entity'},
+                                            {name: 'appliedtotransaction'},
+                                            {name: 'appliedtolinktype'},
+                                            //todo - add these above and use to offer guidance on the transaction that's missing / but found
+                                            {join: 'appliedtotransaction', name : 'custbody_authnet_refid'},
+                                            {join: 'appliedtotransaction', name : 'custbody_authnet_settle_status'},
+                                            {join: 'appliedtotransaction', name : 'custbody_authnet_batchid'},
+                                        ]
+                                    }).run().each(function (result) {
+                                        //log.debug('cm result', result);
+                                        o_matchedTranId.applied = {
+                                            id: result.getValue('appliedtotransaction'),
+                                            type: result.getValue('appliedtolinktype'),
+                                            tranid: result.getText('appliedtotransaction')
+                                        };
+                                        log.debug('FOUND TRANSACTION APPLYING', o_matchedTranId.applied);
                                     });
                                 }
                             }

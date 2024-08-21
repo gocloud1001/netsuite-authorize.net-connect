@@ -63,9 +63,9 @@
     </scriptcustomfield>
   </scriptcustomfields>
   <scriptdeployments>
-    <scriptdeployment scriptid="customdeploy_sac_update_profiles">
+    <scriptdeployment scriptid="customdeploy_sac_update_profiles_up">
       <buffersize>1</buffersize>
-      <concurrencylimit>1</concurrencylimit>
+      <concurrencylimit>2</concurrencylimit>
       <custscript_an_gateway_sub></custscript_an_gateway_sub>
       <custscript_an_subsidiary></custscript_an_subsidiary>
       <isdeployed>T</isdeployed>
@@ -73,7 +73,7 @@
       <queueallstagesatonce>T</queueallstagesatonce>
       <runasrole>ADMINISTRATOR</runasrole>
       <status>NOTSCHEDULED</status>
-      <title>SuiteAuthConnect Update Profiles</title>
+      <title>SuiteAuthConnect Update Profiles (Upgrade)</title>
       <yieldaftermins>60</yieldaftermins>
       <recurrence>
         <single>
@@ -83,9 +83,9 @@
         </single>
       </recurrence>
     </scriptdeployment>
-    <scriptdeployment scriptid="customdeploy_sac_update_profiles_up">
+    <scriptdeployment scriptid="customdeploy_sac_update_profiles">
       <buffersize>1</buffersize>
-      <concurrencylimit>1</concurrencylimit>
+      <concurrencylimit>2</concurrencylimit>
       <custscript_an_gateway_sub></custscript_an_gateway_sub>
       <custscript_an_subsidiary></custscript_an_subsidiary>
       <isdeployed>T</isdeployed>
@@ -93,7 +93,7 @@
       <queueallstagesatonce>T</queueallstagesatonce>
       <runasrole>ADMINISTRATOR</runasrole>
       <status>NOTSCHEDULED</status>
-      <title>SuiteAuthConnect Update Profiles (Upgrade)</title>
+      <title>SuiteAuthConnect Update Profiles</title>
       <yieldaftermins>60</yieldaftermins>
       <recurrence>
         <single>

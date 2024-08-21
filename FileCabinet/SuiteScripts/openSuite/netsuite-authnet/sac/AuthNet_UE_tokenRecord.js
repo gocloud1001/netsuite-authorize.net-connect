@@ -548,6 +548,13 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     }
                 }
             }
+            else if (runtime.executionContext === runtime.ContextType.SUITELET)
+            {
+                log.audit('Pokin a Token', 'From a Suitelet!');
+                context.form.addField({id:'custpage_customertype', type:ui.FieldType.TEXT, label : 'Customer Type'});
+                context.form.addField({id:'custpage_banktype', type:ui.FieldType.TEXT, label : 'Bank Account Type'});
+                context.form.addField({id:'custpage_achtype', type:ui.FieldType.TEXT, label : 'ACH Type'});
+            }
         }
         function beforeSubmit(context) {
             //get the config for this token - incase we need it
