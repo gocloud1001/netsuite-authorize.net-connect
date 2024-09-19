@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2024.2.1';
+    exports.VERSION = '2024.2.3';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -59,6 +59,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     exports.SERVICE_CREDENTIAL_FIELDS = ['custrecord_an_login', 'custrecord_an_login_sb', 'custrecord_an_trankey', 'custrecord_an_trankey_sb'];
 
     var RESPONSECODES = {
+        "0" : "System Level Failure",
         "1" : "Approved",
         "2" : "Declined",
         "3" : "Error",
@@ -140,7 +141,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         getCustomerProfileRequest: {
             "merchantAuthentication": {},
             "customerProfileId": null,
-            "includeIssuerInfo": "false"
+            "unmaskExpirationDate" : "true", //todo - should make this a parameter in the config for all exp date information
+            "includeIssuerInfo": "true"
         }
     };
 
@@ -217,6 +219,277 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             return v.toString(16);
         });
     }
+    //a object that can hold all the appropriate auth data in cache or in a field
+    exports.cacheActiveConfig = function(){
+        var live_solution = 'AAA175381';
+        var s_companyId = '';
+        //var rec = getConfig().rec;
+        var a_cachedConfigs = [];
+        var a_filters = [
+            ['isinactive', 'is', 'F']
+        ];
+        var authnetconfig = search.create({
+            type: 'customrecord_authnet_config',
+            //filters: a_filters,
+            filters: a_filters,
+            columns: [
+                {name: 'internalid', sort: search.Sort.DESC}
+            ]
+        }).run();
+        var a_configRecId = [];
+        authnetconfig.each(function (result) {
+            a_configRecId.push(result.getValue('internalid'));
+            //this will only return the first one
+            return false;
+        });
+        var o_nsInstanceFeatures = config.load({ type: config.Type.FEATURES });
+        _.forEach(a_configRecId, function (configId){
+            var rec = record.load({
+                type: 'customrecord_authnet_config',
+                id: configId,
+                isDynamic: false
+            });
+            //the response with the object components - placeholders to match those in subs
+            var o_response = {
+                id : rec.id,
+                type: 1,
+                mode: '',
+                recType : rec.type,
+                masterid: rec.id,
+                configid : '',
+                configname : rec.getValue({fieldId : 'name'}) + ' (MAIN CONFIG)',
+                subid : '',
+                //remember to add these below as well
+                hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
+                hasPaymentInstruments : runtime.isFeatureInEffect({feature: 'paymentinstruments'}),
+                hasNativeCC : o_nsInstanceFeatures.getValue({ fieldId: 'cctracking' }),
+            };
+            //set the general config for the integration
+            s_companyId = _.toUpper(rec.getValue({fieldId : 'custrecord_an_instanceid'}));
+            o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
+            //undo the standard id with the development id's provided by Authorize.Net
+            if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !rec.getValue('custrecord_an_islive'))
+            {
+                o_response.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
+                o_response.solutionId.name = 'SuiteAuthConnect (TESTING MODE) v.'+exports.VERSION;
+            }
+            var a_allFields = rec.getFields();
+            var o_masterConfig = {};
+            //log.debug('a_allFields', a_allFields)
+            _.forEach(a_allFields, function(fld) {
+                if (_.startsWith(fld, 'custrecord')) {
+                    o_masterConfig[fld] = {
+                        val: rec.getValue(fld),
+                        txt: rec.getText(fld)
+                    }
+                }
+            });
+            //need to get the payment instrument ID which is different from the method id, thanks NS
+            if (o_response.hasPaymentInstruments)
+            {
+                search.create({
+                    type: 'paymentmethod',
+                    filters: [
+                        ['internalid', 'anyof',[o_masterConfig.custrecord_an_paymentmethod.val, o_masterConfig.custrecord_an_paymentmethod_echeck.val] ],
+                    ],
+                    columns: [
+                        {name: 'name'},
+                        {name: 'paymentoptionid'}
+                    ]
+                }).run().each(function (result) {
+                    if (+o_masterConfig.custrecord_an_paymentmethod.val === +result.id)
+                    {
+                        o_masterConfig.custrecord_an_paymentmethod.profileId = result.getValue({name: 'paymentoptionid'});
+                    }
+                    else if (+o_masterConfig.custrecord_an_paymentmethod_echeck.val === +result.id)
+                    {
+                        o_masterConfig.custrecord_an_paymentmethod_echeck.profileId = result.getValue({name: 'paymentoptionid'});
+                    }
+                    return true;
+                });
+            }
+            //ensure some of the universally needed values are at the top level
+            var a_mandatoryTopLevelFields = [
+                ''
+            ];
+            _.forEach(a_mandatoryTopLevelFields, function(fieldId){
+                o_response[fieldId] = o_masterConfig[fieldId]
+            });
+
+            //these 4 fields from the main config are required for setting up a transaction before a sub is known
+            o_response.custrecord_an_break_pci = o_masterConfig.custrecord_an_break_pci;
+            o_response.custrecord_an_verbose_logging = o_masterConfig.custrecord_an_verbose_logging;
+            o_response.custrecord_an_enable = o_masterConfig.custrecord_an_enable;
+            o_response.custrecord_an_paymentmethod = o_masterConfig.custrecord_an_paymentmethod;
+            o_response.custrecord_an_paymentmethod_echeck = o_masterConfig.custrecord_an_paymentmethod_echeck;
+
+            //now build auth information off the sub records
+            if (!rec.getValue({fieldId:'custrecord_an_all_sub'}))
+            {
+                o_response.mode = 'subsidiary';
+                o_response.subs = {};
+                search.create({
+                    type: 'customrecord_authnet_config_subsidiary',
+                    filters: [
+                        ['custrecord_ancs_active', 'is', 'T'],
+                        "AND",
+                        ['custrecord_ancs_parent_config', 'anyof', [configId]]
+                    ],
+                    columns: [
+                        'name'
+                    ]
+                }).run().each(function (subConfig) {
+                    var subRec = record.load({
+                        type: 'customrecord_authnet_config_subsidiary',
+                        id: subConfig.id,
+                        isDynamic: false
+                    });
+                    var o_thisSub = {
+                        isSubConfig : true,
+                        type: 1,
+                        recType : rec.type,
+                        masterid : rec.id,
+                        configid : subConfig.id,
+                        configname : subConfig.getValue('name'),
+                        solutionId : o_response.solutionId,
+                        subid : subRec.getValue('custrecord_ancs_subsidiary'),
+                        subname : subRec.getText('custrecord_ancs_subsidiary'),
+                        isReady : true,
+                        hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
+                        hasPaymentInstruments : runtime.isFeatureInEffect({feature: 'paymentinstruments'}),
+                        hasNativeCC : o_nsInstanceFeatures.getValue({ fieldId: 'cctracking' }),
+                        liveAuth : true,
+                        auth :{}
+                    };
+                    if (o_thisSub.hasMultiSubRuntime)
+                    {
+                        o_thisSub.ccnameprefix = subRec.getValue({fieldId:'custrecord_ancs_card_prefix'});
+                        if (!o_thisSub.ccnameprefix)
+                        {
+                            o_thisSub.isReady = false;
+                        }
+                    }
+                    o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
+                    //undo the standard id with the development id's provided by Authorize.Net
+                    if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !subRec.getValue('custrecord_ancs_islive'))
+                    {
+                        o_response.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
+                        o_response.solutionId.name = 'SuiteAuthConnect (TESTING MODE) v.'+exports.VERSION;
+                    }
+
+                    _.forEach(o_masterConfig, function(val, kie){
+                        o_thisSub[kie] = val;
+                    });
+                    var a_allSubFields = subRec.getFields();
+                    _.forEach(a_allSubFields, function(fld){
+                        if (_.startsWith( fld, 'custrecord')) {
+                            //rename the field to match the master config for max code reuse
+                            var _renamed = fld.replace('_ancs_', '_an_');
+                            o_thisSub[_renamed] = {
+                                val: subRec.getValue(fld),
+                                txt: subRec.getText(fld)
+                            }
+                        }
+                    });
+                    if (runtime.envType === 'PRODUCTION' && subRec.getValue({fieldId: 'custrecord_ancs_islive'})){
+                        o_thisSub.auth.name = subRec.getValue({fieldId: 'custrecord_ancs_login'});
+                        o_thisSub.auth.transactionKey = subRec.getValue({fieldId: 'custrecord_ancs_trankey'});
+                        o_thisSub.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url'});
+
+                    } else {
+                        o_thisSub.auth.name = subRec.getValue({fieldId: 'custrecord_ancs_login_sb'});
+                        o_thisSub.auth.transactionKey = subRec.getValue({fieldId: 'custrecord_ancs_trankey_sb'});
+                        o_thisSub.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url_sb'});
+                        o_thisSub.liveAuth = false;
+                    }
+                    o_response.subs['subid'+subRec.getValue({fieldId:'custrecord_ancs_subsidiary'})] = o_thisSub;
+                    return true;
+                });
+            }
+            else
+            {
+                o_response.mode = 'single';
+                o_response.isSubConfig = false;
+                o_response.liveAuth = true;
+                o_response.auth = {};
+                _.forEach(o_masterConfig, function(val, kie){
+                    o_response[kie] = val;
+                });
+                //if no sub config - general auth object is built
+                if (runtime.envType === 'PRODUCTION' && rec.getValue({fieldId: 'custrecord_an_islive'})){
+                    o_response.auth.name = rec.getValue({fieldId: 'custrecord_an_login'});
+                    o_response.auth.transactionKey = rec.getValue({fieldId: 'custrecord_an_trankey'});
+                    o_response.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url'});
+                } else {
+                    o_response.auth.name = rec.getValue({fieldId: 'custrecord_an_login_sb'});
+                    o_response.auth.transactionKey = rec.getValue({fieldId: 'custrecord_an_trankey_sb'});
+                    o_response.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url_sb'});
+                    o_response.liveAuth = false;
+                }
+            }
+
+            a_cachedConfigs.push(o_response);
+        });
+        log.audit('The Authorize.Net Cache has been refreshed', 'This data should remain in cache for about an hour');
+        //log.debug('a_cachedConfigs', a_cachedConfigs);
+        return a_cachedConfigs;
+    };
+
+    exports.purgeCache = function() {
+        var o_cache = cache.getCache({
+            name: 'config',
+            scope: cache.Scope.PROTECTED
+        });
+        o_cache.remove({
+            key: 'config'
+        });
+    };
+
+    //GET AND LOAD THE CACHE AS NEEDED FOR THE CONFIG
+    exports.getConfigFromCache = function(txn) {
+        var o_configResponse;
+        var o_cache = cache.getCache({
+            name: 'config',
+            scope: cache.Scope.PROTECTED
+        });
+        var o_cacheKey = o_cache.get({
+            key: 'config',
+            loader: this.cacheActiveConfig,
+            ttl : 3600
+        });
+        var o_fullCache = JSON.parse(o_cacheKey);
+        if (o_fullCache[0]) {
+            if (o_fullCache[0].mode === 'subsidiary' && txn) {
+                //check for data type and make this smarter
+                if (_.isObject(txn)) {
+                    o_configResponse = o_fullCache[0].subs['subid' + txn.getValue({fieldId: 'subsidiary'})];
+                } else {
+                    o_configResponse = o_fullCache[0].subs['subid' + txn];
+                }
+            } else {
+                o_configResponse = o_fullCache[0];
+            }
+        } else {
+            o_configResponse = o_fullCache[0];
+        }
+
+        //this logging is highly annoying
+        //log.debug('CACHE RETURN getConfigFromCache ('+txn+')', o_configResponse);
+        //note the [0] above returns only one of the custom records - this is for multiple configs in the future
+        return o_configResponse;
+    };
+
+    exports.getSubConfig = function(s_subId, o_config) {
+        var o_specificConfig = o_config.subs['subid'+s_subId];
+        if (o_specificConfig){
+            log.audit('Available config '+o_specificConfig.configname, 'Using Subsidiary - ' +o_specificConfig.subname);
+        }
+        else
+        {
+            log.audit('No Subsidiary', 'Subsidiary id '+s_subId+' not configured');
+        }
+        return o_specificConfig;
+    }
 
     exports.homeSysLog = function(name, body)
     {
@@ -224,16 +497,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var b_singleScriptOverride = runtime.getCurrentScript().getParameter({name:'custscript_sac_debug_logs'}) === 'Y';
         if (o_config.custrecord_an_break_pci) {
             if (o_config.custrecord_an_break_pci.val || runtime.envType === runtime.EnvType.SANDBOX || b_singleScriptOverride) {
-                if (runtime.envType === runtime.EnvType.SANDBOX)
-                {
-
-                    log.debug('‼️⏳📦 ' + name, body);
-                }
-                else
+                if (runtime.envType === runtime.EnvType.PRODUCTION)
                 {
                     log.debug('‼️ PCI ALERT!!! ‼️' + name, body);
                 }
-
+                else
+                {
+                    log.debug('‼️(⏳📦) ' + name, body);
+                }
             }
         }
         else
@@ -248,16 +519,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
 
         if (o_config.custrecord_an_verbose_logging) {
             if (o_config.custrecord_an_verbose_logging.val || runtime.envType === runtime.EnvType.SANDBOX) {
-                if (runtime.envType === runtime.EnvType.SANDBOX)
-                {
-
-                    log.debug('🗣️⏳📦 ' + name, body);
-                }
-                else
+                if (runtime.envType === runtime.EnvType.PRODUCTION)
                 {
                     log.debug('🗣️🗣️🗣️' + name, body);
                 }
-
+                else
+                {
+                    log.debug('🗣️(⏳📦) ' + name, body);
+                }
             }
         }
         else
@@ -266,16 +535,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         }
     };
 
-    //this is an issue with permissions on execution and You need  the 'Enable Features' permission so scripts are FULL ACCESS
-    exports.hasNativeCC = function() {
-        return config.load({ type: config.Type.FEATURES }).getValue({ fieldId: 'cctracking' });
-    };
-
     //Used for finding the success or failure history records for call to auth Net - excluding CIM calls
 
     exports.getHistory = function (o_req) {
         //{txnid : x, txntype : y, isOK : true, mostrecent : true}
-        this.homeSysLog('getHistory', 'txnid='+o_req.txnid+ ' txntype='+ o_req.txntype+ ' isOK='+ o_req.isOK+ ' mostrecent='+ o_req.mostrecent);
+        this.verboseLogging('getHistory', 'txnid='+o_req.txnid+ ' txntype='+ o_req.txntype+ ' isOK='+ o_req.isOK+ ' mostrecent='+ o_req.mostrecent);
         var a_filters = [
             ['custrecord_an_txn', 'anyof', o_req.txnid],
             "AND",
@@ -286,6 +550,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         if (o_req.txntype === 'customerrefund')
         {
             var a_subFilter = [
+                ['custrecord_an_calledby', 'is', 'customerrefund'],
+                "OR",
                 ['custrecord_an_calledby', 'is', exports.normalizeRecType(o_req.txntype)],
                 "OR",
                 ['custrecord_an_calledby', 'is', 'depositapplication'],
@@ -296,7 +562,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         {
             a_filters.push(['custrecord_an_calledby', 'is', exports.normalizeRecType(o_req.txntype)])
         }
-
         if (!o_req.mostrecent){
             if (o_req.isOK){
                 a_filters.push("AND");
@@ -332,13 +597,18 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         return response;
     };
 
-    /*
-    *
-    * PBLKChain Logic
-    *
-    * What's a PBLKChain...  pseudo blockchain of course...  it's not a blockchain at all...  but blockchain is a fun word to say
-    *
-    * */
+    /**
+     * (TLDR; record fingerprint) What's a PBLKChain...  pseudo blockchain of course...  it's not a blockchain at all...  but blockchain is a fun word to say
+     * @param cimRec
+     *        {Object} netsuite loaded token record
+     * @param id
+     *        {number} internal id (weird, I know)
+     *
+     * @return {string} hash of the values to make a fingerprint
+     *
+     * @static
+     * @function mkpblkchain
+     */
     exports.mkpblkchain = function (cimRec, id){
         var s_rawData =
             id +
@@ -361,8 +631,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         //note - I'd like to add custrecord_an_token_gateway_sub but you can't because all upgrades will invalidate tokens
         //should add an upgrade field in the upgrade process and then can add this
         s_rawData = s_rawData.replace(/\s/g, "");
-        //log.debug('s_rawData', s_rawData)
-
         var hashObj = crypto.createHash({
             algorithm: crypto.HashAlg.SHA512
         });
@@ -380,7 +648,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     *
     */
     exports.findExistingProfile = function (customerId, profileId, paymentId) {//internalid of customer, profile ID, payment ID
-        exports.homeSysLog('findExistingProfile parameters are: customerId, profileId, paymentId ', customerId +', '+ profileId +', '+  paymentId);
+        this.verboseLogging('findExistingProfile parameters are: customerId, profileId, paymentId ', customerId +', '+ profileId +', '+  paymentId);
         var a_filters = [
             ['custrecord_an_token_entity', search.Operator.ANYOF, customerId],
             "AND",
@@ -420,7 +688,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     exports.parseHistory = function (txnid, txntype) {
         var o_parsedHistory = {isValid : false, status : 'ERROR', message : ''};
         //would be undefined on a create that triggers this due to logic issue or on a copy or the transformation where there is no history but the record has some field set indicating there MIGHT be history
-        this.homeSysLog('parseHistory() '+txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype));
+        this.verboseLogging('parseHistory() '+txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype));
         if (_.isNull(txnid) || _.isNull(txntype)){
             o_parsedHistory.isValid = true;
             o_parsedHistory.status = 'OK';
@@ -469,7 +737,18 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         }
         return o_parsedHistory;
     };
-
+        /**
+         * Calcuate the records that need refunds issues off a customer refund
+         * @param orgtxn
+         *        {Object} netsuite loaded customer refund
+         * @param obj
+         *        {Array} list of object representing the transactions to be refunded
+         *
+         * @return {Object}results from exports.performBulkRefunds()
+         *
+         * @static
+         * @function getBulkRefunds
+         */
     exports.getBulkRefunds = function (orgtxn, obj){
         this.verboseLogging('getBulkRefunds(obj)', obj);
         //this.verboseLogging('getBulkRefunds(orgtxn)', orgtxn);
@@ -572,80 +851,81 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             exports.verboseLogging('authNetRecs.each as o_aNet', o_aNet);
             return true;
         });
-        //then for credit memos
         this.verboseLogging('processable records', a_toProcess);
-        var o_ccAuthSvcConfig = this.getConfigFromCache(orgtxn);
-        return callBulkRefund[o_ccAuthSvcConfig.type](orgtxn, o_ccAuthSvcConfig, a_toProcess);
+        return this.performBulkRefunds(orgtxn, a_toProcess);
     };
 
     exports.getRefund = function (txn) {
-        log.debug('getRefund. 3rd Party Call', 'getRefund()');
+        log.audit('getRefund. 3rd Party Call', 'getRefund()');
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        log.debug('getRefund.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('getRefund.getConfig is ', o_ccAuthSvcConfig.type);
         return callRefund[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
     exports.doVoid = function (txn) {
-        log.debug('doVoid. 3rd Party Call', 'doVoid()');
+        log.audit('doVoid. 3rd Party Call', 'doVoid()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        log.debug('doVoid.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('doVoid.getConfig is ', o_ccAuthSvcConfig.type);
         return callVoid[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
     exports.doFraudApprove = function (historyRec, txn, s_approval) {
-        log.debug('doFraudApprove. 3rd Party Call', 'doFraudApprove()');
+        log.audit('doFraudApprove. 3rd Party Call', 'doFraudApprove()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        log.debug('doFraudApprove.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('doFraudApprove.getConfig is ', o_ccAuthSvcConfig.type);
         return callFraud[o_ccAuthSvcConfig.type](historyRec, txn, o_ccAuthSvcConfig, s_approval);
     };
     exports.getAuth = function (txn) {
-        log.debug('getAuth. 3rd Party AUTH Call', 'getAuth()');
+        log.audit('getAuth. 3rd Party AUTH Call', 'getAuth()');
         //by passing the txn, we get the right config!
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        exports.homeSysLog('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
         return callAuth[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
     exports.getStatus = function (txn, s_callType) {
-        log.debug('getTxnStatus. 3rd Party Status Call', 'getStatus()');
+        log.audit('getTxnStatus. 3rd Party Status Call', 'getStatus()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        //log.debug('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('getAuth.getStatus is ', o_ccAuthSvcConfig.type);
         return getTxnStatus[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig, s_callType);
     };
     exports.getStatusCheck = function (tranid, configId) {
-        log.debug('getCallStatus. 3rd Party Status Call', 'getCallStatus()');
+        log.audit('getCallStatus. 3rd Party Status Call', 'getCallStatus()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache();
         //log.debug('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
         return doCheckStatus[o_ccAuthSvcConfig.type](o_ccAuthSvcConfig,tranid,configId);
     };
-    exports.doTest = function (o_test) {
-        log.debug('doTest. 3rd Party Status Call', 'doTest()');
-        //log.debug('getAuth.getConfig is ', o_ccAuthSvcConfig.type);
-        return doAuthTest[1](o_test);
-    };
     exports.getAuthCapture = function (orgtxn) {
-        log.debug('getAuthCapture. 3rd Party AUTH Call', 'getAuthCapture()');
+        log.audit('getAuthCapture. 3rd Party AUTH Call', 'getAuthCapture()');
         var txn = record.load({
             type : orgtxn.type,
             id: orgtxn.id,
             isDynamic: true });
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        log.debug('getAuthCapture.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('getAuthCapture.getConfig is ', o_ccAuthSvcConfig.type);
         return callAuthCapture[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
     exports.doCapture = function (txn) {
-        log.debug('doCapture. 3rd Party Call', 'doCapture()');
+        log.audit('doCapture. 3rd Party Call', 'doCapture()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        log.debug('doCapture.getConfig is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('doCapture.getConfig is ', o_ccAuthSvcConfig.type);
         return callCapture[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
-    /*
-    * Pull CIM data from an existing transaction
-    * */
+    /**
+     * @param txn
+     *        {Object} loaded transaction
+     * @param config
+     *        {Object} core config Object
+     *
+     * @return {Object} Built token response
+     *
+     * @static
+     * @function getCIM
+     */
     exports.getCIM = function (txn, config) {
-        log.debug('getCIM. calling AUTH.Net', 'getCIM()');
+        log.audit('getCIM. calling AUTH.Net', 'getCIM()');
         if (config.mode === 'subsidiary')
         {
             config = this.getSubConfig(txn.getValue({fieldId: 'subsidiary'}), config)
@@ -659,35 +939,35 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     exports.createNewProfile = function (o_profile, filteredConfig) {
-        log.debug('requestNewToken. building AUTH.Net', 'requestNewToken()');
+        log.audit('requestNewToken. building AUTH.Net', 'requestNewToken()');
         return mngCustomerProfile.createNewProfile(o_profile, filteredConfig);
     };
 
     exports.getProfileByNSeId = function (nseid, config) {
-        log.debug('requestNewToken. building AUTH.Net', 'looking for existing profile for this customer ()');
+        log.audit('requestNewToken. building AUTH.Net', 'looking for existing profile for this customer ()');
         return mngCustomerProfile.getProfileByNSeId(nseid, config);
     };
 
     exports.makeToken = function (o_profile, config) {
-        log.debug('makeToken. building AUTH.Net', 'makeToken()');
+        log.audit('makeToken. building AUTH.Net', 'makeToken()');
         return mngCustomerProfile.getAndBuildProfile(o_profile, config);
     };
 
     exports.importCIMToken = function (o_importedJSON) {
-        log.debug('importCIMToken. building AUTH.Net', 'importCIMToken()');
+        log.audit('importCIMToken. building AUTH.Net', 'importCIMToken()');
         return mngCustomerProfile.importProfile(o_importedJSON);
     };
 
     exports.importAndBuildProfilesOffProfileId = function (o_importedJSON) {
-        log.debug('importAndBuildProfilesOffProfileId. building AUTH.Net', 'importAndBuildProfilesOffProfileId()');
+        log.audit('importAndBuildProfilesOffProfileId. building AUTH.Net', 'importAndBuildProfilesOffProfileId()');
         return mngCustomerProfile.importAndBuildProfilesOffProfileId(o_importedJSON);
     };
 
     exports.doSettlement = function (txn, settlementType) {
-        log.debug('doSettlement. Direct Call', 'doSettlement()');
+        log.audit('doSettlement. Direct Call', 'doSettlement()');
         //var o_ccAuthSvcConfig = getConfig(txn);
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
-        log.debug('doSettlement.getConfig.settlementType is ', o_ccAuthSvcConfig.type);
+        this.verboseLogging('doSettlement.getConfig.settlementType is ', o_ccAuthSvcConfig.type);
         return callSettlement[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
     };
     exports.getSettlmentRec = function () {
@@ -705,22 +985,19 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     exports.getSettledBatchListRequest = function (d_start, d_end, subConfigId) {
-        log.debug('getSettledBatchListRequest. 3rd Party Status Call', 'getSettledBatchListRequest('+subConfigId+')');
+        log.audit('getSettledBatchListRequest. 3rd Party Status Call', 'getSettledBatchListRequest('+subConfigId+')');
         var o_ccAuthSvcConfig = this.getConfigFromCache(subConfigId);
-        log.debug('o_ccAuthSvcConfig', o_ccAuthSvcConfig)
+        this.verboseLogging('o_ccAuthSvcConfig', o_ccAuthSvcConfig)
         return getSettledBatchListRequest(o_ccAuthSvcConfig, d_start, d_end);
     };
     exports.getTransactionListRequest = function (batchId, subConfigId) {
-        log.debug('getTransactionListRequest. 3rd Party Status Call', 'getTransactionListRequest()');
+        log.audit('getTransactionListRequest. 3rd Party Status Call', 'getTransactionListRequest()');
         var o_ccAuthSvcConfig = this.getConfigFromCache(subConfigId);
         return getTransactionListRequest(o_ccAuthSvcConfig, batchId);
     };
 
 
     exports.handleResponse = function(response, context, doDelete){
-        //this.homeSysLog('handleResponse(response)', response);
-        //this.homeSysLog('handleResponse(context)', context);
-        //this.homeSysLog('handleResponse(doDelete)', doDelete);
         //the bulk refunds return an array of responses - so we are just gonna act on the first one -
         if(_.isArray(response)) {
             response = response[0]
@@ -782,7 +1059,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
         //build a history record and return the stubbed out record when using EXTERNAL AUTH
-        exports.fixIntegrationHistoryRec = function(txn, config){
+        /*exports.fixIntegrationHistoryRec = function(txn, config){
             var o_response = {b_isValid : true, histRecId:''};
             var o_status = exports.getStatusCheck(txn.getValue({fieldId: 'custbody_authnet_refid'}));
             if (txn.type === 'customerdeposit' && (o_status.transactionStatus === 'capturedPendingSettlement' || o_status.transactionStatus === 'settledSuccessfully')) {
@@ -803,250 +1080,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 o_response.histRecId = rec_response.save({ignoreMandatoryFields: true});
             }
             return o_response;
-        };
-
-    //a object that can hold all the appropriate auth data in cache or in a field
-    exports.cacheActiveConfig = function(){
-        var live_solution = 'AAA175381';
-        var s_companyId = '';
-        //var rec = getConfig().rec;
-        var a_cachedConfigs = [];
-        var a_filters = [
-            ['isinactive', 'is', 'F']
-        ];
-        var authnetconfig = search.create({
-            type: 'customrecord_authnet_config',
-            //filters: a_filters,
-            filters: a_filters,
-            columns: [
-                {name: 'internalid', sort: search.Sort.DESC}
-            ]
-        }).run();
-        var a_configRecId = [];
-        authnetconfig.each(function (result) {
-            a_configRecId.push(result.getValue('internalid'));
-            //this will only return the first one
-            return false;
-        });
-        _.forEach(a_configRecId, function (configId){
-            var rec = record.load({
-                type: 'customrecord_authnet_config',
-                id: configId,
-                isDynamic: false
-            });
-            //the response with the object components - place holders to match those in subs
-            var o_response = {
-                id : rec.id,
-                type: 1,
-                mode: '',
-                recType : rec.type,
-                masterid: rec.id,
-                configid : '',
-                configname : rec.getValue({fieldId : 'name'}) + ' (MAIN CONFIG)',
-                subid : '',
-                hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
-                hasPaymentInstruments : runtime.isFeatureInEffect({feature: 'paymentinstruments'}),
-            };
-            //set the general config for the integration
-            s_companyId = _.toUpper(rec.getValue({fieldId : 'custrecord_an_instanceid'}));
-            o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
-            //undo the standard id with the development id's provided by Authorize.Net
-            if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !rec.getValue('custrecord_an_islive'))
-            {
-                o_response.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
-                o_response.solutionId.name = 'SuiteAuthConnect (TESTING MODE) v.'+exports.VERSION;
-            }
-            var a_allFields = rec.getFields();
-            var o_masterConfig = {};
-            //log.debug('a_allFields', a_allFields)
-            _.forEach(a_allFields, function(fld) {
-                if (_.startsWith(fld, 'custrecord')) {
-                    o_masterConfig[fld] = {
-                        val: rec.getValue(fld),
-                        txt: rec.getText(fld)
-                    }
-                }
-            });
-            //ensure some of the universally needed values are at the top level
-            var a_mandatoryTopLevelFields = [
-                ''
-            ];
-            _.forEach(a_mandatoryTopLevelFields, function(fieldId){
-                o_response[fieldId] = o_masterConfig[fieldId]
-            });
-
-            //these 4 fields from the main config are required for setting up a transaction before a sub is known
-            o_response.custrecord_an_break_pci = o_masterConfig.custrecord_an_break_pci;
-            o_response.custrecord_an_verbose_logging = o_masterConfig.custrecord_an_verbose_logging;
-            o_response.custrecord_an_enable = o_masterConfig.custrecord_an_enable;
-            o_response.custrecord_an_paymentmethod = o_masterConfig.custrecord_an_paymentmethod;
-            o_response.custrecord_an_paymentmethod_echeck = o_masterConfig.custrecord_an_paymentmethod_echeck;
-
-            //now build auth information off the sub records
-            if (!rec.getValue({fieldId:'custrecord_an_all_sub'}))
-            {
-                o_response.mode = 'subsidiary';
-                o_response.subs = {};
-                search.create({
-                    type: 'customrecord_authnet_config_subsidiary',
-                    filters: [
-                        ['custrecord_ancs_active', 'is', 'T'],
-                        "AND",
-                        ['custrecord_ancs_parent_config', 'anyof', [configId]]
-                    ],
-                    columns: [
-                        'name'
-                    ]
-                }).run().each(function (subConfig) {
-                    var subRec = record.load({
-                        type: 'customrecord_authnet_config_subsidiary',
-                        id: subConfig.id,
-                        isDynamic: false
-                    });
-                    var o_thisSub = {
-                        isSubConfig : true,
-                        type: 1,
-                        recType : rec.type,
-                        masterid : rec.id,
-                        configid : subConfig.id,
-                        configname : subConfig.getValue('name'),
-                        solutionId : o_response.solutionId,
-                        subid : subRec.getValue('custrecord_ancs_subsidiary'),
-                        subname : subRec.getText('custrecord_ancs_subsidiary'),
-                        isReady : true,
-                        hasMultiSubRuntime : runtime.isFeatureInEffect({feature: 'multisubsidiarycustomer'}),
-                        liveAuth : true,
-                        auth :{}
-                    };
-                    if (o_thisSub.hasMultiSubRuntime)
-                    {
-                        o_thisSub.ccnameprefix = subRec.getValue({fieldId:'custrecord_ancs_card_prefix'});
-                        if (!o_thisSub.ccnameprefix)
-                        {
-                            o_thisSub.isReady = false;
-                        }
-                    }
-                    o_response.solutionId = {id : live_solution, name:'SuiteAuthConnect v.'+exports.VERSION};
-                    //undo the standard id with the development id's provided by Authorize.Net
-                    if (runtime.envType !== 'PRODUCTION' || _.startsWith(s_companyId, 'TSTDRV') || !subRec.getValue('custrecord_ancs_islive'))
-                    {
-                        o_response.solutionId.id = _.sample(['AAA100302', 'AAA100303', 'AAA100304']);
-                        o_response.solutionId.name = 'SuiteAuthConnect (TESTING MODE) v.'+exports.VERSION;
-                    }
-
-                    _.forEach(o_masterConfig, function(val, kie){
-                        o_thisSub[kie] = val;
-                    });
-                    var a_allSubFields = subRec.getFields();
-                    _.forEach(a_allSubFields, function(fld){
-                        if (_.startsWith( fld, 'custrecord')) {
-                            //rename the field to match the master config for max code reuse
-                            var _renamed = fld.replace('_ancs_', '_an_');
-                            o_thisSub[_renamed] = {
-                                val: subRec.getValue(fld),
-                                txt: subRec.getText(fld)
-                            }
-                        }
-                    });
-                    if (runtime.envType === 'PRODUCTION' && subRec.getValue({fieldId: 'custrecord_ancs_islive'})){
-                        o_thisSub.auth.name = subRec.getValue({fieldId: 'custrecord_ancs_login'});
-                        o_thisSub.auth.transactionKey = subRec.getValue({fieldId: 'custrecord_ancs_trankey'});
-                        o_thisSub.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url'});
-
-                    } else {
-                        o_thisSub.auth.name = subRec.getValue({fieldId: 'custrecord_ancs_login_sb'});
-                        o_thisSub.auth.transactionKey = subRec.getValue({fieldId: 'custrecord_ancs_trankey_sb'});
-                        o_thisSub.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url_sb'});
-                        o_thisSub.liveAuth = false;
-                    }
-                    o_response.subs['subid'+subRec.getValue({fieldId:'custrecord_ancs_subsidiary'})] = o_thisSub;
-                    return true;
-                });
-            }
-            else
-            {
-                o_response.mode = 'single';
-                o_response.isSubConfig = false;
-                o_response.liveAuth = true;
-                o_response.auth = {};
-                _.forEach(o_masterConfig, function(val, kie){
-                    o_response[kie] = val;
-                });
-                //if no sub config - general auth object is built
-                if (runtime.envType === 'PRODUCTION' && rec.getValue({fieldId: 'custrecord_an_islive'})){
-                    o_response.auth.name = rec.getValue({fieldId: 'custrecord_an_login'});
-                    o_response.auth.transactionKey = rec.getValue({fieldId: 'custrecord_an_trankey'});
-                    o_response.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url'});
-                } else {
-                    o_response.auth.name = rec.getValue({fieldId: 'custrecord_an_login_sb'});
-                    o_response.auth.transactionKey = rec.getValue({fieldId: 'custrecord_an_trankey_sb'});
-                    o_response.authSvcUrl = rec.getValue({fieldId: 'custrecord_an_url_sb'});
-                    o_response.liveAuth = false;
-                }
-            }
-
-            a_cachedConfigs.push(o_response);
-        });
-        log.audit('The Authorize.Net Cache has been refreshed', 'This data should remain in cache for about an hour');
-        //log.debug('a_cachedConfigs', a_cachedConfigs);
-        return a_cachedConfigs;
-    };
-
-    exports.purgeCache = function() {
-        var o_cache = cache.getCache({
-            name: 'config',
-            scope: cache.Scope.PROTECTED
-        });
-        o_cache.remove({
-            key: 'config'
-        });
-    };
-
-    //GET AND LOAD THE CACHE AS NEEDED FOR THE CONFIG
-    exports.getConfigFromCache = function(txn) {
-        var o_configResponse;
-        var o_cache = cache.getCache({
-            name: 'config',
-            scope: cache.Scope.PROTECTED
-        });
-        var o_cacheKey = o_cache.get({
-                key: 'config',
-                loader: this.cacheActiveConfig,
-                ttl : 3600
-            });
-        var o_fullCache = JSON.parse(o_cacheKey);
-        if (o_fullCache[0]) {
-            if (o_fullCache[0].mode === 'subsidiary' && txn) {
-                //check for data type and make this smarter
-                if (_.isObject(txn)) {
-                    o_configResponse = o_fullCache[0].subs['subid' + txn.getValue({fieldId: 'subsidiary'})];
-                } else {
-                    o_configResponse = o_fullCache[0].subs['subid' + txn];
-                }
-            } else {
-                o_configResponse = o_fullCache[0];
-            }
-        } else {
-            o_configResponse = o_fullCache[0];
-        }
-
-        //this logging is highly annoying
-        //log.debug('CACHE RETURN getConfigFromCache ('+txn+')', o_configResponse);
-        //note the [0] above returns only one of the custom records - this is for multiple configs in the future
-        return o_configResponse;
-    };
-
-    exports.getSubConfig = function(s_subId, o_config) {
-        var o_specificConfig = o_config.subs['subid'+s_subId];
-        if (o_specificConfig){
-            log.audit('Available config '+o_specificConfig.configname, 'Using Subsidiary - ' +o_specificConfig.subname);
-        }
-        else
-        {
-            log.audit('No Subsidiary', 'Subsidiary id '+s_subId+' not configured');
-        }
-        return o_specificConfig;
-    }
+        };*/
 
     cleanAuthNet = function (txn, doAll){
         var fields = exports.ALLAUTH;
@@ -1260,7 +1294,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         messages += error.text + ' '
                     });
                 }
-                histRec.setValue('custrecord_an_response_message', messages);
+                histRec.setValue('custrecord_an_response_message', _.truncate(messages, {'length': 299}));
                 //histRec.setValue('custrecord_an_response_status', o_body.messages.resultCode);
             } else if (!_.isUndefined(o_body.messages)){
                 result.status =  false;
@@ -1279,7 +1313,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     }
                     s_suggestion += s_generalError.replace(/&lt;br\/&gt;/g, '<br/>').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g, '"');
                     s_otherSuggestions += errorObj.other_suggestions.replace(/&lt;br\/&gt;/g, '<br/>').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g, '"')
-                    histRec.setValue({fieldId : 'custrecord_an_response_message', value : message.text});
+                    histRec.setValue({fieldId : 'custrecord_an_response_message', value : _.truncate(message.text, {'length': 299})});
                     histRec.setValue({fieldId : 'custrecord_an_response_ig_advice', value : s_suggestion});
                     histRec.setValue({fieldId : 'custrecord_an_response_ig_other', value :s_otherSuggestions});
                     histRec.setValue({fieldId : 'custrecord_an_reqrefid', value : txnRec.id});
@@ -1555,42 +1589,60 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
         }
     };
-
-    var doAuthTest = {};
-    doAuthTest[1] = function (o_test) {
-        var o_authTestObj = {isValid : false, type : o_test.type, title : _.toUpper(o_test.type) + ' Authorize.Net connection failed'};
-        exports.homeSysLog('isthisconfig', o_test);
-        exports.AuthNetTest.authenticateTestRequest.merchantAuthentication = o_test.auth;
-        exports.homeSysLog('doAuthTest request', exports.AuthNetTest);
-        try {
-            var response = https.post({
-                headers: {'Content-Type': 'application/json'},
-                url: o_test.url,
-                body: JSON.stringify(exports.AuthNetTest)
-            });
-            exports.homeSysLog('doAuthTest response.body', response.body);
-            var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
-            if (o_body.messages){
-                if (o_body.messages.resultCode === 'Ok'){
-                    o_authTestObj.isValid = true;
-                    o_authTestObj.title = _.toUpper(o_test.type) + ' Authorize.Net connection successful';
-                    o_authTestObj.level = message.Type.CONFIRMATION;
-                    o_authTestObj.message = 'Successfully connects to Authorize.Net in '+ _.toUpper(o_test.type) + ' mode.';
+        /**
+         * @param o_test
+         *        {Object} test object {url: <target api>} ,
+         *                                 type: 'sandbox',
+         *                                 auth: {
+         *                                     name: <value>,
+         *                                     transactionKey: <value>
+         *                                 }
+         *
+         * @return {Object} response object {isValid : bool,
+         * title : text,
+         * level : banner level,
+         * message : text
+         * }
+         *
+         * @static
+         * @function doTest
+         */
+        exports.doTest = function (o_test) {
+            log.audit('doTest. 3rd Party Status Call', 'doTest()');
+            var o_authTestObj = {isValid : false, type : o_test.type, title : _.toUpper(o_test.type) + ' Authorize.Net connection failed'};
+            this.verboseLogging('doTest o_test', o_test);
+            exports.AuthNetTest.authenticateTestRequest.merchantAuthentication = o_test.auth;
+            this.homeSysLog('doTest request', exports.AuthNetTest);
+            try {
+                var response = https.post({
+                    headers: {'Content-Type': 'application/json'},
+                    url: o_test.url,
+                    body: JSON.stringify(exports.AuthNetTest)
+                });
+                this.homeSysLog('doTest response.body', response.body);
+                var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
+                if (o_body.messages){
+                    if (o_body.messages.resultCode === 'Ok'){
+                        o_authTestObj.isValid = true;
+                        o_authTestObj.title = _.toUpper(o_test.type) + ' <> Authorize.Net connection successful';
+                        o_authTestObj.level = message.Type.CONFIRMATION;
+                        o_authTestObj.message = 'SuiteAuthConnect has successfully connected to Authorize.Net in '+ _.toUpper(o_test.type) + ' mode.';
+                    } else {
+                        o_authTestObj.message = o_body.messages.message[0].text + ' ('+o_body.messages.message[0].code+')';
+                        o_authTestObj.level = message.Type.ERROR;
+                    }
                 } else {
-                    o_authTestObj.message = o_body.messages.message[0].text + ' ('+o_body.messages.message[0].code+')';
+                    o_authTestObj.message = JSON.stringify(o_body);
                     o_authTestObj.level = message.Type.ERROR;
                 }
-            } else {
-                o_authTestObj.message = JSON.stringify(o_body);
+            } catch (e) {
+                log.error(e.name, e.message);
+                log.error(e.name, e.stack);
+                o_authTestObj.message = e.name + ' : '+ e.message;
                 o_authTestObj.level = message.Type.ERROR;
             }
-        } catch (e) {
-            log.error(e);
-            o_authTestObj.message = e.name + ' : '+ e.message;
-            o_authTestObj.level = message.Type.ERROR;
-        }
-        return o_authTestObj;
-    };
+            return o_authTestObj;
+        };
 
     var getTxnStatus = {};
     getTxnStatus[1] = function (txn, o_ccAuthSvcConfig, s_callType){
@@ -1770,7 +1822,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
 
         }
         exports.homeSysLog('USING o_ccAuthSvcConfig',o_ccAuthSvcConfig);
-        var o_summaryStatus = {isValidAuth : true};
+        var o_summaryStatus = {isValidAuth : false};
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.transId = tranid;
         exports.homeSysLog('calling doCheckStatus with '+tranid, exports.AuthNetGetTxnStatus);
@@ -1784,10 +1836,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             var o_body = JSON.parse(response.body.replace('\uFEFF', ''));
             //log.debug('o_body', o_body)
             if (o_body.transaction){
-                o_summaryStatus.transactionStatus = o_body.transaction.transactionStatus
+                o_summaryStatus.transactionStatus = o_body.transaction.transactionStatus;
                 o_summaryStatus.fullResponse = o_body.transaction;
                 if (+o_body.transaction.responseCode !== 1){
                     o_summaryStatus.isValidAuth = false;
+                }
+                else
+                {
+                    o_summaryStatus.isValidAuth = true;
                 }
                 //anything can be added ro the response as this is used more
             } else {
@@ -1861,13 +1917,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
+        var response = {};
         try {
             rec_response.setValue('custrecord_an_txn', txn.id);
             rec_response.setValue('custrecord_an_calledby', txn.type);
             rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
             rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
             rec_response.setValue('custrecord_an_amount', f_authTotal);
-            var response = https.post({
+            response = https.post({
                 headers: {'Content-Type': 'application/json'},
                 url: authSvcUrl,
                 body: JSON.stringify(exports.AuthNetRequest.authorize)
@@ -1875,17 +1932,23 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             exports.homeSysLog('authOnlyTransaction request', exports.AuthNetRequest.authorize);
             exports.homeSysLog('response.body : '+response.code, response.body);
             var realTxn = txn ;
-
             var parsed = parseANetResponse(rec_response, realTxn, response);
-
             rec_response = parsed.history;
             realTxn = parsed.txn;
-            if (b_isToken && !parsed.status) {
+            /*if (b_isToken && !parsed.status) {
                 throw '<span style=color:red;font-weight:bold;font-size:24px>Communication with Authorize.net has failed - Unable to process the token / auth+capture / anything! </span>';
-            }
+            }*/
         } catch (e) {
-            log.error(e.name, e.message);
+            log.emergency(e.name, e.message);
+            log.emergency(e.name, e.stack);
+            log.emergency(response.code, response.body);
+            txn.setValue({fieldId:'custbody_authnet_settle_status', value:'ERR'});
             realTxn = txn;
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : '0'});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
             if (e.name === 'DENIAL'){
                 //this is hack for tokens
                 rec_response.save({ignoreMandatoryFields : true});
@@ -1937,6 +2000,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             if (parsed){
                 parsed.status = false;
             }
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
         } finally {
             parsed.historyId = parsed.history.save({ignoreMandatoryFields : true});
             delete parsed.history;
@@ -1955,6 +2023,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
+        rec_response.setValue({fieldId: 'custrecord_an_txn', value: histRec.getValue('custrecord_an_txn')});
+        rec_response.setValue({fieldId: 'custrecord_an_calledby',  value: histRec.getValue('custrecord_an_calledby')});
+        rec_response.setValue({fieldId: 'custrecord_an_customer',  value: histRec.getValue('custrecord_an_customer')});
+        rec_response.setValue({fieldId: 'custrecord_an_call_type',  value: histRec.getValue('custrecord_an_call_type')});
+        rec_response.setValue({fieldId: 'custrecord_an_amount',  value: histRec.getValue('custrecord_an_amount')});
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
@@ -1962,12 +2035,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 body: JSON.stringify(exports.AuthNetFraudUpdate)
             });
             //('response.body', response.body);
-            rec_response.setValue({fieldId: 'custrecord_an_txn', value: histRec.getValue('custrecord_an_txn')});
-            rec_response.setValue({fieldId: 'custrecord_an_calledby',  value: histRec.getValue('custrecord_an_calledby')});
-            rec_response.setValue({fieldId: 'custrecord_an_customer',  value: histRec.getValue('custrecord_an_customer')});
-            rec_response.setValue({fieldId: 'custrecord_an_call_type',  value: histRec.getValue('custrecord_an_call_type')});
-            rec_response.setValue({fieldId: 'custrecord_an_amount',  value: histRec.getValue('custrecord_an_amount')});
-
             var realTxn = txn ;
             //realTxn.setValue({fieldId:'custbody_authnet_reqrefid', value: txn.id.toString()});
 
@@ -1984,6 +2051,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             if (parsed){
                 parsed.status = false;
             }
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
+            rec_response.save({ignoreMandatoryFields:true});
         } finally {
             parsed.historyId = parsed.history.save({ignoreMandatoryFields : true});
             delete parsed.history;
@@ -2009,6 +2082,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
+        rec_response.setValue('custrecord_an_txn', txn.id);
+        rec_response.setValue('custrecord_an_calledby', txn.type);
+        rec_response.setValue('custrecord_an_refid', txn.getValue({fieldId:'custbody_authnet_refid'}));
+        rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
+        rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
+        rec_response.setValue('custrecord_an_amount', f_authTotal);
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
@@ -2017,17 +2096,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             });
             exports.homeSysLog('priorAuthCaptureTransaction request', exports.AuthNetRequest.authorize);
             exports.homeSysLog('response.body', response.body);
-            rec_response.setValue('custrecord_an_txn', txn.id);
-            rec_response.setValue('custrecord_an_calledby', txn.type);
-            rec_response.setValue('custrecord_an_refid', txn.getValue({fieldId:'custbody_authnet_refid'}));
-            rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
-            rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
-            rec_response.setValue('custrecord_an_amount', f_authTotal);
 
-            var realTxn = txn ;
+            //var realTxn = txn ;
             //realTxn.setValue('custbody_authnet_reqrefid', txn.id.toString());
 
-            var parsed = parseANetResponse(rec_response, realTxn, response);
+            var parsed = parseANetResponse(rec_response, txn, response);
             parsed.fromId = soId;
             //log.debug('parsed.status', parsed.status);
             //log.debug('parsed.history', parsed.history);
@@ -2039,6 +2112,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             if (parsed){
                 parsed.status = false;
             }
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
+            rec_response.save({ignoreMandatoryFields:true});
         } finally {
             parsed.historyId = parsed.history.save({ignoreMandatoryFields : true});
             delete parsed.history;
@@ -2083,6 +2162,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
+        rec_response.setValue('custrecord_an_txn', txn.id);
+        rec_response.setValue('custrecord_an_calledby', txn.type);
+        rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
+        rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
+        rec_response.setValue('custrecord_an_amount', f_authTotal);
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
@@ -2091,11 +2175,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             });
             exports.homeSysLog('callAuthCapture request', exports.AuthNetRequest.authorize);
             exports.homeSysLog('response.body', response.body);
-            rec_response.setValue('custrecord_an_txn', txn.id);
-            rec_response.setValue('custrecord_an_calledby', txn.type);
-            rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
-            rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
-            rec_response.setValue('custrecord_an_amount', f_authTotal);
 
             var realTxn = txn ;
             //realTxn.setValue('custbody_authnet_reqrefid', txn.id.toString());
@@ -2118,6 +2197,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             if (parsed){
                 parsed.status = false;
             }
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
+            rec_response.save({ignoreMandatoryFields:true});
         } finally {
             parsed.historyId = parsed.history.save({ignoreMandatoryFields : true});
             delete parsed.history;
@@ -2154,7 +2239,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var o_paymentMethod = {}
         var s_tranId = txn.getValue({fieldId: 'custbody_authnet_refid'}) ? txn.getValue({fieldId: 'custbody_authnet_refid'}) : o_createdFrom.custbody_authnet_refid;
         var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, s_tranId);
-        log.debug('callRefund().o_orgTxnResponse', o_orgTxnResponse);
+        exports.verboseLogging('callRefund().doCheckStatus() o_orgTxnResponse', o_orgTxnResponse);
         if (!o_orgTxnResponse.isValidAuth)
         {
             if(runtime.envType !== runtime.EnvType.PRODUCTION)
@@ -2189,9 +2274,15 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 }
             }
         }
-        //var s_cardString = _.isNull(o_createdFromHistory) ? '1111' : o_createdFromHistory.getValue('custrecord_an_cardnum');
-        //o_creditCard.cardNumber = s_cardString.substring(s_cardString.length - 4, s_cardString.length);
-        //o_creditCard.expirationDate = 'XXXX';
+        else if (o_orgTxnResponse.fullResponse.payment.tokenInformation)
+        {
+            o_paymentMethod = {creditCard : {
+                    cardNumber : o_orgTxnResponse.fullResponse.payment.tokenInformation.tokenNumber,
+                    expirationDate : o_orgTxnResponse.fullResponse.payment.tokenInformation.expirationDate,
+                }
+            }
+        }
+
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = o_paymentMethod;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = txn.getValue('custbody_authnet_refid');
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order = {};
@@ -2249,24 +2340,23 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
+        rec_response.setValue('custrecord_an_txn', txn.id);
+        rec_response.setValue('custrecord_an_calledby', txn.type);
+        rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
+        rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
+        rec_response.setValue('custrecord_an_amount', f_authTotal);
         var parsed = {
             status : true,
             fromId : txn.getValue('createdfrom')
         };
         try {
-
+            exports.homeSysLog('REFUND REQUEST', exports.AuthNetRequest.authorize);
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
                 url: authSvcUrl,
                 body: JSON.stringify(exports.AuthNetRequest.authorize)
             });
             //log.debug('response.body', response.body)
-            rec_response.setValue('custrecord_an_txn', txn.id);
-            rec_response.setValue('custrecord_an_calledby', txn.type);
-            rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
-            rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
-            rec_response.setValue('custrecord_an_amount', f_authTotal);
-
             var realTxn = txn ;
             //realTxn.setValue('custbody_authnet_reqrefid', txn.id.toString());
             //indicates this transaction is DONE
@@ -2288,6 +2378,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             if (parsed){
                 parsed.status = false;
             }
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
+            rec_response.save({ignoreMandatoryFields:true});
         } finally {
             if (parsed.history)
             {
@@ -2298,125 +2394,126 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         return parsed;
     };
 
-    var callBulkRefund = {};
-    callBulkRefund[1] = function(txn, o_ccAuthSvcConfig, a_toProcess){//orgtxn, o_ccAuthSvcConfig, a_toProcess
-        exports.verboseLogging('STARTING callBulkRefund - here\'s the config', o_ccAuthSvcConfig);
-        if (o_ccAuthSvcConfig.mode === 'subsidiary')
-        {
-            o_ccAuthSvcConfig = exports.getSubConfig(txn.getValue({fieldId:'subsidiary'}), o_ccAuthSvcConfig);
-        }
-        var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl, o_response = [];
-        //log.debug('***********************', a_toProcess);
-        _.forEach(a_toProcess, function(toRefund){
-            //{"id":8791,"type":"DepAppl","created":"5/29/2018 11:31 am","anetTxnId":8524,"amount":0.35,"anet":{"refid":"40011619623","card":"Visa","timestamp":"3/19/2018 4:19 pm"}}
-            exports.verboseLogging('bulkrefund (toRefund)', toRefund);
-            //GET the original transaction details
-            var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, toRefund.anetRefId);
-            exports.verboseLogging('bulkrefund (o_orgTxnResponse)', o_orgTxnResponse);
-            exports.AuthNetRequest.authorize.createTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
-            //note the order of how this object is built is critical
-            exports.AuthNetRequest.authorize.createTransactionRequest.refId = toRefund.nsTxnId;
-            //switch to a void here based on the toRefund.anet.status
-            if (o_orgTxnResponse.transactionStatus === 'capturedPendingSettlement'){
-                //this is a VOID now!
-                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'voidTransaction';
-            }
-            else
+
+        exports.performBulkRefunds = function(txn, a_toProcess){//orgtxn, o_ccAuthSvcConfig, a_toProcess
+            var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
+            exports.verboseLogging('STARTING performBulkRefunds - here\'s the config', o_ccAuthSvcConfig);
+            if (o_ccAuthSvcConfig.mode === 'subsidiary')
             {
-                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'refundTransaction';
+                o_ccAuthSvcConfig = exports.getSubConfig(txn.getValue({fieldId:'subsidiary'}), o_ccAuthSvcConfig);
             }
-            var f_authTotal = getBaseCurrencyTotal(txn, toRefund.amount);
-            //txn.setValue('custbody_authnet_amount', f_authTotal);
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
-            //log.debug('o_createdFromHistory', o_createdFromHistory)
-            var o_paymentMethod = {}
-            if (o_orgTxnResponse.fullResponse.payment.creditCard)
-            {
-                o_paymentMethod = {creditCard : {
-                        cardNumber : o_orgTxnResponse.fullResponse.payment.creditCard.cardNumber,
-                        expirationDate : o_orgTxnResponse.fullResponse.payment.creditCard.expirationDate,
+            var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl, o_response = [];
+            //log.debug('***********************', a_toProcess);
+            _.forEach(a_toProcess, function(toRefund){
+                //{"id":8791,"type":"DepAppl","created":"5/29/2018 11:31 am","anetTxnId":8524,"amount":0.35,"anet":{"refid":"40011619623","card":"Visa","timestamp":"3/19/2018 4:19 pm"}}
+                exports.verboseLogging('bulkrefund (toRefund)', toRefund);
+                //GET the original transaction details
+                var o_orgTxnResponse = doCheckStatus[1](o_ccAuthSvcConfig, toRefund.anetRefId);
+                exports.verboseLogging('bulkrefund (o_orgTxnResponse)', o_orgTxnResponse);
+                exports.AuthNetRequest.authorize.createTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
+                //note the order of how this object is built is critical
+                exports.AuthNetRequest.authorize.createTransactionRequest.refId = toRefund.nsTxnId;
+                //switch to a void here based on the toRefund.anet.status
+                if (o_orgTxnResponse.transactionStatus === 'capturedPendingSettlement'){
+                    //this is a VOID now!
+                    exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'voidTransaction';
+                }
+                else
+                {
+                    exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'refundTransaction';
+                }
+                var f_authTotal = getBaseCurrencyTotal(txn, toRefund.amount);
+                //txn.setValue('custbody_authnet_amount', f_authTotal);
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
+                //log.debug('o_createdFromHistory', o_createdFromHistory)
+                var o_paymentMethod = {}
+                if (o_orgTxnResponse.fullResponse.payment.creditCard)
+                {
+                    o_paymentMethod = {creditCard : {
+                            cardNumber : o_orgTxnResponse.fullResponse.payment.creditCard.cardNumber,
+                            expirationDate : o_orgTxnResponse.fullResponse.payment.creditCard.expirationDate,
+                        }
+                    }
+                }//also do this for echeck!
+                else if(o_orgTxnResponse.fullResponse.payment.bankAccount)
+                {
+                    o_paymentMethod = {bankAccount : {
+                            accountType : o_orgTxnResponse.fullResponse.payment.bankAccount.accountType,
+                            routingNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.routingNumber,
+                            accountNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.accountNumber,
+                            nameOnAccount : o_orgTxnResponse.fullResponse.payment.bankAccount.nameOnAccount,
+                            echeckType : o_orgTxnResponse.fullResponse.payment.bankAccount.echeckType,
+                        }
                     }
                 }
-            }//also do this for echeck!
-            else if(o_orgTxnResponse.fullResponse.payment.bankAccount)
-            {
-                o_paymentMethod = {bankAccount : {
-                        accountType : o_orgTxnResponse.fullResponse.payment.bankAccount.accountType,
-                        routingNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.routingNumber,
-                        accountNumber : o_orgTxnResponse.fullResponse.payment.bankAccount.accountNumber,
-                        nameOnAccount : o_orgTxnResponse.fullResponse.payment.bankAccount.nameOnAccount,
-                        echeckType : o_orgTxnResponse.fullResponse.payment.bankAccount.echeckType,
+                else if (o_orgTxnResponse.fullResponse.payment.tokenInformation)
+                {
+                    o_paymentMethod = {creditCard : {
+                            cardNumber : o_orgTxnResponse.fullResponse.payment.tokenInformation.tokenNumber,
+                            expirationDate : o_orgTxnResponse.fullResponse.payment.tokenInformation.expirationDate,
+                        }
                     }
                 }
-            }
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = o_paymentMethod;
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = toRefund.anetRefId;
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order = {};
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = o_orgTxnResponse.fullResponse.order.invoiceNumber;
-            exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.description = 'Customer Refund';
-            //does not use enhanced field data
-            log.error('REFUND CALL TO VALIDATE', exports.AuthNetRequest.authorize);
-            var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
-            rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
-            rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
-            try {
-                var response = https.post({
-                    headers: {'Content-Type': 'application/json'},
-                    url: authSvcUrl,
-                    body: JSON.stringify(exports.AuthNetRequest.authorize)
-                });
-                exports.homeSysLog('callBulkRefund response : '+response.code, response.body);
-                var s_txnType = (txn.type === 'customerrefund') ? txn.type : (toRefund.type === 'DepAppl') ? 'depositapplication' : 'creditmemo';
-                log.debug('TESTING NEW VARIABLE HERE', txn.type);
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = o_paymentMethod;
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = toRefund.anetRefId;
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order = {};
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = o_orgTxnResponse.fullResponse.order.invoiceNumber;
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.description = 'Customer Refund';
+                //does not use enhanced field data
+                log.error('REFUND CALL TO VALIDATE', exports.AuthNetRequest.authorize);
+                var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
+                rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
+                rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
                 rec_response.setValue('custrecord_an_txn', toRefund.id);
+                var s_txnType = (txn.type === 'customerrefund') ? txn.type : (toRefund.type === 'DepAppl') ? 'depositapplication' : 'creditmemo';
                 rec_response.setValue('custrecord_an_calledby', s_txnType);
                 rec_response.setValue('custrecord_an_customer', _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer'));
                 rec_response.setValue('custrecord_an_call_type', exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType);
                 rec_response.setValue('custrecord_an_amount', f_authTotal);
+                try {
+                    var response = https.post({
+                        headers: {'Content-Type': 'application/json'},
+                        url: authSvcUrl,
+                        body: JSON.stringify(exports.AuthNetRequest.authorize)
+                    });
+                    exports.homeSysLog('performBulkRefunds response : '+response.code, response.body);
 
-                var realTxn = txn ;
-                //realTxn.setValue('custbody_authnet_reqrefid', toRefund.id);
-                //indicates this transaction is DONE
+                    var realTxn = txn ;
+                    //realTxn.setValue('custbody_authnet_reqrefid', toRefund.id);
+                    //indicates this transaction is DONE
 
-                var parsed = parseANetResponse(rec_response, realTxn, response);
-                if (_.toUpper(parsed.history.getValue({fieldId: 'custrecord_an_response_status'})) === 'OK'){
-                    realTxn.setValue('custbody_authnet_done', true);
-                    parsed.status = true;
-                } else {
-                    parsed.status = false;
+                    var parsed = parseANetResponse(rec_response, realTxn, response);
+                    if (_.toUpper(parsed.history.getValue({fieldId: 'custrecord_an_response_status'})) === 'OK'){
+                        realTxn.setValue('custbody_authnet_done', true);
+                        parsed.status = true;
+                    } else {
+                        parsed.status = false;
+                    }
+                    exports.homeSysLog('update ' + s_txnType, toRefund.id);
+                    parsed.fromId = toRefund.nsTxnId;
+                    exports.homeSysLog('parsed.status', parsed.status);
+                    exports.homeSysLog('parsed.history', parsed.history);
+                    exports.homeSysLog('parsed.txn', parsed.txn);
+                } catch (e) {
+                    log.error(e.name, e.message);
+                    log.error(e.name, e.stack);
+                    if (parsed){
+                        parsed.status = false;
+                    }
+                    rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+                    rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+                    rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+                    rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+                    rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
+                    rec_response.save({ignoreMandatoryFields:true});
+                } finally {
+                    parsed.historyId = parsed.history.save({ignoreMandatoryFields : true});
+                    delete parsed.history;
+                    o_response.push(parsed);
                 }
-                exports.homeSysLog('update ' + s_txnType, toRefund.id);
-                parsed.fromId = toRefund.nsTxnId;
-                exports.homeSysLog('parsed.status', parsed.status);
-                exports.homeSysLog('parsed.history', parsed.history);
-                exports.homeSysLog('parsed.txn', parsed.txn);
-            } catch (e) {
-                log.error(e.name, e.message);
-                if (parsed){
-                    parsed.status = false;
-                }
-            } finally {
-                parsed.historyId = parsed.history.save({ignoreMandatoryFields : true});
-                /*var copy = record.copy({
-                    type: 'customrecord_authnet_history',
-                    id : parsed.historyId,
-                    isDynamic: true
-                });
-                copy.setValue({fieldId : 'custrecord_an_txn', value : txn.id});
-                copy.save({ignoreMandatoryFields : true});*/
-                delete parsed.history;
-                o_response.push(parsed);
-            }
-        });
-        /*record.submitFields({
-            type: txn.type,
-            id : txn.id,
-            values : {
-                'custbody_authnet_done' : true
-            }
-        });*/
-        return o_response;
-    };
+            });
+            return o_response;
+        };
 
     var callSettlement = {};
     //1 is the ID for Authorize.net calls
@@ -2616,9 +2713,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         if (o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}))
         {
             o_billingAddressObject = JSON.parse(o_profile.getValue({fieldId: 'custrecord_an_token_billaddress_json'}));
-            log.debug('PRE MOD o_billingAddressObject', o_billingAddressObject);
+            //log.debug('PRE MOD o_billingAddressObject', o_billingAddressObject);
         }
-        log.debug('PRE MOD o_newProfileRequest', o_newProfileRequest);
+        //log.debug('PRE MOD o_newProfileRequest', o_newProfileRequest);
         //is this JSON and can we get the billing address from it?
         try
         {
@@ -2750,6 +2847,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
         rec_response.setValue({fieldId: 'custrecord_an_cim_iscim', value: true});
+        rec_response.setValue({fieldId: 'custrecord_an_calledby', value : 'newPaymentMethod'});
+        rec_response.setValue({fieldId: 'custrecord_an_customer', value : o_profile.getValue({fieldId: 'custrecord_an_token_entity'})});
+        rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileRequest'});
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
@@ -2761,9 +2861,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
             //log.debug('response.body.messages', profileResponse.messages)
             rec_response.setValue({fieldId: 'custrecord_an_response_status', value : profileResponse.messages.resultCode});
-            rec_response.setValue({fieldId: 'custrecord_an_calledby', value : 'newPaymentMethod'});
-            rec_response.setValue({fieldId: 'custrecord_an_customer', value : o_profile.getValue({fieldId: 'custrecord_an_token_entity'})});
-            rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileRequest'});
             rec_response.setValue({fieldId: 'custrecord_an_message_code', value : profileResponse.messages.message[0].code});
             rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text.substring(0, 300)});
             if (_.toUpper(profileResponse.messages.resultCode) !== 'OK'){
@@ -2802,6 +2899,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             o_createNewProfileResponse.success = false;
             o_createNewProfileResponse.code = '000';
             o_createNewProfileResponse.message = e.name +' : ' + e.message;
+            rec_response.setValue({fieldId:'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId:'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId:'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId:'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
         } finally {
             o_createNewProfileResponse.histId = rec_response.save({ignoreMandatoryFields : true})
         }
@@ -2818,6 +2920,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
         rec_response.setValue({fieldId: 'custrecord_an_cim_iscim', value: true});
+        rec_response.setValue({fieldId: 'custrecord_an_txn', value : txn.id});
+        //maybe enable in the future, but solved in the refund call
+        //rec_response.setValue({fieldId: 'custrecord_an_related_txnid', value : txn.getValue({fieldId: 'custbody_authnet_refid'})});
+        rec_response.setValue({fieldId: 'custrecord_an_calledby', value : txn.type});
+        rec_response.setValue({fieldId: 'custrecord_an_customer', value : _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer')});
+        rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileFromTransactionRequest'});
         try {
             var response = https.post({
                 headers: {'Content-Type': 'application/json'},
@@ -2831,12 +2939,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             //log.debug('response.body.messages', profileResponse.messages)
 
             rec_response.setValue({fieldId: 'custrecord_an_response_status', value : profileResponse.messages.resultCode});
-            rec_response.setValue({fieldId: 'custrecord_an_txn', value : txn.id});
-            //maybe enable in the future, but solved in the refund call
-            //rec_response.setValue({fieldId: 'custrecord_an_related_txnid', value : txn.getValue({fieldId: 'custbody_authnet_refid'})});
-            rec_response.setValue({fieldId: 'custrecord_an_calledby', value : txn.type});
-            rec_response.setValue({fieldId: 'custrecord_an_customer', value : _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer')});
-            rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'createCustomerProfileFromTransactionRequest'});
+
             rec_response.setValue({fieldId: 'custrecord_an_message_code', value : profileResponse.messages.message[0].code});
             rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text});
 
@@ -2854,9 +2957,19 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
         } catch (e) {
             log.emergency(e.name, e.message);
+            log.emergency(e.name, e.stack);
             o_createProfileResponse.success = false;
+            rec_response.setValue({fieldId: 'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId: 'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId: 'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId: 'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
         } finally {
             o_createProfileResponse.histId = rec_response.save({ignoreMandatoryFields : true})
+        }
+        if (!o_createProfileResponse.success)
+        {
+            log.error('createProfileFromTxn UNSUCCESSFUL - '+txn.getValue({fieldId:'tranid'}), o_createProfileResponse);
         }
         return o_createProfileResponse;
     };
@@ -2948,20 +3061,20 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     mngCustomerProfile.importAndBuildProfilesOffProfileId = function(o_profile_JSON)
     {
         var o_profileResponse = {success : false};
-        exports.homeSysLog('importProfile(o_profile_JSON)', o_profile_JSON);
+        exports.verboseLogging('importProfile(o_profile_JSON)', o_profile_JSON);
         //get the config value from cache that we are looking for
         var o_ccAuthSvcConfig = exports.getConfigFromCache();
-        exports.homeSysLog('STARTING importAndBuildProfilesOffProfileId.o_ccAuthSvcConfig', o_ccAuthSvcConfig)
+        exports.verboseLogging('STARTING importAndBuildProfilesOffProfileId.o_ccAuthSvcConfig', o_ccAuthSvcConfig)
         if (o_profile_JSON.fields.custrecord_an_token_gateway_sub)
         {
             o_ccAuthSvcConfig = _.find(o_ccAuthSvcConfig.subs, {'configid':o_profile_JSON.fields.custrecord_an_token_gateway_sub});
-            exports.homeSysLog('parsed sub config record', o_ccAuthSvcConfig);
+            exports.verboseLogging('parsed sub config record', o_ccAuthSvcConfig);
         }
         else if (o_profile_JSON.fields.subsidiary)
         {
             o_ccAuthSvcConfig = exports.getSubConfig(o_profile_JSON.fields.subsidiary, o_ccAuthSvcConfig);
         }
-        exports.homeSysLog('importAndBuildProfilesOffProfileId.o_ccAuthSvcConfig', o_ccAuthSvcConfig)
+        exports.verboseLogging('importAndBuildProfilesOffProfileId.o_ccAuthSvcConfig', o_ccAuthSvcConfig)
         exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         exports.AuthNetGetCustomerProfileRequest.getCustomerProfileRequest.customerProfileId = _.trim(o_profile_JSON.fields.custrecord_an_token_customerid) ;
         try {
@@ -2970,10 +3083,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 url: o_ccAuthSvcConfig.authSvcUrl,
                 body: JSON.stringify(exports.AuthNetGetCustomerProfileRequest)
             });
-            exports.homeSysLog('importAndBuildProfilesOffProfileId(getCustomerProfileRequest) request', exports.AuthNetGetCustomerProfileRequest);
-            exports.homeSysLog('importAndBuildProfilesOffProfileId(getCustomerProfileRequest) response.body', response.body);
+            exports.verboseLogging('importAndBuildProfilesOffProfileId(getCustomerProfileRequest) request', exports.AuthNetGetCustomerProfileRequest);
+            exports.verboseLogging('importAndBuildProfilesOffProfileId(getCustomerProfileRequest) response.body', response.body);
             var o_importProfileResponse = JSON.parse(response.body.replace('\uFEFF', ''));//.profile;
-            exports.homeSysLog('importAndBuildProfilesOffProfileId.o_importProfileResponse', o_importProfileResponse);
+            exports.verboseLogging('importAndBuildProfilesOffProfileId.o_importProfileResponse', o_importProfileResponse);
             if (!_.isUndefined(o_importProfileResponse.profile)) {
                 o_importProfileResponse = o_importProfileResponse.profile;
                 _.forEach(o_importProfileResponse.paymentProfiles, function (profile) {
@@ -3016,7 +3129,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                             value: profile.customerPaymentProfileId
                         });
                         //validate email pattern
-                        var s_email = o_importProfileResponse.email.replace(/\s/g, '');
+                        var s_email = '';
+                        if (o_importProfileResponse.email)
+                        {
+                            o_importProfileResponse.email.replace(/\s/g, '');
+                        }
                         //thank you https://www.w3resource.com/javascript/form/email-validation.php
                         if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(s_email))
                         {
@@ -3106,6 +3223,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         o_profileResponse.success = true;
                     } else {
                         log.audit('This profile exists', 'It will not be re-imported');
+                        o_profileResponse.success = true;
                     }
                 });
             }
@@ -3134,13 +3252,17 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         try{
             var profileResponse = mngCustomerProfile.getProfile(o_profile, o_ccAuthSvcConfig);
             //rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
-            //log.debug('response.body.messages', profileResponse.messages);
-            exports.homeSysLog('profileResponse.profile.paymentProfiles', profileResponse.profile.paymentProfiles);
+            log.debug('response.body.messages', profileResponse);
+            exports.homeSysLog('profileResponse.profile.paymentProfiles', profileResponse);
             var a_usedProfiles = [];
             //loop on the array of ID's used in customerPaymentProfileIdList":["1832901197"]
             _.forEach(o_profile.customerPaymentProfileIdList, function(profileId){
                 //log .debug(profileId, 'Well?')
-                var profile = _.find(profileResponse.profile.paymentProfiles, {"customerPaymentProfileId":profileId});
+                var profile;
+                if (profileResponse.profile && profileResponse.profile.paymentProfiles)
+                {
+                    profile = _.find(profileResponse.profile.paymentProfiles, {"customerPaymentProfileId": profileId});
+                }
                 if (!_.isUndefined(profile)){
                     a_usedProfiles.push(profile);
                 }

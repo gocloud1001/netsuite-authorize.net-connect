@@ -182,7 +182,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             }
             o_configRecord.setValue({fieldId: 'custrecord_an_cim_allow_tokens', value: true});
             o_configRecord.setValue({fieldId: 'custrecord_an_skip_on_save', value: true});
-            //added becasue sometimes the cacahe gets cranky on the creation of a new record.
+            //added because sometimes the cache gets cranky on the creation of a new record.
             try {
                 var daCache = cache.getCache(
                     {
@@ -210,7 +210,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
         //this can obviously be removed - but it's nice to let us know who is installing and who is updating so we have some idea!
         //we currently do NOT do anything with this information aside from count the number of times things are happening
         //if Cloud 1001, LLC chooses to add any sort of future notification of releases or anything -
-        // we will provide an opt-in to this at installation time
+        //we will provide an opt-in to this at installation time
         var o_user = runtime.getCurrentUser();
         var s_toEmail = 'Company : '+installationInfo.companyname +'<br />' +
             'Admin Email : ' + installationInfo.email+'<br />' +

@@ -53,7 +53,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
         function getDefaultCard(currentRecord, o_config){
             try {
                console.log('getting DefaultCard - this might take a second or 2...');
-               console.log(o_config);
+               //console.log(o_config);
                 if (!o_config){
                     alert('getDefaultCard missing a config object');
                 }
@@ -96,16 +96,16 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     a_filters.push("AND");
                     a_filters.push(['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id.toString()]);
                 }
-                log.debug('token search filters', a_filters);
+                //log.debug('token search filters', a_filters);
                 search.create({
                     type: 'customrecord_authnet_tokens',
                     filters: a_filters,
                     columns: a_columns
                 }).run().each(function (result) {
-                    log.debug('result', result);
+                    //log.debug('result', result);
                     if (result.getValue('custrecord_an_token_default'))
                     {
-                        currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id});
+                        currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id, ignoreFieldChange:true});
                         var tokenTypeId = result.getValue('custrecord_an_token_paymenttype') ? result.getValue('custrecord_an_token_paymenttype') : 1;
                         currentRecord.setValue({
                             fieldId: 'custbody_authnet_cim_token_type',
@@ -339,19 +339,52 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             if (fieldName === 'custbody_authnet_cim_token' && context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})){
                 try {
                     if (o_config) {
-                        if (+context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                            context.currentRecord.setValue({
-                                fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
-                                value: o_config.custrecord_an_paymentmethod.val,
-                                ignoreFieldChange: true
-                            });
-                        } else {
-                            context.currentRecord.setValue({
-                                fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
-                                value: o_config.custrecord_an_paymentmethod_echeck.val,
-                                ignoreFieldChange: true
-                            });
-                        }
+
+                        //lookup the token type and set it
+                        search.lookupFields.promise({
+                            type: 'customrecord_authnet_tokens',
+                            id: context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}),
+                            columns : 'custrecord_an_token_paymenttype'
+                        })
+                        .then(function (result) {
+                            var i_tokenTypeId = 1;
+                            if (!_.isUndefined(result.custrecord_an_token_paymenttype[0]))
+                            {
+                                i_tokenTypeId = result.custrecord_an_token_paymenttype[0].value;
+                            }
+                            context.currentRecord.setValue({fieldId: 'custbody_authnet_cim_token_type', value : i_tokenTypeId})
+                            if (+context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
+                                context.currentRecord.setValue({
+                                    fieldId: 'paymentmethod',
+                                    value: o_config.custrecord_an_paymentmethod.val,
+                                    ignoreFieldChange: true
+                                });
+                                if (o_config.hasPaymentInstruments) {
+                                    context.currentRecord.setValue({
+                                        fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                        value: o_config.custrecord_an_paymentmethod.profileId,
+                                        ignoreFieldChange: true
+                                    });
+                                }
+                            } else {
+                                context.currentRecord.setValue({
+                                    fieldId: 'paymentmethod',
+                                    value: o_config.custrecord_an_paymentmethod_echeck.val,
+                                    ignoreFieldChange: true
+                                });
+                                if (o_config.hasPaymentInstruments) {
+                                    context.currentRecord.setValue({
+                                        fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                        value: o_config.custrecord_an_paymentmethod_echeck.profileId,
+                                        ignoreFieldChange: true
+                                    });
+                                }
+                            }
+                        })
+                        .catch(function onRejected(reason) {
+                            log.error('Client Token Type Failure', 'Token Type Lookup Failure');
+                            console.log('Token Type Lookup Failed');
+                        });
                     }
                     else
                     {
@@ -366,8 +399,9 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
         function SAC_fieldChanged(context) {
             var currentRecord = context.currentRecord;
             var fieldName = context.fieldId;
-            //console.log(context.sublistId + ' : '+fieldName);
-            //this ensures the subsidary clears the token
+            //console.log('FC:' + context.sublistId + ' : '+fieldName);
+
+
 
             //this section is a bit of a mess and should be refactored to be cleaner...
             if (_.includes([
@@ -379,7 +413,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 'paymentmethod',
                 'paymentoption',
                 'payment',
-                'subsidiary'
+                'subsidiary',
+                'custbody_authnet_cim_token'
             ], fieldName))
             {
                 //console.log(currentRecord.type + ' : '+fieldName);
@@ -433,20 +468,74 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
                 //console.log('o_config')
                 //console.log(o_config)
+                if (fieldName === 'custbody_authnet_cim_token' && context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}))
+                {
+                    search.lookupFields.promise({
+                        type: 'customrecord_authnet_tokens',
+                        id: context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}),
+                        columns : 'custrecord_an_token_paymenttype'
+                    }).then(function (result) {
+                        //log.debug('result', result)
+                        var i_tokenTypeId = 1;
+                        if (!_.isUndefined(result.custrecord_an_token_paymenttype[0]))
+                        {
+                            i_tokenTypeId = result.custrecord_an_token_paymenttype[0].value;
+                        }
+                        context.currentRecord.setValue({fieldId: 'custbody_authnet_cim_token_type', value : i_tokenTypeId})
+                        if (+context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
+                            context.currentRecord.setValue({
+                                fieldId: 'paymentmethod',
+                                value: o_config.custrecord_an_paymentmethod.val,
+                                ignoreFieldChange: true
+                            });
+                            if (o_config.hasPaymentInstruments) {
+                                context.currentRecord.setValue({
+                                    fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                    value: o_config.custrecord_an_paymentmethod.profileId,
+                                    ignoreFieldChange: true
+                                });
+                            }
+                        } else {
+                            context.currentRecord.setValue({
+                                fieldId: 'paymentmethod',
+                                value: o_config.custrecord_an_paymentmethod_echeck.val,
+                                ignoreFieldChange: true
+                            });
+                            if (o_config.hasPaymentInstruments) {
+                                context.currentRecord.setValue({
+                                    fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                    value: o_config.custrecord_an_paymentmethod_echeck.profileId,
+                                    ignoreFieldChange: true
+                                });
+                            }
+                        }
+                    }).catch(function onRejected(reason) {
+                        log.error('Client Token Type Failure', reason);
+                        console.log('Token Type Lookup Failed');
+                    });
+                }
 
                 if (o_config.custrecord_an_paymentmethod)
                 {
+                    console.log('WHATS THE FIELD HERE : '+fieldName)
                     if (fieldName === (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'))
                     {
-                        if (_.includes([o_config.custrecord_an_paymentmethod_echeck.val, o_config.custrecord_an_paymentmethod.val], context.currentRecord.getValue({fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod')})) )
+                        if (_.includes([o_config.custrecord_an_paymentmethod_echeck.val, o_config.custrecord_an_paymentmethod.val], context.currentRecord.getValue({fieldId: fieldName})) )
                         {
-                            context.currentRecord.setValue({
+                            console.log(fieldName + ' was set to '+ context.currentRecord.getValue({fieldId: fieldName}))
+                            if (!context.currentRecord.getValue({
                                 fieldId: 'custbody_authnet_use',
-                                value: true
-                            });
+                            })) {
+                                context.currentRecord.setValue({
+                                    fieldId: 'custbody_authnet_use',
+                                    value: true
+                                });
+                            }
                         }
                         else
                         {
+                            console.log(fieldName + ' was UNset to '+ context.currentRecord.getValue({fieldId: fieldName}))
+                            console.log(fieldName + ' was UNset to '+ context.currentRecord.getValue({fieldId: 'paymentmethod'}))
                             context.currentRecord.setValue({
                                 fieldId: 'custbody_authnet_use',
                                 value: false,
@@ -550,13 +639,55 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     }
                     if (fieldName === 'custbody_authnet_use') {
                         if (currentRecord.getValue({fieldId: 'custbody_authnet_use'})) {
+
                             getDefaultCard(context.currentRecord, o_config);
+                            console.log('Selecting to USE Authorize.Net as a payment method');
 
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    currentRecord.setValue({fieldId :(o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: !currentRecord.type==='customerpayment'});
+                                    console.log('running this here for setting stuff')
+                                    //this field is always required
+                                    currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
+                                    //this one is sometimes required
+                                    if (o_config.hasPaymentInstruments) {
+                                        /*currentRecord.setValue({
+                                            fieldId: 'paymentoperation',
+                                            value: 'SALE',
+                                            ignoreFieldChange: true
+                                        });
+                                        currentRecord.setValue({
+                                            fieldId: 'handlingmode',
+                                            value: 'SAVE_ONLY',
+                                            ignoreFieldChange: true
+                                        });*/
+                                        currentRecord.setValue({
+                                            fieldId: 'paymentoption',
+                                            text: o_config.custrecord_an_paymentmethod.profileId,
+                                            ignoreFieldChange: true
+                                        });
+
+                                    }
                                 } else {
-                                    currentRecord.setValue({fieldId :(o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value : o_config.custrecord_an_paymentmethod_echeck.val,ignoreFieldChange: !currentRecord.type==='customerpayment'});
+                                    //this field is always required
+                                    currentRecord.setValue({fieldId :'paymentmethod', value : o_config.custrecord_an_paymentmethod_echeck.val,ignoreFieldChange: true});
+                                    //this one is sometimes required
+                                    if (o_config.hasPaymentInstruments) {
+                                        /*currentRecord.setValue({
+                                            fieldId: 'paymentoperation',
+                                            value: 'SALE',
+                                            ignoreFieldChange: true
+                                        });
+                                        currentRecord.setValue({
+                                            fieldId: 'handlingmode',
+                                            value: 'SAVE_ONLY',
+                                            ignoreFieldChange: true
+                                        });*/
+                                        currentRecord.setValue({
+                                            fieldId: 'paymentoption',
+                                            text: o_config.custrecord_an_paymentmethod_echeck.profileId,
+                                            ignoreFieldChange: true
+                                        });
+                                    }
                                 }
                             } catch (e) {
                                 log.audit('Account does not have native cc-pocessing enabled');
@@ -574,7 +705,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                     window.nlapiGetField(field).setDisplayType('hidden');
                                     currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange: true});
                                 } catch (e) {
-                                    //log.error('issue with client hide / show native ', 'Missing field : ' + field);
+                                    log.error('issue with client hide / show native ', 'Missing field : ' + field);
                                 }
                             });
 
@@ -586,7 +717,17 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             }
                             //window.nlapiDisableField('bullshit')
                         } else {
-                            currentRecord.setValue({fieldId:(o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value:'', ignoreFieldChange: true});
+                            console.log('Selecting to NOT use Authorize.Net as a payment method');
+                            //this field is always required
+                            currentRecord.setValue({fieldId :'paymentmethod', value : '',ignoreFieldChange: true});
+                            //this one is sometimes required
+                            if (o_config.hasPaymentInstruments) {
+                                currentRecord.setValue({
+                                    fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                    value: '',
+                                    ignoreFieldChange: true
+                                });
+                            }
                             _.forEach(exports.aNetFields, function (field) {
                                 try {
                                     currentRecord.setValue({fieldId: field, value: '', ignoreFieldChange: true});
@@ -614,11 +755,16 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 value: false,
                                 ignoreFieldChange: true
                             });
-                            currentRecord.setValue({
-                                fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
-                                value: '',
-                                ignoreFieldChange: true
-                            });
+                            //this field is always required
+                            currentRecord.setValue({fieldId :'paymentmethod', value : '', ignoreFieldChange: true});
+                            //this one is sometimes required
+                            if (o_config.hasPaymentInstruments) {
+                                currentRecord.setValue({
+                                    fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                    value: '',
+                                    ignoreFieldChange: true
+                                });
+                            }
                             currentRecord.setValue({
                                 fieldId: 'custbody_authnet_done',
                                 value: true,
@@ -693,9 +839,27 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         if (currentRecord.getValue('custbody_authnet_use')) {
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    currentRecord.setValue({fieldId :(o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value: o_config.custrecord_an_paymentmethod.val, ignoreFieldChange: true});
+                                    //this field is always required
+                                    currentRecord.setValue({fieldId :'paymentmethod', value : o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
+                                    //this one is sometimes required
+                                    if (o_config.hasPaymentInstruments) {
+                                        currentRecord.setValue({
+                                            fieldId: 'paymentoption',
+                                            value: o_config.custrecord_an_paymentmethod.profileId,
+                                            ignoreFieldChange: true
+                                        });
+                                    }
                                 } else {
-                                    currentRecord.setValue({fieldId :(o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value: o_config.custrecord_an_paymentmethod_echeck.val, ignoreFieldChange: true});
+                                    //this field is always required
+                                    currentRecord.setValue({fieldId :'paymentmethod', value : o_config.custrecord_an_paymentmethod_echeck.val,ignoreFieldChange: true});
+                                    //this one is sometimes required
+                                    if (o_config.hasPaymentInstruments) {
+                                        currentRecord.setValue({
+                                            fieldId: 'paymentoption',
+                                            value: o_config.custrecord_an_paymentmethod_echeck.profileId,
+                                            ignoreFieldChange: true
+                                        });
+                                    }
                                 }
                                 currentRecord.setValue({fieldId :'chargeit', value: false});
                             } catch (e) {
@@ -716,8 +880,14 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                 log.debug('Native billing not enabled')
                             }
                         } else {
-
-                            currentRecord.setText({fieldId:(o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), text:'', ignoreFieldChange: true});
+                            currentRecord.setText({fieldId:'paymentmethod', text:'', ignoreFieldChange: true});
+                            if (o_config.hasPaymentInstruments) {
+                                currentRecord.setText({
+                                    fieldId: (o_config.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'),
+                                    text: '',
+                                    ignoreFieldChange: true
+                                });
+                            }
                             _.forEach(nativeFields, function (field) {
                                 try {
                                     window.nlapiGetField(field).setDisplayType('normal');
@@ -766,7 +936,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             line: context.line
                         })) {
                             if (!b_useAuthNet && b_hasSAC) {
-                                dialog.alert({title:'Selected transaction <span style="color:red;">used</span> Authorize.Net', message:'You are attempting to issue this Customer Refund on a transaction that captured funds using Authorize.Net.  To refund this transaction, you must first check the box "Use Authorize.Net" and then select this transaction'});
+                                dialog.alert({title:'Selected transaction used Authorize.Net', message:'You are attempting to issue this Customer Refund on a transaction that captured funds using Authorize.Net.  To refund this transaction, you must first check the box "Use Authorize.Net" and then select this transaction'});
                                 context.currentRecord.setCurrentSublistValue({
                                     sublistId: context.sublistId,
                                     fieldId: 'apply',
@@ -781,12 +951,12 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             } else if (b_useAuthNet && !b_hasSAC) {
                                 if (context.sublistId === 'apply')
                                 {
-                                    dialog.alert({title:'Credit Memo\'s <span style="color:red;">CAN NOT</span> use Authorize.Net',
+                                    dialog.alert({title:'Credit Memo\'s CAN NOT use Authorize.Net',
                                         message: 'Because a Credit Memo may be issued against an Invoice with multiple Payments / Deposits applied, it\'s not possible to use Authorize.Net here to issue a refund. You may either refund the customer via a check (most common) or issue the refund here via Refund Method of Cash and then utilize your Authorize.Net account to refund individual payments equaling the total refund - note that these will not show in your settlement reporting tools within NetSuite. <br><br>While this is frustrating, this issue is due to how both NetSuite and Authorize.Net work / do not work together.' });
                                 }
                                 else
                                 {
-                                    dialog.alert({title:'Selected transaction did <span style="color:red;">not</span> use Authorize.Net',
+                                    dialog.alert({title:'Selected transaction did not use Authorize.Net',
                                         message: 'You are attempting to issue this Customer Refund with Authorize.Net on a transaction that was not generated with Authorize.Net, you can only select transactions that captured funds using Authorize.Net. To refund this transaction, you must first uncheck the box "Use Authorize.Net" and then select this transaction'});
                                 }
                                 context.currentRecord.setCurrentSublistValue({

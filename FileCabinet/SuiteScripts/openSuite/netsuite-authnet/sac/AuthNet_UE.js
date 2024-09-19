@@ -42,13 +42,28 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     });
                 }
                 //if we have transaction records that the auth net fields appear on but shouldn't - do this
-                if(_.includes(['creditmemo', 'invoice'], context.newRecord.type))
+                if(_.includes(['invoice'], context.newRecord.type))
                 {
                     _.forEach(_.concat(authNet.ALLAUTH, authNet.TOKEN, authNet.CHECKBOXES), function (fd) {
                         var fld = 'custbody_authnet_' + fd;
                         try {
                             form.getField({id: fld}).updateDisplayType({
                                 displayType: ui.FieldDisplayType.HIDDEN
+                            });
+                        } catch (e){
+                            //log.error('Field Not on Form', form + ' missing ' + fld)
+                        }
+                    });
+                    log.audit('This record has nothing to do with authorize.net','So all fields are hidden and it is skipped.')
+                    return;
+                }
+                if(_.includes(['creditmemo'], context.newRecord.type))
+                {
+                    _.forEach(_.concat(authNet.ALLAUTH, authNet.TOKEN, authNet.CHECKBOXES), function (fd) {
+                        var fld = 'custbody_authnet_' + fd;
+                        try {
+                            form.getField({id: fld}).updateDisplayType({
+                                displayType: ui.FieldDisplayType.INLINE
                             });
                         } catch (e){
                             //log.error('Field Not on Form', form + ' missing ' + fld)
@@ -75,7 +90,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     displayType: ui.FieldDisplayType.HIDDEN
                 }).defaultValue = '{}';
 
-                //var b_hasNativeCC = authNet.hasNativeCC();
                 //Is any of this turned on?
                 if (!o_config2.custrecord_an_enable.val) {
                     form.getField({id: 'custbody_authnet_use'}).updateDisplayType({
@@ -156,7 +170,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         //this is only auth net if theres an auth net payment method (for this banner)
                         b_isAuthNet = ((context.newRecord.getValue({fieldId :'custbody_authnet_use'})
                             || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) )
-                            && _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: 'paymentmethod'})));
+                            && _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: (o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod')})));
                     //log.debug(context.newRecord.getValue({fieldId :'orderstatus'}), o_config2.custrecord_an_auth_so_on_approval.val)
                     authNet.homeSysLog('history parsed', o_history);
                     authNet.homeSysLog('b_isAuthNet', b_isAuthNet);
@@ -656,6 +670,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             }
             //var o_config = authNet.getActiveConfig(context.newRecord);
             var o_config2 = authNet.getConfigFromCache();
+            if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+            {
+                return;
+            }
             //now switch the object to the correct sub config!
             if (o_config2.mode === 'subsidiary'){
                 o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
@@ -816,11 +834,15 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             {
                 return;
             }
+            var o_config2 = authNet.getConfigFromCache();
+            if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+            {
+                return;
+            }
             log.debug('STARTING authNetAFTERSubmit via: '+runtime.executionContext, context.type +' on '+context.newRecord.type);
 
             //todo - get the most recent log record and update the transaction???
             //var o_config = authNet.getActiveConfig(context.newRecord);
-            var o_config2 = authNet.getConfigFromCache();
             if (o_config2.mode === 'subsidiary'){
                 o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
             }
@@ -880,6 +902,12 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         //log.debug('the field is ' + o_config2.custrecord_an_external_fieldid.val, context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}));
                                         var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
                                         authNet.verboseLogging('o_status from EXTERNAL AUTH', o_status);
+                                        if(o_status.transactionStatus === 'capturedPendingSettlement' && !o_config2.custrecord_an_make_deposit.val)
+                                        {
+                                            log.emergency('THIS SHOULD NOT HAPPEN', 'Sales Order BEING CREATED WITH A CAPTURED TRANSACTION AND NO DEPOSIT PATHWAY CONFIGURED - POOR ACCOUNTING PRACTICE VIOLATION!');
+                                            authNet.handleResponse(o_status, context, true);
+                                            throw error.create({name:'Imported transaction '+ context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) +' blocked', message: 'This transaction is attempting to create a Sales Order but using a '+o_status.transactionStatus+ ' transaction. You need to configure the creation of deposits in your Authorize.net Connector to follow proper accoutning guidelines for a posting transaction.'});
+                                        }
                                         var b_continue = authNet.makeIntegrationHistoryRec(context.newRecord, o_config2, o_status);
                                         if (b_continue) {
                                             if (o_config2.custrecord_an_cim_auto_generate.val) {
@@ -970,18 +998,25 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 if (pluginResult.process) {
                                     //if there was a cc number, its auth.net and it's not already approved, let's do it!
                                     thisRec = authNet.getAuth(context.newRecord);
-                                    //thisRec.setValue('custbody_token_instant_auth', false);
-                                    if(!thisRec.getValue({fieldId :'custbody_authnet_refid'}) ){
-                                        thisRec.setValue({fieldId :'custbody_authnet_use', value :false});
-                                    } else {
-                                        //so things coded but failed anyhow - like AVS issues
-                                        if (thisRec.getValue({fieldId :'custbody_authnet_authcode'}) && !thisRec.getValue({fieldId :'custbody_authnet_error_status'})){
-                                            //thisRec.setValue({fieldId :'ccapproved', value :true});
-                                            if (!b_isTokenized && o_config2.custrecord_an_cim_auto_generate.val) {
-                                                //todo - will never happen now in this version
-                                                authNet.getCIM(thisRec, o_config2);
+                                    if (thisRec.getValue({fieldId:'custbody_authnet_settle_status'}) !== 'ERR')
+                                    {
+                                        if(!thisRec.getValue({fieldId :'custbody_authnet_refid'})){
+                                            thisRec.setValue({fieldId :'custbody_authnet_use', value :false});
+                                            log.audit('Cleared the "Use Authorize.net" Checkbox', 'This transaction does not have a refid, so it\'s not authnet');
+                                        } else {
+                                            //so things coded but failed anyhow - like AVS issues
+                                            if (thisRec.getValue({fieldId :'custbody_authnet_authcode'}) && !thisRec.getValue({fieldId :'custbody_authnet_error_status'})){
+                                                //thisRec.setValue({fieldId :'ccapproved', value :true});
+                                                if (!b_isTokenized && o_config2.custrecord_an_cim_auto_generate.val) {
+                                                    //todo - will never happen now in this version
+                                                    authNet.getCIM(thisRec, o_config2);
+                                                }
                                             }
                                         }
+                                    }
+                                    else
+                                    {
+                                        log.error('Error with Authorize.Net', 'An exception was thrown resulting from a likely communication error');
                                     }
                                     thisRec.save({ignoreMandatoryFields : true});
                                 } else {

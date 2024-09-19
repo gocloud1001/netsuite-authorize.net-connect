@@ -27,8 +27,8 @@
  * @NAmdConfig ../config.json
  *
  */
-define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWidget', 'N/url', 'N/file', 'N/render', 'N/redirect', 'N/task', 'lodash', './AuthNet_lib', 'moment'],
-    function (record, runtime, error, search, log, ui, url, file, render, redirect, task, _, authNet, moment) {
+define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWidget', 'N/url', 'N/file', 'N/render', 'N/redirect', 'N/task', 'N/https', 'lodash', './AuthNet_lib', 'moment'],
+    function (record, runtime, error, search, log, ui, url, file, render, redirect, task, https, _, authNet, moment) {
 
 
 //https://system.sandbox.netsuite.com/app/site/hosting/scriptlet.nl?script=153&deploy=1&compid=3686238&number=XXXX1111&soid=1411554&code=3&type=Visa&hash=B7B643FEBF2276A3D890378D0A1C805D&errorcode=11&errortxt=A+duplicate+transaction+has+been+submitted.&whence=&cmid=1512076831433_8210
@@ -954,6 +954,12 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         source: 'cim',
                         container: 'grpcim'
                     });
+                    form.addField({
+                        id: 'custpage_cimsoid',
+                        type: ui.FieldType.INTEGER,
+                        label: 'SO Intenralid for CIM Gen',
+                        container: 'grpcim'
+                    });
 
                     form.addField({
                         id: 'custpage_test',
@@ -1021,6 +1027,15 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         context.response.write(e.name + ' :: '+e.message);
                     }
                 }
+                else if (o_params.unittest)
+                {
+                    var o_response = https.post({
+                        headers: {'Content-Type': 'application/json'},
+                        url: 'https://ul.cloud1001llc.com', //does not exist so will fail
+                        body: JSON.stringify({})
+                    });
+                    log.debug('o_response', o_response);
+                }
                 else
                 {
                 /*template = template.replace(/%%MESSAGES%%/g, 'TRANSACTION HAS BEEN CHARGED - CAN NOT DELETE');
@@ -1048,7 +1063,9 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     } catch (ex){
                         context.response.write('Initial setup and configuraton is STILL taking place - you may need to wait a moment and reload this page.');
                     }
-                } else {
+                }
+                else
+                {
                     try {
                         redirect.toRecord({
                             type: 'customrecord_authnet_config',
@@ -1083,14 +1100,15 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     })+ '>Run another test</a>'};
                 function buildSO(o_params, o_response)
                 {
+                    log.audit('buildSO', o_params);
                     var testSo = record.create({
                         type: 'salesorder',
                         isDynamic : true
                     });
-                    testSo.setValue({fieldId: 'entity', value : o_params.customer });
+                    testSo.setValue({fieldId: 'entity', value : o_params.customer ? o_params.customer : 1490});
                     testSo.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
                     testSo.selectNewLine({sublistId:'item'});
-                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item});
+                    testSo.setCurrentSublistValue({sublistId:'item', fieldId:'item', value:o_params.item ? o_params.item : 1075});
                     testSo.setCurrentSublistValue({sublistId:'item', fieldId:'quantity', value:1});
                     if (+testSo.getCurrentSublistValue({sublistId:'item', fieldId:'price'}) !== -1 ) {
                         testSo.setCurrentSublistValue({sublistId: 'item', fieldId: 'price', value: -1});
@@ -1125,8 +1143,8 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         'city': 'Walworth',
                         'addrphone': '555-867-5309',
                         'addr1' : '123 Main Street',
-                        'addr2' : 'Appt. B',
-                        'attention' : 'AuthNet Tester!',
+                        'addr2' : 'Apt. B',
+                        'attention' : 'Cloud 1001 AuthNet Tester!',
                         'addressee' : 'Mr. Person'
                     };
                     _.forEach(o_address, function(val, kie){
@@ -1633,8 +1651,8 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         break;
                     case 'cim':
                         var thisRec=record.load({
-                            type : o_params.txntype,
-                            id: o_params.txnid,
+                            type : 'salesorder',
+                            id: o_params.custpage_cimsoid,
                             isDynamic: true });
                         //var o_config = authNet.getActiveConfig(thisRec);
                         o_response = authNet.getCIM(thisRec, o_config2);

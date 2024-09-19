@@ -601,8 +601,17 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 {
                     context.newRecord.setValue({fieldId: 'custrecord_an_token_paymenttype', value : 1});
                 }
+                //check custrecord_an_token_type === 'Bank Account' then custrecord_an_token_type
+                if (context.newRecord.getValue({fieldId: 'custrecord_an_token_type'}) === 'Bank Account')
+                {
+                    context.newRecord.setValue({fieldId: 'custrecord_an_token_paymenttype', value : 2});
+                }
             }
-            else if (context.type === 'create' && (_.includes([runtime.ContextType.SUITELET, runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT], runtime.executionContext) ))
+            else if (context.type === 'create' && (_.includes([runtime.ContextType.SUITELET, runtime.ContextType.USER_INTERFACE], runtime.executionContext) )
+            && !context.newRecord.getValue({fieldId: 'custrecord_an_token_token'})
+                &&
+                !context.newRecord.getValue({fieldId: 'custrecord_an_token_customerid'})
+            )
             {
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
                 //clean the heck out of the user entered fields
@@ -610,7 +619,6 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_accountnumber', value :_.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_accountnumber'}))});
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_nameonaccount', value :_.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_nameonaccount'}))});
                 context.newRecord.setValue({fieldId: 'custrecord_an_token_bank_routingnumber', value :_.trim(context.newRecord.getValue({fieldId: 'custrecord_an_token_bank_routingnumber'}))});
-
                 var o_newProfile = authNet.createNewProfile(context.newRecord, o_config);
                 //log.debug('o_newProfile', o_newProfile)
                 //this is a new in in the UI entry - so we need to generate the profile!
@@ -703,108 +711,31 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 {
                     //get the profile off the profile import and then hash the record - this only happens if there's no customer name
                     if (context.newRecord.getValue({fieldId: 'custrecord_an_token_customerid'}) && !context.newRecord.getValue({fieldId: 'custrecord_an_token_customer_type'})) {
+                        //the CSV import map needs to map in a minimum of 4 things : netsutie id to entity, profile id to profile id, a fake name like (IMPORT) and the gateway.  If subs are used, more complex mapping is required
                         log.audit('Running After Submit of Profile IMPORT', 'This is a CSV Profile Import!');
                         //https://developer.authorize.net/api/reference/index.html#customer-profiles-get-customer-profile
-                        var importedProfile = authNet.importCIMToken(context.newRecord.toJSON());
-                        //log.debug('importedProfile', importedProfile);
-                        if (importedProfile.profile.paymentProfiles.length > 0) {
-                            var idx = 0;
-                            _.forEach(importedProfile.profile.paymentProfiles, function (profile) {
-                                if (idx === 0) {
-                                    //update the imported record with the first profile
-                                    var rec_cimProfile = record.load({
-                                        type: 'customrecord_authnet_tokens',
-                                        id: context.newRecord.id,
-                                        isDynamic: true
-                                    });
-                                    rec_cimProfile.setValue({
-                                        fieldId: 'custrecord_an_token_token',
-                                        value: profile.customerPaymentProfileId
-                                    });
-                                    if (!_.isUndefined(profile.payment.creditCard)) {
-                                        rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value: 1});
-                                        rec_cimProfile.setValue({
-                                            fieldId: 'custrecord_an_token_type',
-                                            value: profile.payment.creditCard.cardType
-                                        });
-                                        rec_cimProfile.setValue({
-                                            fieldId: 'custrecord_an_token_last4',
-                                            value: profile.payment.creditCard.cardNumber
-                                        });
-                                        rec_cimProfile.setValue({
-                                            fieldId: 'custrecord_an_token_expdate',
-                                            value: profile.payment.creditCard.expirationDate
-                                        });
-                                        rec_cimProfile.setValue({
-                                            fieldId: 'name',
-                                            value: profile.payment.creditCard.cardType + ' (' + profile.payment.creditCard.cardNumber + ')'
-                                        });
-                                    } else {
-                                        rec_cimProfile.setValue({
-                                            fieldId: 'name',
-                                            value: importedProfile.profile.description
-                                        });
-                                    }
-                                    rec_cimProfile.setValue({
-                                        fieldId: 'custrecord_an_token_pblkchn',
-                                        value: authNet.mkpblkchain(rec_cimProfile, rec_cimProfile.id)
-                                    });
-                                    rec_cimProfile.save();
-                                } else {
-                                    //make a new record from the ground up for every otehr profile that's imported
-                                    var rec_cimProfileNew = record.create({
-                                        type: 'customrecord_authnet_tokens',
-                                        isDynamic: true
-                                    });
-                                    rec_cimProfileNew.setValue({
-                                        fieldId: 'custrecord_an_token_token',
-                                        value: profile.customerPaymentProfileId
-                                    });
-                                    if (!_.isUndefined(profile.payment.creditCard)) {
-                                        rec_cimProfileNew.setValue({
-                                            fieldId: 'custrecord_an_token_paymenttype',
-                                            value: 1
-                                        });
-                                        rec_cimProfileNew.setValue({
-                                            fieldId: 'custrecord_an_token_type',
-                                            value: profile.payment.creditCard.cardType
-                                        });
-                                        rec_cimProfileNew.setValue({
-                                            fieldId: 'custrecord_an_token_last4',
-                                            value: profile.payment.creditCard.cardNumber
-                                        });
-                                        rec_cimProfileNew.setValue({
-                                            fieldId: 'custrecord_an_token_expdate',
-                                            value: profile.payment.creditCard.expirationDate
-                                        });
-                                        rec_cimProfileNew.setValue({
-                                            fieldId: 'name',
-                                            value: profile.payment.creditCard.cardType + ' (' + profile.payment.creditCard.cardNumber + ')'
-                                        });
-                                    } else {
-                                        rec_cimProfileNew.setValue({
-                                            fieldId: 'name',
-                                            value: importedProfile.profile.description
-                                        });
-                                    }
-                                    rec_cimProfileNew.setValue({
-                                        fieldId: 'custrecord_an_token_pblkchn',
-                                        value: authNet.mkpblkchain(rec_cimProfileNew, rec_cimProfileNew.id)
-                                    });
-                                    rec_cimProfileNew.save();
-                                }
-                                //increment the counter to start building more profiles
-                                idx++;
+                        var o_profile_JSON = {
+                            fields: {
+                                custrecord_an_token_customerid: context.newRecord.getValue({fieldId: 'custrecord_an_token_customerid'}),
+                                entity: context.newRecord.getValue({fieldId: 'custrecord_an_token_entity'})
+                            }
+                        };
+                        var o_retreivedProfile = authNet.importAndBuildProfilesOffProfileId(o_profile_JSON);
+                        //var o_profileResponse = authNet.importAndBuildProfilesOffProfileId(context.newRecord);
+                        authNet.verboseLogging('o_retreivedProfile', o_retreivedProfile);
+                        record.delete({type: 'customrecord_authnet_tokens', id: context.newRecord.id});
+                        if (!o_retreivedProfile.success)
+                        {
+                            //nice error for the CSV import error column
+                            throw error.create({
+                                name: 'CIM Customer ID '+context.newRecord.getValue({fieldId: 'custrecord_an_token_customerid'}) + ' FAILED Import',
+                                message: 'This customer import failed to correctly retreive records'
                             });
                         }
                         else
                         {
                             record.delete({type: 'customrecord_authnet_tokens', id: context.newRecord.id});
-                            //nice error for the CSV import error column
-                            throw error.create({
-                                name: 'CIM Customer ID has No Valid Payment Profiles',
-                                message: 'This customer has no active / valid payment profiles and none were imported'
-                            });
+
                         }
                     }
                     else if (!_.isEmpty(context.newRecord.getValue({fieldId: 'custrecord_an_token_customer_type'})))

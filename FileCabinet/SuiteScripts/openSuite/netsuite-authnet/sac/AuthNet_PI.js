@@ -156,7 +156,14 @@ function(exports, log, _, SAC) {
             (
                 context.type === context.UserEventType.CREATE && !context.newRecord.getValue('custbody_authnet_done') && !context.newRecord.getValue({fieldId:'custbody_authnet_override'}) &&
                 (
-                    (context.newRecord.getValue({ fieldId:'custbody_authnet_use'})  || context.newRecord.getValue({fieldId: 'paymentmethod'}) === o_config.custrecord_an_paymentmethod.val )
+                    (context.newRecord.getValue({ fieldId:'custbody_authnet_use'})  || _.includes([o_config.custrecord_an_paymentmethod.val, o_config.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: 'paymentmethod'})) )
+                )
+            )
+            ||
+            (
+                context.type === context.UserEventType.EDIT && !context.newRecord.getValue('custbody_authnet_done') && !context.newRecord.getValue({fieldId:'custbody_authnet_override'}) &&
+                (
+                    (context.newRecord.getValue({ fieldId:'custbody_authnet_use'})  || _.includes([o_config.custrecord_an_paymentmethod.val, o_config.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: 'paymentmethod'})) )
                 )
             )
         );
