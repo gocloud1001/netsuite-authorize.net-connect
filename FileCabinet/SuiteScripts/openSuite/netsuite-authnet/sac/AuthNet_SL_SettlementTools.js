@@ -713,6 +713,32 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                         end_date: moment().endOf('month').subtract(1, 'day').toDate(),
                         //start_date : moment().subtract(1,'month').startOf('month').toDate(),
                     });
+                    log.debug('runtime.getCurrentUser().roleId',runtime.getCurrentUser())
+                    if (+runtime.getCurrentUser().role === 3)
+                    {
+                        var i_deploymentId;
+                        search.create({
+                            type:'scriptdeployment',
+                            filters : [
+                                ['scriptid', 'is', [ "CUSTOMDEPLOY_SAC_SL2_SETTLEMENT_TOOLS" ]]
+                            ]
+                        }).run().each(function(result){
+                            i_deploymentId = +result.id;
+                        });
+                        form.addTab({
+                            id : 'custpage_administrator',
+                            label : 'Administrator Role Notes'
+                        });
+                        form.addField({
+                            id: 'custpage_insub_mode',
+                            label: '<b>Administrator Note: </b>You may want to add this tool to individual roles as not all roles use the Classic Center view like this one.<br/>' +
+                                'To do so, from the <a href="/app/common/scripting/scriptrecord.nl?id='+i_deploymentId+'" target="_blank">deployment for this tool</a>, select Edit.<br/>' +
+                                'Then from the Links tab, add the Center used by the Role that should see the tool and select the section and category where the tool should show for that role as well.<br/>' +
+                                'NOTE : Every time your versions of software are updated, these settings will need to be updated.',
+                            type: serverWidget.FieldType.HELP,
+                            container : 'custpage_administrator'
+                        });
+                    }
                     form.addSubmitButton({
                         id : 'submit',
                         label : 'Submit'
