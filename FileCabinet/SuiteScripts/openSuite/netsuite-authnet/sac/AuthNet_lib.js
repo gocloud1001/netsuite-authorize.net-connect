@@ -136,6 +136,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             }
         }
     };
+    //get getMerchantDetailsRequest for approved payment methods and account details
+    exports.AuthNetGetMerchantDetailsRequest = function(o_ccAuthSvcConfig) {
+        return {
+            "getMerchantDetailsRequest": {
+                "merchantAuthentication": o_ccAuthSvcConfig.auth
+            }
+        }
+    };
     //get payment profile
     exports.AuthNetGetCustomerProfileRequest = {
         getCustomerProfileRequest: {

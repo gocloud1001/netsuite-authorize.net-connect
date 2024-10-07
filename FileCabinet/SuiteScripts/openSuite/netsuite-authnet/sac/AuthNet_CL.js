@@ -74,8 +74,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     'custrecord_an_token_paymenttype',
                     'custrecord_an_token_default',
                     'custrecord_an_token_gateway',
-
-                ]
+                ];
                 if (o_config.isSubConfig)
                 {
                     a_filters.push("AND");
@@ -175,16 +174,30 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
             } else if (_.includes(['customerrefund'], context.currentRecord.type)){
                 try {
-                    _.forEach([
-                        'custbody_authnet_ccnumber',
-                        'custbody_authnet_ccexp',
-                        'custbody_authnet_ccv',
-                        'custbody_authnet_refid',
-                        'custbody_authnet_authcode',
-                        'custbody_authnet_override',
-                        'custbody_authnet_cim_token',
-                        'custpage_authnet_cim_token',
-                    ],function(fld){
+                    var a_fieldsToHide;
+                    if(context.mode === 'edit')
+                    {
+                        a_fieldsToHide = [
+                            'custbody_authnet_ccnumber',
+                            'custbody_authnet_ccexp',
+                            'custbody_authnet_ccv',
+                            'custbody_authnet_override',
+                            'custbody_authnet_cim_token',
+                        ];
+                    }
+                    else
+                    {
+                        a_fieldsToHide = [
+                            'custbody_authnet_ccnumber',
+                            'custbody_authnet_ccexp',
+                            'custbody_authnet_ccv',
+                            'custbody_authnet_refid',
+                            'custbody_authnet_authcode',
+                            'custbody_authnet_override',
+                            'custbody_authnet_cim_token',
+                        ];
+                    }
+                    _.forEach(a_fieldsToHide,function(fld){
                         try
                         {
                             window.nlapiGetField(fld).setDisplayType('hidden');
@@ -645,7 +658,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
 
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    console.log('running this here for setting stuff')
+                                    console.log('running this here for setting stuff');
                                     //this field is always required
                                     currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
                                     //this one is sometimes required
@@ -665,7 +678,6 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                             text: o_config.custrecord_an_paymentmethod.profileId,
                                             ignoreFieldChange: true
                                         });
-
                                     }
                                 } else {
                                     //this field is always required
