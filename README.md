@@ -1,15 +1,16 @@
 # netsuite-authorize.net-connect
-NetSuite <> Authorize.Net Integration as a SDF project that runs completely inside NetSuite that is available under the [Apache License, Version 2.0 with Common Clause Version 1.0 license](https://www.gocloud1001.com/cloud1001-software-licence/ "Apache License, Version 2.0 with Common Clause Version 1.0 license") as part of the Cloud 1001, LLC Free & Open Suite Initiative.
+NetSuite <> Authorize.Net Integration as a SDF project that runs completely inside NetSuite that is available under the [Apache License, Version 2.0 with Commons Clause Version 1.0 license](https://www.gocloud1001.com/cloud1001-software-licence/ "Apache License, Version 2.0 with Commons Clause Version 1.0 license") as part of the Cloud 1001, LLC Free & Open Suite Initiative.
 
-## URGENT NOTE about SHOPIFY'S Authorize.Net Gateway Plugin Change mandated by September 30, 2024
-Authorize.Net has been forced to change their plugin for Shopify per their [article here](https://support.authorize.net/knowledgebase/Knowledgearticle/?code=KA-04246) and all Shopify stores will be required to install this gateway plugin update by September 30th, 2024.  The issue here is how Shopify has changed the requirements (see section title *### What are the known changes or gaps with the new integration?* in the above linked article).  The Authorize.Net plugin no longer is allowed to store the actual Authorize.Net transaction ID that links to Authorize.Net.  This is clearly a bullying tactic used by Shopify to push store owners to use the Shopify Payments option (and make Shopify more money).  We currently have a workaround to this imposed limitation but it is not NOT part of the current netsuite-authorize.net-connect codebase as it is being actively refined.  If you are connecting your Shopify store to NetSuite and expect card processing to continue as it has, need this functionality, for the time being, please [contact us](https://www.gocloud1001.com/contact-us/) and we will discuss the options we have as we work to solidify a viable workaround for this solution. (updated 21-August-2024)
+## URGENT NOTE about SHOPIFY'S Authorize.Net Gateway Plugin Change mandated by ~~September 30, 2024~~ March 2025
+Authorize.Net has been forced to change their plugin for Shopify per their [article here](https://support.authorize.net/knowledgebase/Knowledgearticle/?code=KA-04246) and all Shopify stores will be required to install this gateway plugin update by September 30th, 2024.  The issue here is how Shopify has changed the requirements (see section title *### What are the known changes or gaps with the new integration?* in the above linked article).  The Authorize.Net plugin no longer is allowed to store the actual Authorize.Net transaction ID that links to Authorize.Net.  This is clearly a bullying tactic used by Shopify to push store owners to use the Shopify Payments option (and make Shopify more money).  We currently have a workaround to this imposed limitation but it is not NOT part of the current netsuite-authorize.net-connect codebase as it is being actively refined.  If you are connecting your Shopify store to NetSuite and expect card processing to continue as it has, need this functionality, for the time being, please [contact us](https://www.gocloud1001.com/contact-us/) and we will discuss the options we have as we work to solidify a viable workaround for this solution. (updated 07-October-2024)
+We now have a valid and working workaround to this issue.  It requires API access to your Shopify site to write back updates when the order is captured in NetSuite whereas this used to just work before.  Deploying this solution is just an hour or two of work [contact us](https://www.gocloud1001.com/contact-us/) for details!
 
 ## READ THIS BEFORE PROCEEDING
 
 Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) makes this as clear as we can make it - it needs to be reiterated : **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In**, because it is not allowed to, per Oracle. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.  
 Here's a checklist and grades of things it does and does not do (version 3.1+):
 - [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, ~~Shopify,~~ WooCommerce, BigCommerce, etc* inside of NetSuite
-- [**F**] *Shopify* currently is breaking this - see above note about the current workaround we have developed.
+- [**B**] *Shopify* currently is breaking this - see above note about the current workaround we have developed.
 - [**A+**] Allows for direct processing of authorizations or authorizations+captures inside of NetSuite on the appropriate transaction type following native card processing logic
 - [**A+**] Provides VERY ROBUST batch settlement tracking and processing features making daily reconciliations and deposits simple and efficient while also making any discrepancies easy to spot and resolve
 - [**A+**] Storage of card data using Authorize.Net CIM for PCI complaint tokens - no raw card data is preserved
@@ -17,8 +18,8 @@ Here's a checklist and grades of things it does and does not do (version 3.1+):
 - [**F**] SuiteCommerce will not work with this solution because it is not a Gateway Plugin  (*besides, you should use a decent webstore anyhow - not SuiteCommerce*)
 - [**F**] NetSuite POS will not work with this solution because it is not a Gateway Plugin  (*additionally, should you really be running a product that calls itself a POS?*)
 - [**D**] Customer Center "self pay" has not been tested end to end tested - it can work - but the Customer Center implementation in NetSuite itself is so poor - the user experience is horrific and not suggested
-- [**F**] The new(ish) "Pay Now" link functionality in NetSuite is not supported as that uses NetSuite Payment Instruments which is part of their Payment Gateway, which this is not part of
-- [**F**] Hardware integration for swipes, dips or taps is not supported becasue NetSuite is a web based platform and that's just silly to expect
+- [**A**] (COMING SOON) "Pay Now" link functionality is coming soon (late 2024) allowing you to send an encrypted URL to your customers and let them pay their invoices without your intervention.  This will allow them to use an existing payment method or enter a whole new method to store for future use!
+- [**F**] Hardware integration for swipes, dips or taps is not supported because NetSuite is a web based platform and that's just silly to expect
 
 ## PRE-Installation
 There is a PDF in the codebase that offers additional information about prerequisite components needed in your NetSuite account to support the installation. To enable these you will need to navigate in your NetSuite account, while in the Administrator role, to Setup > Company > Enable Features >> SuiteCloud and enable the following:<br/>
@@ -27,10 +28,11 @@ There is a PDF in the codebase that offers additional information about prerequi
 - Server SuiteScript<br/>
 - SuiteFlow<br/>
 - Token-based Authentication<br/>
+-  OAuth 2.0 <br/>
 - SuiteCloud Development Framework (SDF)<br/>
 
 You also need to install the NetSuite provided “SuiteCloud Development Integration” (bundle id 245955) by navigating to Customization > Suitebundler > Search & Install Bundles and searching for 245955.  Validate the company name providing the result is "NetSuite Platform Solutions Group - SuiteCloud Development Integration" and then install the bundle.<br/>  
-After installing the above bundle, add the newly created "Developer" role to the user that is going to be installing the software AND use that role to issue the tokens for authentication that are required for the installation.  You can get your token set on your main screen in NetSuite - lower left side - Manage Tokens.  Select the SuiteCloud Development Integration, for the integration and then record your tokens in a safe place!
+After installing the above bundle, add the newly created "Developer" role to the user that is going to be installing the software.  As of NetSuite version 2024.2, you must use OAuth 2.0 to authenticate and push the project into the account using SDF.
 
 ## Installation
 Install and configure a supported IDE per the NetSuite SDF (SuiteCloud Development Framework) configuration to allow you to push a SDF project including all scripts, custom fields, custom records and other configuration objects into your environment.  While NetSuite offers different SuiteCloud Plugins for different IDE's, we STRONGLY recommend the use of [WebStorm](https://www.jetbrains.com/webstorm/) which offers a free 30 day trial is is far easier to use than the other options (this is the only IDE we will assist you with)<br/>  
@@ -38,7 +40,17 @@ Here are some resources for this step - it's easier than it sounds!<br/>
 [SuiteCloud Development Framework: Installing the WebStorm IDE Plug-in for SDF](https://videohub.oracle.com/media/SuiteCloud+Development+FrameworkA+Installing+SuiteCloud+IDE+for+WebStorm/1_6pac06xz?ed=189)<br/>  
 [Super Helpful guide by Oracle](https://docs.oracle.com/cloud/latest/netsuitecs_gs/NSIDE/NSIDE.pdf "Super Helpful guide by Oracle")<br/>  
 ALSO - while logged into your instance of NetSuite - open Help and search for the following phrase - the results walk you through how to install the plugin for the IDE you have chosen: "SuiteCloud IDE Plug-in" - NOTE: the documentation may be older / incorrect - the CORRECT URL for the SuiteCloud IDE Plugin is "https://system.netsuite.com/download/suitecloud-sdk/ideplugin/webstorm/latest/updatePlugins.xml", this is what you will enter into the WebStorm IDE for the new custom plugin repository<br/>  
-Once you have the SuiteCloud IDE Plug-in installed into your IDE (again we can't recommend Webstorm strongly enough over all the other options!), you can then configure the IDE Plugin to connect to NetSuite using the Account Management in the Plugin and enter the tokens for your user and the instance number of your account. (if you are installing into a NetSuite sandbox - and your sandbox ID is like 654321-sb1, the value in the configuration for Instance ID will be 654321_sb1.  Change the "-" to an underscore "_")<br/>  
+Once you have the SuiteCloud IDE Plug-in installed into your IDE (again we can't recommend Webstorm strongly enough over all the other options!), you can then configure the IDE Plugin to connect to NetSuite using the Account Management in the Plugin.
+You will need a working copy of openssl to complete the install.
+In NetSuite, Navigate to:
+ - Setup > Integration > Manage Authentication > OAuth 2.0 Client Credentials (M2M) Setup
+ - Click Create New
+ - In a terminal window on your computer with openssl installed, run this command :
+	 - openssl req -x509 -newkey rsa:3072 -keyout mykey_key.pem -out mycert_cert.pem -days 365 -nodes
+ - In the window in NetSuite, fill out the fields and upload the "cert" file you just generated using openssl
+ - After clicking save, copy the Certificate ID value
+
+In WebStorm select the machine to machine connection option inside the NEtSuite plugin, add the account ID, the Certificate ID and upload the key file (if you are installing into a NetSuite sandbox - and your sandbox ID is like 654321-sb1, the value in the configuration for Instance ID will be 654321_sb1.  Change the "-" to an underscore "_")<br/>  
 Download the full directory structure into a NetSuite supported IDE (WebStorm) after configuring for connecting to you account (you can use git features for retrieving the code - but unless you are going to be actively developing against the code, it's usually easier if you are not familiar with git, to just download the whole project)<br/>  
 Deploy the code to your account.
 
@@ -66,6 +78,7 @@ If you need help installing, configuring or have other questions - we do provide
 3.1.x is LIVE and includes eCheck support (ACH) using Authorize.net, default payments by customer and sets the stage for "pay by link" logic to let people pay their invoices directly!
 
 This readme is made pretty by https://stackedit.io
+
 
 
 
