@@ -4,7 +4,7 @@
  * @exports XXX
  * @copyright 2024 Cloud 1001, LLC
  *
- * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
+ * Licensed under the Apache License, Version 2.0 w/ Commons Clause (the "License");
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -26,14 +26,20 @@
  * @NScriptType Suitelet
  *
  *
+ *
+ *
+ * custbody_authnet_c2p_number_opens
+ * custrecord_paylink_most_recent_open
+ *    custrecord_generate_paylink_url
+ * custrecord_paylink_url
  */
-define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','../lib/lodash.min', '../lib/moment.min', '../lib/LLC_lib21'],
-    function (record, serverWidget, http, compress, crypto, error, file, runtime, url, encode, search, redirect, format, _, moment, LLC) {
+define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','../../lib/lodash.min', '../../lib/moment.min', './AuthNet_click2Pay_lib21'],
+    function (record, serverWidget, http, compress, crypto, error, file, runtime, url, encode, search, redirect, format, _, moment, authNetC2P) {
 
         const exports = {};
         function renderErrorPage(o_error)
         {
-            let errorPageHTML = file.load('SuiteScripts/c9/html/onlinepayment_error.html');
+            let errorPageHTML = file.load('SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/html/authnet_click2pay_error.html');
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
             s_contents = s_contents.replace('{{MESSAGE}}', o_error.message);
@@ -41,7 +47,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
         }
         function renderResultPage(o_error)
         {
-            let errorPageHTML = file.load('SuiteScripts/c9/html/onlinepayment_result.html');
+            let errorPageHTML = file.load('SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/html/authnet_click2pay_onlinepayment_result.html');
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
             s_contents = s_contents.replace('{{MESSAGE}}', o_error.message);
@@ -55,12 +61,12 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                 log.debug('GET context.request.parameters: '+context.request.clientIpAddress, o_allParams);
                 //log.debug('GET address', context.request.clientIpAddress);
                 log.debug(context.request.clientIpAddress, context.request.headers["User-Agent"]);
-                //var o_accessingUser = runtime.getCurrentUser();
-                //log.debug('USER', runtime.getCurrentUser());
-                if (!_.isEmpty(context.request.parameters._fid) && context.request.parameters.fl === 'true') {
+
+                if (!_.isEmpty(context.request.parameters._fid) && context.request.parameters.fl === 'true')
+                {
                     try {
-                        let o_fieldIDpayload = JSON.parse(LLC.crypto.decode64(o_allParams._fid));
-                        let fileId =  LLC.crypto.decrypt(o_fieldIDpayload, 'custsecret_authnet_payment_link');
+                        let o_fieldIDpayload = JSON.parse(authNetC2P.crypto.decode64(o_allParams._fid));
+                        let fileId =  authNetC2P.crypto.decrypt(o_fieldIDpayload, 'custsecret_authnet_payment_link');
                         let fileObject = file.load({
                             id: fileId
                         });
@@ -113,9 +119,9 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                 }
                 else if (!_.isEmpty(context.request.parameters._cid))
                 {
-                    let o_payload = JSON.parse(LLC.crypto.decode64(o_allParams._cid));
+                    let o_payload = JSON.parse(authNetC2P.crypto.decode64(o_allParams._cid));
                     //log.debug('o_payload', o_payload);
-                    let recordId =  LLC.crypto.decrypt(o_payload, 'custsecret_authnet_payment_link');
+                    let recordId =  authNetC2P.crypto.decrypt(o_payload, 'custsecret_authnet_payment_link');
                     if (!recordId)
                     {
                         log.error('Unable to decrypt xkcd', 'Value failed to decrypt so we can not proceed');
@@ -123,7 +129,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                         return;
                     }
                     let o_invoiceRec = record.load({
-                        type : 'customrecord_llc_accn_consolidated_invoi',
+                        type : 'invoice',
                         id : recordId
                     });
                     //build the archiver to zip up the files
@@ -160,9 +166,9 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     return;
                 }
                 //decrypt the id for the record
-                let o_payload = JSON.parse(LLC.crypto.decode64(o_allParams.xkcd));
+                let o_payload = JSON.parse(authNetC2P.crypto.decode64(o_allParams.xkcd));
                 //log.debug('o_payload', o_payload);
-                let recordId =  LLC.crypto.decrypt(o_payload, 'custsecret_authnet_payment_link');
+                let recordId =  authNetC2P.crypto.decrypt(o_payload, 'custsecret_authnet_payment_link');
                 log.debug('GET Decrypted recordId', recordId);
                 if (!recordId)
                 {
@@ -171,11 +177,11 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     return;
                 }
                 let o_invoiceRec = record.load({
-                    type : 'customrecord_llc_accn_consolidated_invoi',
+                    type : 'invoice',
                     id : recordId
                 });
-
-                if (!o_invoiceRec.getValue({fieldId: 'custrecord_paylink_payment'})) {
+                log.debug('Invoice Status', o_invoiceRec.getValue({fieldId: 'status'}) === 'Open')
+                if (o_invoiceRec.getValue({fieldId: 'status'}) === 'Open' && o_invoiceRec.getValue({fieldId: 'amountremaining'}) > 0) {
                     //if this is not set - then by all means force the cache to be cleared on the page
                     if (!o_allParams.cac) {
                         log.audit('New / Clean request', 'So request is no cache for the page!');
@@ -186,17 +192,17 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     }
                     //open tracking logic
                     let m_now = moment().toDate();
-                    if (!_.isDate(o_invoiceRec.getValue({fieldId: 'custrecord_paylink_first_open'}))) {
-                        o_invoiceRec.setValue({fieldId: 'custrecord_paylink_first_open', value: m_now});
+                    if (!_.isDate(o_invoiceRec.getValue({fieldId: 'custbody_authnet_c2p_most_recent_open'}))) {
+                        o_invoiceRec.setValue({fieldId: 'custbody_authnet_c2p_most_recent_open', value: m_now});
                     }
-                    o_invoiceRec.setValue({fieldId: 'custrecord_paylink_most_recent_open', value: m_now});
+                    o_invoiceRec.setValue({fieldId: 'custbody_authnet_c2p_most_recent_open', value: m_now});
                     o_invoiceRec.setValue({
-                        fieldId: 'custrecord_paylink_number_opens',
-                        value: o_invoiceRec.getValue({fieldId: 'custrecord_paylink_number_opens'}) + 1
+                        fieldId: 'custbody_authnet_c2p_number_opens',
+                        value: +o_invoiceRec.getValue({fieldId: 'custbody_authnet_c2p_number_opens'}) + 1
                     });
 
                     //lookup the total of open invoices off this record
-                    let o_totalDue = LLC.paymentlink.consolidatedInvoiceAmountDue(recordId);
+                    let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(o_invoiceRec);
                     log.debug('o_totalDue', o_totalDue)
                     if (+o_totalDue.asNumber === 0)
                     {
@@ -204,16 +210,16 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                         //context.response.write('This invoice has already been paid in full - Thank you');
                         return;
                     }
-                    let suiteletURL = LLC.paymentlink.serviceUrl();
-                    let payPageHTML = file.load('SuiteScripts/c9/html/onlinepayment_index.html');
+                    let suiteletURL = authNetC2P.paymentlink.serviceUrl();
+                    let payPageHTML = file.load('SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/html/authnet_click2pay_index.html');
                     let s_payPageHTML = payPageHTML.getContents();
                     s_payPageHTML = s_payPageHTML.replace('{{FORMLINK}}', suiteletURL);
                     s_payPageHTML = s_payPageHTML.replace('{{BALANCE}}', o_totalDue.asCurrency);
                     let s_pdfLink = '';
                     if (o_invoiceRec.getValue({fieldId: 'custrecord_consolidated_invoice_pdf'}))
                     {
-                        let o_encryptedPDFId = LLC.crypto.encrypt(o_invoiceRec.getValue({fieldId: 'custrecord_consolidated_invoice_pdf'}), 'custsecret_authnet_payment_link');
-                        s_pdfLink = suiteletURL + '&_fid=' + LLC.crypto.encode64(JSON.stringify(o_encryptedPDFId)) + '&fl=true';
+                        let o_encryptedPDFId = authNetC2P.crypto.encrypt(o_invoiceRec.getValue({fieldId: 'custrecord_consolidated_invoice_pdf'}), 'custsecret_authnet_payment_link');
+                        s_pdfLink = suiteletURL + '&_fid=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedPDFId)) + '&fl=true';
                         if (s_pdfLink)
                         {
                             s_pdfLink = '<p><a target="_blank" href="'+s_pdfLink+'">Download Invoice PDF</a></p>'
@@ -235,14 +241,14 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     });
                     let s_csvLink = '';
                     if (i_csvCount === 1){
-                        let o_encryptedCSVID = LLC.crypto.encrypt(o_invoiceRec.getValue({fieldId: 'custrecordconsolidated_invoice_csv'}), 'custsecret_authnet_payment_link');
-                        let s_csvLinkData = (o_invoiceRec.getValue({fieldId: 'custrecordconsolidated_invoice_csv'})) ? suiteletURL + '&_fid=' + LLC.crypto.encode64(JSON.stringify(o_encryptedCSVID)) + '&fl=true' : '';
+                        let o_encryptedCSVID = authNetC2P.crypto.encrypt(o_invoiceRec.getValue({fieldId: 'custrecordconsolidated_invoice_csv'}), 'custsecret_authnet_payment_link');
+                        let s_csvLinkData = (o_invoiceRec.getValue({fieldId: 'custrecordconsolidated_invoice_csv'})) ? suiteletURL + '&_fid=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedCSVID)) + '&fl=true' : '';
                         s_csvLink = '<p><a target="_blank" href="'+s_csvLinkData+'">Download Invoice CSV</a></p>';
                     }
                     else if (i_csvCount > 1)
                     {
-                        let o_encrypted_cid = LLC.crypto.encrypt(o_invoiceRec.id, 'custsecret_authnet_payment_link');
-                        let s_csvZipLink = suiteletURL + '&_cid=' + LLC.crypto.encode64(JSON.stringify(o_encrypted_cid));
+                        let o_encrypted_cid = authNetC2P.crypto.encrypt(o_invoiceRec.id, 'custsecret_authnet_payment_link');
+                        let s_csvZipLink = suiteletURL + '&_cid=' + authNetC2P.crypto.encode64(JSON.stringify(o_encrypted_cid));
                         s_csvLink = '<p><a target="_blank" href="'+s_csvZipLink+'">Download Invoice CSV (zip)</a></p>';
                     }
                     s_payPageHTML = s_payPageHTML.replace('{{CONSOLDPDF}}', s_pdfLink);
@@ -251,7 +257,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     search.create({
                         type: 'file',
                         filters: [
-                            ['name', 'is', 'onlinepayment_vaildation.js'],
+                            ['name', 'is', 'authnet_click2pay_onlinepayment_vaildation.js'],
                         ],
                         columns:
                             [
@@ -282,7 +288,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     search.create({
                         type: 'customer',
                         filters: [
-                            ['internalid', 'anyof', [o_invoiceRec.getValue({fieldId: 'custrecord_consolidatedcustomer'})]],
+                            ['internalid', 'anyof', [o_invoiceRec.getValue({fieldId: 'entity'})]],
                         ],
                         columns: [
                             'isperson',
@@ -340,7 +346,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     search.create({
                         type: 'customrecord_authnet_tokens',
                         filters: [
-                            ['custrecord_an_token_entity', 'anyof', [o_invoiceRec.getValue({fieldId: 'custrecord_consolidatedcustomer'})]],
+                            ['custrecord_an_token_entity', 'anyof', [o_invoiceRec.getValue({fieldId: 'entity'})]],
                             "AND",
                             ['isinactive', 'is', false],
                             "AND",
@@ -374,16 +380,25 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     } else {
                         s_payPageHTML = s_payPageHTML.replace('{{SHOWCARDS}}', 'style="display: none;"');
                     }
-                    let o_ipInfo = http.get({
-                        url: 'http://ip-api.com/json/' + context.request.clientIpAddress + '?fields=city,region'
-                    });
-                    if (o_ipInfo.code === 200) {
-                        let o_data = JSON.parse(o_ipInfo.body);
-                        s_payPageHTML = s_payPageHTML.replace('{{ACCESSNOTE}}', 'Accessed from ' + o_data.city + ', ' + o_data.region + '(' + context.request.clientIpAddress + ')');
-                    } else {
+                    try {
+                        let o_ipInfo = http.get({
+                            url: 'http://ip-api.com/json/' + context.request.clientIpAddress + '?fields=city,region'
+                        });
+                        if (o_ipInfo.code === 200) {
+                            let o_data = JSON.parse(o_ipInfo.body);
+                            s_payPageHTML = s_payPageHTML.replace('{{ACCESSNOTE}}', 'Accessed from ' + o_data.city + ', ' + o_data.region + '(' + context.request.clientIpAddress + ')');
+                        } else {
+                            s_payPageHTML = s_payPageHTML.replace('{{ACCESSNOTE}}', '');
+                        }
+                        log.debug('o_ipInfo', o_ipInfo.body)
+                    }
+                    catch (ex)
+                    {
+                        log.error(ex.name, ex.message);
+                        log.error(ex.name, ex.stack);
                         s_payPageHTML = s_payPageHTML.replace('{{ACCESSNOTE}}', '');
                     }
-                    log.debug('o_ipInfo', o_ipInfo.body)
+
                     s_payPageHTML = s_payPageHTML.replace('{{ENCRYPTED}}', o_allParams.xkcd);
                     context.response.write(s_payPageHTML);
                     o_invoiceRec.save({ignoreMandatoryFields: true});
@@ -393,7 +408,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     search.create({
                         type:'transaction',
                         filters : [
-                            ['internalid', 'anyof', [o_invoiceRec.getValue({fieldId: 'custrecord_paylink_payment'})]],
+                            ['internalid', 'anyof', [recordId]],
                             "AND",
                             ['mainline', 'is', true]
                         ],
@@ -415,8 +430,8 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
             } else if (context.request.method === 'POST'){
                 log.debug('POST '+context.request.clientIpAddress, context.request.parameters);
                 //return;
-                //log.debug(context.request.clientIpAddress, LLC.crypto.decode64(context.request.parameters.kie));
-                let s_decodedKie = LLC.crypto.decode64(context.request.parameters.kie);
+                //log.debug(context.request.clientIpAddress, authNetC2P.crypto.decode64(context.request.parameters.kie));
+                let s_decodedKie = authNetC2P.crypto.decode64(context.request.parameters.kie);
                 let o_decodedKie = {};
                 try {
                     o_decodedKie = JSON.parse(s_decodedKie);
@@ -435,7 +450,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     let recordId;
                     try
                     {
-                        recordId = LLC.crypto.decrypt(o_decodedKie, 'custsecret_authnet_payment_link');
+                        recordId = authNetC2P.crypto.decrypt(o_decodedKie, 'custsecret_authnet_payment_link');
                     }
                     catch (e)
                     {
@@ -450,19 +465,19 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     else
                     {
                         let o_invoiceRec = record.load({
-                            type: 'customrecord_llc_accn_consolidated_invoi',
+                            type: 'invoice',
                             id: recordId
                         });
-                        if (o_invoiceRec.getValue({fieldId:'custrecord_paylink_payment'}))
+                        if (o_invoiceRec.getValue({fieldId:'custbody_authnet_c2p_url'}))
                         {
                             log.audit(context.request.clientIpAddress +' : PAID', 'Displaying paid in full message');
                             context.response.write('This invoices has already been paid in full, please contact AR if you feel this is an error.');
                             return;
                         }
                         log.audit(context.request.clientIpAddress +' : Payment Screen', 'Building Payment Page now');
-                        let i_entityId = +o_invoiceRec.getValue({fieldId:'custrecord_consolidatedcustomer'});
+                        let i_entityId = +o_invoiceRec.getValue({fieldId:'entity'});
                         let o_customerDetails = search.lookupFields({type : 'customer', id : i_entityId, columns :['isperson']});
-                        let o_totalDue = LLC.paymentlink.consolidatedInvoiceAmountDue(recordId);
+                        let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(recordId);
                         //log.debug('o_customerDetails',o_customerDetails);
                         let i_paymentTokenId = +context.request.parameters.existingmethod;
                         if (i_paymentTokenId !== 0)
@@ -571,7 +586,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                         {
                             log.error('Nothing useful submitted', 'So, redirect back to the OG page I guess');
                             redirect.redirect({
-                                url: LLC.paymentlink.serviceUrl(),
+                                url: authNetC2P.paymentlink.serviceUrl(),
                                 parameters: {
                                     'xkcd':context.request.parameters.kie
                                 }
@@ -590,12 +605,12 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                                 o_payment.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 o_payment.setValue({fieldId: 'undepfunds', value: 'T'});
                                 o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Payment Link'});
-                                o_payment.setValue({fieldId: 'custbody_llc_accn_cons_inv_payment', value: recordId});
+
                                 o_payment.setValue({fieldId: 'payment', value: o_totalDue.asNumber});
                                 //o_payment.setValue({fieldId: 'payment', value :  moment().format('M.DD') });
                                 o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
                                 let i_paymentId = o_payment.save({ignoreMandatoryFields: true});
-                                o_invoiceRec.setValue({fieldId: 'custrecord_paylink_payment', value: i_paymentId});
+                                o_invoiceRec.setValue({fieldId: 'custbody_authnet_c2p_url', value: i_paymentId});
                                 o_invoiceRec.save({ignoreMandatoryFields: true});
                                 if (!context.request.parameters.saveCard && !context.request.parameters.saveBank) {
                                     //done with load and save to prevent tampering flag!

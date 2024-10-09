@@ -74,18 +74,22 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     log.audit('This record has nothing to do with authorize.net','So all fields are hidden and it is skipped.')
 
                     //add logic for the click 2 Pay behaviors here
-                    if (context.type === 'view' && context.newRecord.getValue({fieldId : 'custrecord_authnet_c2p_url'}))
+                    if (context.type === 'view' && context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_url'}))
                     {
-                        if (context.newRecord.getValue({fieldId : 'custrecord_authnet_c2p_most_recent_open'}))
+                        if (context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_most_recent_open'}) && context.newRecord.getValue({fieldId: 'status'}) === 'Open')
                         {
                             var maxResults = 6, counter = 0;
                             var s_message = 'Most recent customer views:<p><ul style="list-style-type: circle;list-style-position: inside;">'
                             search.create({
                                 type:'invoice',
                                 filters : [
+                                    ['type', 'anyof', ["CustInvc"]],
+                                    "AND",
                                     ['internalid', 'anyof', [context.newRecord.id]],
                                     "AND",
-                                    ['systemnotes.field', 'anyof', ["custrecord_authnet_c2p_most_recent_open"]]
+                                    ['systemnotes.field', 'anyof', ["CUSTBODY_AUTHNET_C2P_MOST_RECENT_OPEN"]],
+                                    "AND",
+                                    ['mainline', 'is', ["T"]]
                                 ],
                                 columns :
                                     [
@@ -93,6 +97,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         {name: "date", join: "systemNotes", sort:'DESC'},
                                     ]
                             }).run().each(function (result) {
+                                log.debug('result', result);
                                 if (counter < maxResults) {
                                     s_message += '<li>Viewed on : ' + result.getValue({name: "newvalue", join: "systemNotes"}) + '</li>';
                                 }
@@ -106,6 +111,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                             else
                             {
+                                if (counter === 0)
+                                {
+                                    s_message += '<li>Viewed on : ' + context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_most_recent_open'}) + '</li>'
+                                }
                                 s_message += '</ul>';
                             }
                             s_message += '</p>';
@@ -891,7 +900,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 }
                 else if (context.newRecord.type === 'invoice' && o_config2.custrecord_an_enable_click2pay_inv.val)
                 {
-                    if (_.isEmpty(context.oldRecord.getValue({fieldId : 'custrecord_authnet_c2p_url'})))
+                    if (_.isEmpty(context.oldRecord.getValue({fieldId : 'custbody_authnet_c2p_url'})))
                     {
                         log.audit('Generating Payment Link Now', 'Click 2 Pay Link being added to Invoice');
                         try {

@@ -1,0 +1,25 @@
+<suitelet scriptid="customscript_sac_sl21_click2pay_svc">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>SuiteAuthConnect Click2Pay Service</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/AuthNet_SL21_click2PayService.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_sac_sl21_click2pay_svc">
+      <allemployees>F</allemployees>
+      <allpartners>F</allpartners>
+      <allroles>F</allroles>
+      <audslctrole>ONLINE_FORM_USER</audslctrole>
+      <eventtype></eventtype>
+      <isdeployed>T</isdeployed>
+      <isonline>T</isonline>
+      <loglevel>DEBUG</loglevel>
+      <runasrole>ADMINISTRATOR</runasrole>
+      <status>RELEASED</status>
+      <title>SuiteAuthConnect Click2Pay Service</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</suitelet>
