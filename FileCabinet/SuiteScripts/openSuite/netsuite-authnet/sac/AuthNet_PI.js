@@ -19,7 +19,7 @@
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NScriptType plugintypeimpl
  * @NModuleScope Public
  *

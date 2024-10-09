@@ -22,7 +22,7 @@
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NModuleScope Public
  * @NScriptType UserEventScript
  *
@@ -30,8 +30,8 @@
  */
 
 
-define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'N/search', 'lodash', 'moment', './AuthNet_lib'],
-    function (record, url, https, runtime, redirect, ui, message, cache, task, search, _, moment, authNet) {
+define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'N/search', 'lodash', 'moment', './AuthNet_lib', './click2pay/AuthNet_click2Pay_lib21'],
+    function (record, url, https, runtime, redirect, ui, message, cache, task, search, _, moment, authNet, authNetC2P) {
 
         function beforeLoad(context) {
             //make all this UI only
@@ -162,10 +162,24 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     else
                     {
                         //when checked - hide the whole subtab from view to make life simpler for everyone!
-                        var sublist = context.form.getSublist({
-                            id : 'recmachcustrecord_ancs_parent_config',
+                        //NS does not provide a real API for this - so DOM hack required
+                        _.forEach(context.form.getTabs(), function(tabid){
+                            var subtab = context.form.getTab({
+                                id : tabid});
+                            if (subtab.label === "Subsidiary Configuration")
+                            {
+                                var fld_hideScript = context.form.addField({
+                                    id : 'custpage_hide_sub_tab',
+                                    type : ui.FieldType.INLINEHTML,
+                                    label : '.'
+                                });
+                                fld_hideScript.defaultValue = "<script>jQuery(window).on('load', function() {\n" +
+                                    " jQuery('#"+tabid+"_div').css('display', 'none');" +
+                                    " jQuery('#"+tabid+"lnk').css('display', 'none');" +
+                                    "});</script>"
+                                subtab.displayType = ui.SublistDisplayType.HIDDEN;
+                            }
                         });
-                        sublist.displayType = ui.SublistDisplayType.HIDDEN;
                     }
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_enable'})) {
                         context.form.addPageInitMessage({
@@ -550,6 +564,36 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     } else {
                         log.audit('Updated by upgrade script this one time!', 'Not tryint to re-upgrade!');
                     }
+                }
+                if (context.newRecord.getValue({fieldId: 'custrecord_an_enable_click2pay_inv'}))
+                {
+                    try {
+                        authNetC2P.crypto.encrypt(context.newRecord.id, 'custsecret_authnet_payment_link');
+                    }
+                    catch(ex)
+                    {
+                        log.error(ex.name, ex.message);
+                        log.error(ex.name, ex.name === 'INVALID_SECRET_KEY_LENGTH');
+                        if (ex.name === 'INVALID_SECRET_KEY_LENGTH') {
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'Error Enabling Click2Pay',
+                                message: 'Please update your API Secret via <a target="_blank" href="/app/common/scripting/secrets/settings.nl?whence=">Setup > Company > API Secrets.</a><br>' +
+                                    ex.message + '<br>Here is a 32 character string you could use as your password : '+_.times(32, () => _.random(35).toString(36)).join(''),
+                            });
+                        }
+                        else
+                        {
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'Click2Pay Configuration Error',
+                                message: 'Please update your API Secret via Setup > Company > API Secrets.<br>' +
+                                    ex.name + '<br>' + ex.message,
+                            });
+                        }
+                        context.newRecord.setValue({fieldId: 'custrecord_an_enable_click2pay_inv', value : false});
+                    }
+
                 }
             }
 
