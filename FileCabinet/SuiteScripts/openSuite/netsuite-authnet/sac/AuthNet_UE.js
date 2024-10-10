@@ -76,61 +76,60 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //add logic for the click 2 Pay behaviors here
                     if (context.type === 'view' && context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_url'}))
                     {
-                        if (context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_most_recent_open'}) && context.newRecord.getValue({fieldId: 'status'}) === 'Open')
-                        {
-                            var maxResults = 6, counter = 0;
-                            var s_message = 'Most recent customer views:<p><ul style="list-style-type: circle;list-style-position: inside;">'
-                            search.create({
-                                type:'invoice',
-                                filters : [
-                                    ['type', 'anyof', ["CustInvc"]],
-                                    "AND",
-                                    ['internalid', 'anyof', [context.newRecord.id]],
-                                    "AND",
-                                    ['systemnotes.field', 'anyof', ["CUSTBODY_AUTHNET_C2P_MOST_RECENT_OPEN"]],
-                                    "AND",
-                                    ['mainline', 'is', ["T"]]
-                                ],
-                                columns :
-                                    [
-                                        {name: "newvalue", join: "systemNotes"},
-                                        {name: "date", join: "systemNotes", sort:'DESC'},
-                                    ]
-                            }).run().each(function (result) {
-                                log.debug('result', result);
-                                if (counter < maxResults) {
-                                    s_message += '<li>Viewed on : ' + result.getValue({name: "newvalue", join: "systemNotes"}) + '</li>';
-                                }
-                                counter++;
-                                return true;
-                            });
-                            if (counter > maxResults)
-                            {
-                                s_message += '<li>' + (counter - maxResults)+ ' more results...</li></ul>'
-                                s_message += 'View full history under Notes > System Notes'
-                            }
-                            else
-                            {
-                                if (counter === 0)
+                        if(context.newRecord.getValue({fieldId: 'status'}) === 'Open') {
+                            if (context.newRecord.getValue({fieldId: 'custbody_authnet_c2p_most_recent_open'})) {
+                                var maxResults = 6, counter = 0;
+                                var s_message = 'Most recent customer views:<p><ul style="list-style-type: circle;list-style-position: inside;">'
+                                search.create({
+                                    type: 'invoice',
+                                    filters: [
+                                        ['type', 'anyof', ["CustInvc"]],
+                                        "AND",
+                                        ['internalid', 'anyof', [context.newRecord.id]],
+                                        "AND",
+                                        ['systemnotes.field', 'anyof', ["CUSTBODY_AUTHNET_C2P_MOST_RECENT_OPEN"]],
+                                        "AND",
+                                        ['mainline', 'is', ["T"]]
+                                    ],
+                                    columns:
+                                        [
+                                            {name: "newvalue", join: "systemNotes"},
+                                            {name: "date", join: "systemNotes", sort: 'DESC'},
+                                        ]
+                                }).run().each(function (result)
                                 {
-                                    s_message += '<li>Viewed on : ' + context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_most_recent_open'}) + '</li>'
+                                    log.debug('result', result);
+                                    if (counter < maxResults) {
+                                        s_message += '<li>Viewed on : ' + result.getValue({
+                                            name: "newvalue",
+                                            join: "systemNotes"
+                                        }) + '</li>';
+                                    }
+                                    counter++;
+                                    return true;
+                                });
+                                if (counter > maxResults) {
+                                    s_message += '<li>' + (counter - maxResults) + ' more results...</li></ul>'
+                                    s_message += 'View full history under Notes > System Notes'
+                                } else {
+                                    if (counter === 0) {
+                                        s_message += '<li>Viewed on : ' + context.newRecord.getValue({fieldId: 'custbody_authnet_c2p_most_recent_open'}) + '</li>'
+                                    }
+                                    s_message += '</ul>';
                                 }
-                                s_message += '</ul>';
+                                s_message += '</p>';
+                                context.form.addPageInitMessage({
+                                    type: message.Type.CONFIRMATION,
+                                    title: 'Invoice Click2Pay Viewing History',
+                                    message: s_message
+                                });
+                            } else {
+                                context.form.addPageInitMessage({
+                                    type: message.Type.INFORMATION,
+                                    title: 'Invoice has not been viewed',
+                                    message: 'The customer has not yet viewed this invoice'
+                                });
                             }
-                            s_message += '</p>';
-                            context.form.addPageInitMessage({
-                                type: message.Type.CONFIRMATION,
-                                title: 'Invoice Click2Pay Viewing History',
-                                message: s_message
-                            });
-                        }
-                        else
-                        {
-                            context.form.addPageInitMessage({
-                                type: message.Type.INFORMATION,
-                                title: 'Invoice has not been viewed',
-                                message: 'The customer has not yet viewed this invoice'
-                            });
                         }
                     }
                     return;

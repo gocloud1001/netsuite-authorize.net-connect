@@ -25,7 +25,7 @@
  * @NApiVersion 2.0
  * @NModuleScope Public
  *
- * @NAmdConfig ../config.json
+ * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
  *
  *
  *
@@ -568,8 +568,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         }
         else
         {
-            a_filters.push(['custrecord_an_calledby', 'is', exports.normalizeRecType(o_req.txntype)])
+            a_filters.push(['custrecord_an_calledby', 'is', exports.normalizeRecType(o_req.txntype)]);
         }
+        a_filters.push("AND")
+        a_filters.push(['custrecord_an_call_type', 'isnot', 'getTransactionDetailsRequest'])
         if (!o_req.mostrecent){
             if (o_req.isOK){
                 a_filters.push("AND");

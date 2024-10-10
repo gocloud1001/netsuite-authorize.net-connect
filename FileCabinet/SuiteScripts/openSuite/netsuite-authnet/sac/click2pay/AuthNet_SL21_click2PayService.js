@@ -26,14 +26,10 @@
  * @NScriptType Suitelet
  *
  *
+ * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
  *
- *
- * custbody_authnet_c2p_number_opens
- * custrecord_paylink_most_recent_open
- *    custrecord_generate_paylink_url
- * custrecord_paylink_url
  */
-define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','../../lib/lodash.min', '../../lib/moment.min', './AuthNet_click2Pay_lib21'],
+define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','lodash', 'moment', 'authNetC2P'],
     function (record, serverWidget, http, compress, crypto, error, file, runtime, url, encode, search, redirect, format, _, moment, authNetC2P) {
 
         const exports = {};
@@ -43,6 +39,8 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
             s_contents = s_contents.replace('{{MESSAGE}}', o_error.message);
+            s_contents = s_contents.replace('{{COMPANY_NAME}}', o_error.config.custrecord_an_txn_companyname.val);
+            s_contents = s_contents.replace('{{FORM_LOGO}}', o_error.config.logofile);
             return s_contents;
         }
         function renderResultPage(o_error)
@@ -51,6 +49,8 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
             s_contents = s_contents.replace('{{MESSAGE}}', o_error.message);
+            s_contents = s_contents.replace('{{COMPANY_NAME}}', o_error.config.custrecord_an_txn_companyname.val);
+            s_contents = s_contents.replace('{{FORM_LOGO}}', o_error.config.logofile);
             return s_contents;
         }
         function onRequest(context) {
@@ -180,6 +180,9 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     type : 'invoice',
                     id : recordId
                 });
+                //now get authnet config data to build the UI accordilngly
+                let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
+                log.debug('GET o_config2', o_config2);
                 log.debug('Invoice Status', o_invoiceRec.getValue({fieldId: 'status'}) === 'Open')
                 if (o_invoiceRec.getValue({fieldId: 'status'}) === 'Open' && o_invoiceRec.getValue({fieldId: 'amountremaining'}) > 0) {
                     //if this is not set - then by all means force the cache to be cleared on the page
@@ -215,6 +218,12 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     let s_payPageHTML = payPageHTML.getContents();
                     s_payPageHTML = s_payPageHTML.replace('{{FORMLINK}}', suiteletURL);
                     s_payPageHTML = s_payPageHTML.replace('{{BALANCE}}', o_totalDue.asCurrency);
+                    s_payPageHTML = s_payPageHTML.replace('{{COMPANY_NAME}}', o_config2.custrecord_an_txn_companyname.val);
+                    if (o_config2.logofile)
+                    {
+                        s_payPageHTML = s_payPageHTML.replace('{{FORM_LOGO}}', o_config2.logofile);
+                    }
+                    s_payPageHTML = s_payPageHTML.replace('{{FORM_LOGO}}', o_config2.custrecord_an_txn_companyname.val);
                     let s_pdfLink = '';
                     if (o_invoiceRec.getValue({fieldId: 'custrecord_consolidated_invoice_pdf'}))
                     {
@@ -421,7 +430,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             ]
                     }).run().each(function (result) {
                         //log.debug('result: '+context.request.clientIpAddress, result);
-                        context.response.write(renderResultPage({code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of $'+result.getValue('amount')}));
+                        context.response.write(renderResultPage({config: o_config2, code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of $'+result.getValue('amount')}));
                         //context.response.write(JSON.stringify(result));
                         return true;
                     });
@@ -468,18 +477,44 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             type: 'invoice',
                             id: recordId
                         });
-                        if (o_invoiceRec.getValue({fieldId:'custbody_authnet_c2p_url'}))
+                        //now get authnet config data to build the UI accordingly
+                        let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
+                        log.debug('POST o_config2', o_config2);
+                        if (o_invoiceRec.getValue({fieldId: 'status'}) !== 'Open')
                         {
                             log.audit(context.request.clientIpAddress +' : PAID', 'Displaying paid in full message');
-                            context.response.write('This invoices has already been paid in full, please contact AR if you feel this is an error.');
+                            search.create({
+                                type:'transaction',
+                                filters : [
+                                    ['appliedtotransaction', 'anyof', [recordId]],
+                                    //"AND",
+                                    //['mainline', 'is', true]
+                                ],
+                                columns :
+                                    [
+                                        'type',
+                                        'amount',
+                                        'tranid',
+                                        'trandate',
+                                        {name:'internalid', sort:'DESC'}
+                                    ]
+                            }).run().each(function (result) {
+                                //log.debug('result: '+context.request.clientIpAddress, result);
+                                context.response.write(renderResultPage({config: o_config2, code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of $'+o_invoiceRec.getValue({fieldId: 'total'})}));
+                                //context.response.write(JSON.stringify(result));
+                                return false;
+                            });
                             return;
                         }
                         log.audit(context.request.clientIpAddress +' : Payment Screen', 'Building Payment Page now');
                         let i_entityId = +o_invoiceRec.getValue({fieldId:'entity'});
                         let o_customerDetails = search.lookupFields({type : 'customer', id : i_entityId, columns :['isperson']});
-                        let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(recordId);
+                        let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(o_invoiceRec);
                         //log.debug('o_customerDetails',o_customerDetails);
                         let i_paymentTokenId = +context.request.parameters.existingmethod;
+
+                        log.audit('Do we have a toke to use? (or are we making a new one)', i_paymentTokenId);
+
                         if (i_paymentTokenId !== 0)
                         {
                             log.audit('Generating Payment with Existing Method');
@@ -491,12 +526,12 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             log.audit('Tokenizing NEW Card', /^\d+$/.test(context.request.parameters['cc-expiration']));
                             if (!(/^\d+$/.test(context.request.parameters['cc-expiration'])))
                             {
-                                context.response.write(renderErrorPage({code:'Invalid Date Format', message : 'Expiration date of '+context.request.parameters['cc-expiration']+ ' is invalid and must be in MMYY format.'}))
+                                context.response.write(renderErrorPage({config: o_config2, code:'Invalid Date Format', message : 'Expiration date of '+context.request.parameters['cc-expiration']+ ' is invalid and must be in MMYY format.'}))
                                 return;
                             }
                             if (moment(context.request.parameters['cc-expiration'], 'MMYY').isBefore(moment()))
                             {
-                                context.response.write(renderErrorPage({code:'Invalid Card Date', message : 'Expiration date of '+context.request.parameters['cc-expiration']+ ' has passed and this card is expired.'}))
+                                context.response.write(renderErrorPage({config: o_config2, code:'Invalid Card Date', message : 'Expiration date of '+context.request.parameters['cc-expiration']+ ' has passed and this card is expired.'}))
                                 return;
                             }
                             let o_newCard = record.create({
@@ -507,7 +542,11 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             o_newCard.setValue({fieldId:'custrecord_an_token_paymenttype', value : 1});
                             o_newCard.setValue({fieldId:'custpage_customertype', value : o_customerDetails.isperson ? 'individual' : 'business'});
                             //set card data
-                            o_newCard.setValue({fieldId:'custrecord_an_token_default', value : context.request.parameters.flexDefault === 'default'});
+                            if (!_.isUndefined(context.request.parameters.saveCard))
+                            {
+                                log.debug('card flexDefault', context.request.parameters.defaultCard === 'on');
+                                o_newCard.setValue({fieldId:'custrecord_an_token_default', value : context.request.parameters.defaultCard === 'on'});
+                            }
                             o_newCard.setValue({fieldId:'custrecord_an_token_cardnumber', value : context.request.parameters['cc-number']});
                             o_newCard.setValue({fieldId:'custrecord_an_token_expdate', value : context.request.parameters['cc-expiration']});
                             o_newCard.setValue({fieldId:'custrecord_an_token_cardcode', value : context.request.parameters['cc-cvv']});
@@ -536,7 +575,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             {
                                 let _error = e.message;
                                 _error = _error.substring(0,_error.lastIndexOf('<br>'));
-                                context.response.write(renderErrorPage({code:'Processing Error', message : _error}));
+                                context.response.write(renderErrorPage({config: o_config2,code:'Processing Error', message : _error}));
                                 return;
                             }
                             log.audit('Generating Payment with NEW Credit Card');
@@ -553,7 +592,10 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             o_newBank.setValue({fieldId:'custrecord_an_token_entity', value : i_entityId});
                             o_newBank.setValue({fieldId:'custrecord_an_token_paymenttype', value : 2});
                             o_newBank.setValue({fieldId:'custpage_customertype', value : o_customerDetails.isperson ? 'individual' : 'business'});
-                            o_newBank.setValue({fieldId:'custrecord_an_token_default', value : context.request.parameters.flexDefault === 'default'});
+                            if (!_.isUndefined(context.request.parameters.saveBank))
+                            {
+                                o_newBank.setValue({fieldId:'custrecord_an_token_default', value : context.request.parameters.defaultBank === 'on'});
+                            }
                             //set account data
                             if (context.request.parameters.email) {
                                 o_newBank.setValue({
@@ -577,7 +619,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                             {
                                 let _error = e.message;
                                 _error = _error.substring(0,_error.lastIndexOf('<br>'));
-                                context.response.write(renderErrorPage({code:'Processing Error', message : _error}));
+                                context.response.write(renderErrorPage({config: o_config2, code:'Processing Error', message : _error}));
                                 return;
                             }
                             log.audit('Generating Payment with NEW Bank Account');
@@ -594,6 +636,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                         }
                         if (i_paymentTokenId)
                         {
+                            let i_payment;
                             try {
                                 let o_payment = record.create({
                                     type: record.Type.CUSTOMER_PAYMENT,
@@ -605,14 +648,11 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                                 o_payment.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 o_payment.setValue({fieldId: 'undepfunds', value: 'T'});
                                 o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Payment Link'});
-
                                 o_payment.setValue({fieldId: 'payment', value: o_totalDue.asNumber});
-                                //o_payment.setValue({fieldId: 'payment', value :  moment().format('M.DD') });
+                                o_payment.setValue({fieldId: 'payment', value :  1.12 });
                                 o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
-                                let i_paymentId = o_payment.save({ignoreMandatoryFields: true});
-                                o_invoiceRec.setValue({fieldId: 'custbody_authnet_c2p_url', value: i_paymentId});
-                                o_invoiceRec.save({ignoreMandatoryFields: true});
-                                if (!context.request.parameters.saveCard && !context.request.parameters.saveBank) {
+                                i_payment = o_payment.save({ignoreMandatoryFields: true});
+                                if (!context.request.parameters.existingmethod && _.isUndefined(context.request.parameters.saveCard) && _.isUndefined(context.request.parameters.saveBank)) {
                                     //done with load and save to prevent tampering flag!
                                     let o_newCard = record.load({
                                         type: 'customrecord_authnet_tokens',
@@ -622,34 +662,30 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                                     o_newCard.setValue({fieldId: 'isinactive', value: true});
                                     o_newCard.save();
                                 }
+
+
                             }
                             catch (ex)
                             {
                                 log.error(ex.name, ex.message);
                                 log.error(ex.name, ex.stack);
-                                context.response.write(renderErrorPage({code:'Processing Error', message : 'There was an error while attempting to generate this payment unrealted to your inputs.<br/> If this persists, please contact AR for assistance.'}));
+                                context.response.write(renderErrorPage({config: o_config2, code:'Processing Error', message : 'There was an error while attempting to generate this payment unrealted to your inputs.<br/> If this persists, please contact AR for assistance.'}));
                                 return;
                             }
-                            //context.response.write('PAID $'+moment().format('M.DD') + ' (that\'s todays date for testing)');
-                            context.response.write(renderResultPage({code:'Successfully Paid', message : 'Thank you for your payment of $'+o_totalDue.asCurrency}));
+                            let o_completedPayment = record.load({
+                                type:record.Type.CUSTOMER_PAYMENT,
+                                id: i_payment
+                            });
+                            context.response.write(renderResultPage({config: o_config2, code:'Successfully Paid', message : 'Thank you for your payment of $'+o_totalDue.asCurrency +'<br>The payment ID for your records is ' +o_completedPayment.getValue({fieldId:'tranid'})+ ' ('+o_completedPayment.getValue({fieldId:'custbody_authnet_refid'})+')'+
+                                    '<p class="h4">(You may close this browser tab now)</p>'}));
                         }
                         else
                         {
-                            context.response.write(renderErrorPage({code:'NOT PAID', message : 'A payment was not generated - this invoice remains unpaid'}));
+                            context.response.write(renderErrorPage({config: o_config2, code:'NOT PAID', message : 'A payment was not generated - this invoice remains unpaid'}));
                         }
 
                     }
-
-
-
-
                 }
-                /*_.forEach(_.keys(context.request), function(kie){
-                    log.debug('POST context.request.'+kie, context.request[kie]);
-                });*/
-
-                //log.debug('context.request.headers.referer', context.request.headers.referer)
-
             }
         }
 

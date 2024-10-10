@@ -19,10 +19,12 @@
  *
  * @author Andy Prior <andy@gocloud1001.com>
  *
+ * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
+ *
  * */
 
-define(["require", "exports", 'N/runtime', 'N/search', 'N/crypto', 'N/format', 'N/encode', 'N/url', '../../lib/lodash.min'],
-    function (require, exports, runtime, search, crypto, format, encode, url, _) {
+define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/encode', 'N/url', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
+    function (require, exports, runtime, file, crypto, format, encode, url, _,  authNet) {
 
 
 
@@ -100,8 +102,8 @@ define(["require", "exports", 'N/runtime', 'N/search', 'N/crypto', 'N/format', '
                 invoiceAmountDue : (o_invoiceRec) =>
                 {
                     let o_totalDue = {
-                        asNumber : +o_invoiceRec.getValue('amountremaining'),
-                        asCurrency : format.format({value:+o_invoiceRec.getValue('amountremaining'), type: format.Type.CURRENCY})
+                        asNumber : +o_invoiceRec.getValue({fieldId:'amountremaining'}),
+                        asCurrency : format.format({value:+o_invoiceRec.getValue({fieldId:'amountremaining'}), type: format.Type.CURRENCY})
                     };
                     /*search.create({
                         type:'transaction',
@@ -129,4 +131,19 @@ define(["require", "exports", 'N/runtime', 'N/search', 'N/crypto', 'N/format', '
                     return o_totalDue;
                 }
             }
+        exports.authNet = {
+            getCache : (o_record) => {
+                let o_config2 = authNet.getConfigFromCache();
+                //now switch the object to the correct sub config!
+                if (o_config2.mode === 'subsidiary'){
+                    o_config2 = authNet.getSubConfig(o_record.getValue({fieldId : 'subsidiary'}), o_config2);
+                }
+                if (o_config2.custrecord_an_click2pay_logo.val)
+                {
+                    let logoFile = file.load({id:o_config2.custrecord_an_click2pay_logo.val});
+                    o_config2.logofile = logoFile.getContents();
+                }
+                return o_config2;
+            }
+        }
     });
