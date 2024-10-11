@@ -29,8 +29,8 @@
  * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
  *
  */
-define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','lodash', 'moment', 'authNetC2P'],
-    function (record, serverWidget, http, compress, crypto, error, file, runtime, url, encode, search, redirect, format, _, moment, authNetC2P) {
+define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','lodash', 'moment', 'authNetC2P'],
+    function (record, serverWidget, http, render, crypto, error, file, runtime, url, encode, search, redirect, format, _, moment, authNetC2P) {
 
         const exports = {};
         function renderErrorPage(o_error)
@@ -39,18 +39,19 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
             s_contents = s_contents.replace('{{MESSAGE}}', o_error.message);
-            s_contents = s_contents.replace('{{COMPANY_NAME}}', o_error.config.custrecord_an_txn_companyname.val);
-            s_contents = s_contents.replace('{{FORM_LOGO}}', o_error.config.logofile);
+            s_contents = s_contents.replace('{{COMPANY_NAME}}', _.isUndefined(o_error.config.custrecord_an_txn_companyname) ? '' : o_error.config.custrecord_an_txn_companyname.val);
+            s_contents = s_contents.replace('{{FORM_LOGO}}', _.isUndefined(o_error.config.logofile) ? '' : o_error.config.logofile);
             return s_contents;
         }
         function renderResultPage(o_error)
         {
+            log.debug('renderResultPage', o_error)
             let errorPageHTML = file.load('SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/html/authnet_click2pay_onlinepayment_result.html');
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
             s_contents = s_contents.replace('{{MESSAGE}}', o_error.message);
-            s_contents = s_contents.replace('{{COMPANY_NAME}}', o_error.config.custrecord_an_txn_companyname.val);
-            s_contents = s_contents.replace('{{FORM_LOGO}}', o_error.config.logofile);
+            s_contents = s_contents.replace('{{COMPANY_NAME}}', _.isUndefined(o_error.config.custrecord_an_txn_companyname) ? '' : o_error.config.custrecord_an_txn_companyname.val);
+            s_contents = s_contents.replace('{{FORM_LOGO}}', _.isUndefined(o_error.config.logofile) ? '' : o_error.config.logofile);
             return s_contents;
         }
         function onRequest(context) {
@@ -64,99 +65,74 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
 
                 if (!_.isEmpty(context.request.parameters._fid) && context.request.parameters.fl === 'true')
                 {
+                    let o_config2 = {config:{}}
                     try {
                         let o_fieldIDpayload = JSON.parse(authNetC2P.crypto.decode64(o_allParams._fid));
-                        let fileId =  authNetC2P.crypto.decrypt(o_fieldIDpayload, 'custsecret_authnet_payment_link');
-                        let fileObject = file.load({
-                            id: fileId
+                        let invoiceId =  authNetC2P.crypto.decrypt(o_fieldIDpayload, 'custsecret_authnet_payment_link');
+                        let o_invoiceRec = record.load({
+                            type : 'invoice',
+                            id : invoiceId
                         });
-                        log.debug('file type ' + fileObject.fileType, fileObject.name.slice((fileObject.name.lastIndexOf(".") - 1 >>> 0) + 2))
-                        //fileObject.name.slice((fileObject.name.lastIndexOf(".") - 1 >>> 0) + 2)
-                        let s_downloadName = fileObject.name;
-                        if (!(s_downloadName.slice((s_downloadName.lastIndexOf(".") - 1 >>> 0) + 2))) {
-                            switch (_.toUpper(fileObject.fileType)) {
-                                case 'EXCEL':
-                                    //s_contentType = 'application/vnd.ms-excel';
-                                    if (!_.endsWith(fileObject.name, '.xls') || !_.endsWith(fileObject.name, '.xls')) {
-                                        s_downloadName += '.xls';
-                                    }
-                                    context.response.addHeader({
-                                        name: 'Content-Disposition',
-                                        value: 'inline; filename=' + fileObject.name + '.xls'
-                                    });
-                                    break;
-                                case 'CSV':
-                                    //s_contentType = 'application/vnd.ms-excel';
-                                    if (!_.endsWith(fileObject.name, '.csv') || !_.endsWith(fileObject.name, '.csv')) {
-                                        s_downloadName += '.csv';
-                                    }
-                                    break;
-                                case 'PDF':
-                                    //s_contentType = 'application/vnd.ms-excel';
-                                    if (!_.endsWith(fileObject.name, '.pdf')) {
-                                        s_downloadName += '.pdf';
-                                    }
-                                    break;
-                                case 'WORD':
-                                    //s_contentType = 'application/vnd.ms-excel';
-                                    if (!_.endsWith(fileObject.name, '.doc') || !_.endsWith(fileObject.name, '.docx')) {
-                                        s_downloadName += '.doc';
-                                    }
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                        context.response.writeFile({file: fileObject, isinline: true});
+                        //now get authnet config data to build the UI accordilngly
+                        let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
+                        let invoicePDF = render.transaction({
+                            entityId: +invoiceId,
+                            printMode: render.PrintMode.PDF,
+                            inCustLocale: true
+                        });
+                        context.response.addHeader({
+                            name: 'Content-Type:',
+                            value: 'application/pdf'
+                        });
+                        context.response.addHeader({
+                            name: 'Content-Disposition',
+                            value: 'inline; filename="'+o_invoiceRec.getValue({fieldId:'tranid'})+'.pdf"'
+                        });
+
+                        context.response.writeFile({file: invoicePDF, isinline: true});
                     }
                     catch (e)
                     {
                         log.error(e.name, e.message);
                         log.error(e.name, e.stack);
-                        context.response.write(renderResultPage({code:'404 : File Not Found', message : 'The file you are attempting to download was not found or there was an issue accessing it.'}));
+                        context.response.write(renderResultPage({config : o_config2, code:'404 : File Not Found', message : 'The file you are attempting to download was not found or there was an issue accessing it.'}));
                     }
                     return;
                 }
-                else if (!_.isEmpty(context.request.parameters._cid))
+                else if (!_.isEmpty(context.request.parameters._sid) && context.request.parameters.st === 'true')
                 {
-                    let o_payload = JSON.parse(authNetC2P.crypto.decode64(o_allParams._cid));
-                    //log.debug('o_payload', o_payload);
-                    let recordId =  authNetC2P.crypto.decrypt(o_payload, 'custsecret_authnet_payment_link');
-                    if (!recordId)
-                    {
-                        log.error('Unable to decrypt xkcd', 'Value failed to decrypt so we can not proceed');
-                        context.response.write(renderResultPage({code:'404 : File Not Found', message : 'The files you are attempting to download were not found or there was an issue accessing it.'}));
-                        return;
-                    }
-                    let o_invoiceRec = record.load({
-                        type : 'invoice',
-                        id : recordId
-                    });
-                    //build the archiver to zip up the files
-                    let archiver = compress.createArchiver();
-                    //get all the CSV files and zip them up
-                    _.forEach([
-                        'custrecordconsolidated_invoice_csv',
-                        'custrecord_invoice_csv_two',
-                        'custrecord_invoice_csv_three',
-                        'custrecord_invoice_csv_four',
-                        'custrecord_invoice_csv_five',
-                    ], function(fieldId){
-                        if (o_invoiceRec.getValue({fieldId: fieldId}))
-                        {
-                            let  _fileObject = file.load({
-                                id: o_invoiceRec.getValue({fieldId: fieldId})
-                            });
-                            archiver.add({
-                                file: _fileObject
-                            });
-                        }
-                    });
+                    let o_config2 = {config:{}}
+                    try {
+                        let o_fieldIDpayload = JSON.parse(authNetC2P.crypto.decode64(o_allParams._sid));
+                        let invoiceId =  authNetC2P.crypto.decrypt(o_fieldIDpayload, 'custsecret_authnet_payment_link');
+                        let o_invoiceRec = record.load({
+                            type : 'invoice',
+                            id : invoiceId
+                        });
+                        //now get authnet config data to build the UI accordilngly
+                        let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
+                        let invoicePDF = render.statement({
+                            entityId: +o_invoiceRec.getValue({fieldId:'entity'}),
+                            printMode: render.PrintMode.PDF,
+                            inCustLocale: true
+                        });
+                        context.response.addHeader({
+                            name: 'Content-Type:',
+                            value: 'application/pdf'
+                        });
+                        context.response.addHeader({
+                            name: 'Content-Disposition',
+                            value: 'inline; filename="Current Statement.pdf"'
+                        });
 
-                    let zipFile = archiver.archive({
-                        name: o_invoiceRec.getValue({fieldId:'name'})+'.zip'
-                    });
-                    context.response.writeFile({file: zipFile, isinline: true});
+                        context.response.writeFile({file: invoicePDF, isinline: true});
+                    }
+                    catch (e)
+                    {
+                        log.error(e.name, e.message);
+                        log.error(e.name, e.stack);
+                        context.response.write(renderResultPage({config : o_config2, code:'404 : File Not Found', message : 'The file you are attempting to download was not found or there was an issue accessing it.'}));
+                    }
                     return;
                 }
                 else if (!o_allParams.xkcd)
@@ -182,7 +158,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                 });
                 //now get authnet config data to build the UI accordilngly
                 let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
-                log.debug('GET o_config2', o_config2);
+                //log.debug('GET o_config2', o_config2);
                 log.debug('Invoice Status', o_invoiceRec.getValue({fieldId: 'status'}) === 'Open')
                 if (o_invoiceRec.getValue({fieldId: 'status'}) === 'Open' && o_invoiceRec.getValue({fieldId: 'amountremaining'}) > 0) {
                     //if this is not set - then by all means force the cache to be cleared on the page
@@ -225,43 +201,24 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                     }
                     s_payPageHTML = s_payPageHTML.replace('{{FORM_LOGO}}', o_config2.custrecord_an_txn_companyname.val);
                     let s_pdfLink = '';
-                    if (o_invoiceRec.getValue({fieldId: 'custrecord_consolidated_invoice_pdf'}))
+
+                    let o_encryptedPDFId = authNetC2P.crypto.encrypt(recordId, 'custsecret_authnet_payment_link');
+                    let s_encodedID = authNetC2P.crypto.encode64(JSON.stringify(o_encryptedPDFId));
+                    s_pdfLink = suiteletURL + '&_fid=' + s_encodedID + '&fl=true';
+                    if (s_pdfLink)
                     {
-                        let o_encryptedPDFId = authNetC2P.crypto.encrypt(o_invoiceRec.getValue({fieldId: 'custrecord_consolidated_invoice_pdf'}), 'custsecret_authnet_payment_link');
-                        s_pdfLink = suiteletURL + '&_fid=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedPDFId)) + '&fl=true';
-                        if (s_pdfLink)
-                        {
-                            s_pdfLink = '<p><a target="_blank" href="'+s_pdfLink+'">Download Invoice PDF</a></p>'
-                        }
-                    }
-                    //how many CSV's do we have?
-                    let i_csvCount = 0;
-                    _.forEach([
-                        'custrecordconsolidated_invoice_csv',
-                        'custrecord_invoice_csv_two',
-                        'custrecord_invoice_csv_three',
-                        'custrecord_invoice_csv_four',
-                        'custrecord_invoice_csv_five',
-                    ], function(fieldId){
-                        if (o_invoiceRec.getValue({fieldId: fieldId}))
-                        {
-                            i_csvCount++;
-                        }
-                    });
-                    let s_csvLink = '';
-                    if (i_csvCount === 1){
-                        let o_encryptedCSVID = authNetC2P.crypto.encrypt(o_invoiceRec.getValue({fieldId: 'custrecordconsolidated_invoice_csv'}), 'custsecret_authnet_payment_link');
-                        let s_csvLinkData = (o_invoiceRec.getValue({fieldId: 'custrecordconsolidated_invoice_csv'})) ? suiteletURL + '&_fid=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedCSVID)) + '&fl=true' : '';
-                        s_csvLink = '<p><a target="_blank" href="'+s_csvLinkData+'">Download Invoice CSV</a></p>';
-                    }
-                    else if (i_csvCount > 1)
-                    {
-                        let o_encrypted_cid = authNetC2P.crypto.encrypt(o_invoiceRec.id, 'custsecret_authnet_payment_link');
-                        let s_csvZipLink = suiteletURL + '&_cid=' + authNetC2P.crypto.encode64(JSON.stringify(o_encrypted_cid));
-                        s_csvLink = '<p><a target="_blank" href="'+s_csvZipLink+'">Download Invoice CSV (zip)</a></p>';
+                        s_pdfLink = '<p><a target="_blank" href="'+s_pdfLink+'">Download Invoice PDF</a></p>'
                     }
                     s_payPageHTML = s_payPageHTML.replace('{{CONSOLDPDF}}', s_pdfLink);
-                    s_payPageHTML = s_payPageHTML.replace('{{CONSOLDCSV}}', s_csvLink);
+
+
+                    let s_statementLink = suiteletURL + '&_sid=' + s_encodedID + '&st=true';
+                    if (s_statementLink)
+                    {
+                        s_statementLink = '<p><a target="_blank" href="'+s_statementLink+'">Download Statement PDF</a></p>'
+                    }
+                    log.debug('s_statementLink',s_statementLink);
+                    s_payPageHTML = s_payPageHTML.replace('{{CONSOLDCSV}}', s_statementLink);
                     //now lookup the validation.js file URL and embed it into the form
                     search.create({
                         type: 'file',
@@ -647,7 +604,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/compress', 'N/crypto', 'N/
                                 o_payment.setValue({fieldId: 'customer', value: i_entityId});
                                 o_payment.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 o_payment.setValue({fieldId: 'undepfunds', value: 'T'});
-                                o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Payment Link'});
+                                o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Click2Pay Link'});
                                 o_payment.setValue({fieldId: 'payment', value: o_totalDue.asNumber});
                                 o_payment.setValue({fieldId: 'payment', value :  1.12 });
                                 o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
