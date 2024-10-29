@@ -195,9 +195,9 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             type: message.Type.ERROR,
                             title: 'Your system is configured to allow Multi Subsidiary Customer',
                             message: 'Your system has Multi Subsidiary Customer enabled (<i>Setup > Enable Features >> Company >>> ERP General</i>)<br>This feature REQUIRES you to enable multiple subsidiary support in the Authorize.Net Configuration. (Sometimes this is set on accounts and never used, if you are not using this NetSuite feature, do yourself a favor and just disable it, return to this page, click the "Debug & Testing Tool" link at the bottom of this screen and select the Purge Cache" option)<br/>' +
-                                'To configure The SuiteAuth Connect Authorize.Net connector to operate in this environment, you must uncheck the box "Use for all Subsidaries" in the configuration on this screen and follow the prompts.<br/>' +
+                                'To configure The SuiteAuthConnect Authorize.Net connector to operate in this environment, you must uncheck the box "Use for all Subsidaries" in the configuration on this screen and follow the prompts.<br/>' +
                                 'You must fully configure at least one subsidary as well on this screen. You can use the same authorize.net credentails / processing gateway for all your subsadaries if you want, although that would be odd.<br/>' +
-                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguid subsidaries apart. This is purely cosmetic but may be confusing)',
+                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguish subsidaries apart. This is purely cosmetic but may be confusing for seelcting the correct cards.)',
                             //duration: 0
                         });
                     }
@@ -211,6 +211,30 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             //duration: 0
                         });
                     }*/
+                    //this is stupid but needed because the SDF definition for the file does not mark it as an online file
+                    if (context.newRecord.getValue({fieldId: 'custrecord_an_enable_click2pay_inv'})) {
+                        search.create({
+                            type: 'file',
+                            filters: [
+                                ['name', 'is', 'authnet_click2pay_onlinepayment_vaildation.js'],
+                            ],
+                            columns:
+                                [
+                                    'url',
+                                    'availablewithoutlogin',
+                                ]
+                        }).run().each(function (result)
+                        {
+
+                            if (!result.getValue('availablewithoutlogin')) {
+                                let _tmp = file.load({id: result.id});
+                                _tmp.isOnline = true;
+                                _tmp.save();
+                                log.audit('JS Click2Pay file updated', 'Click2Pay file has been updated to allow external access');
+                            }
+                            return true;
+                        });
+                    }
                 }
 
                 if (context.type === 'view') {

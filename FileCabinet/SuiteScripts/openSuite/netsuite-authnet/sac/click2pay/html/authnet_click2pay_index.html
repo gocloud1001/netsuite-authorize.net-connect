@@ -107,9 +107,8 @@
 <div class="container">
     <main>
 
-        <div class="d-none p-2 bg-primary text-white">TESTING THIS HIDE THING</div>
         <div class="py-5 text-center">
-            <img class="d-block mx-auto mb-4" src="data:image/png;base64,{{FORM_LOGO}}" alt="">
+            <img id="bigimg" class="d-block mx-auto mb-4" src="data:image/png;base64,{{FORM_LOGO}}" alt="">
             <h2>Invoice Payment Form</h2>
             <p class="lead">Please select how you would like to pay the ${{BALANCE}} balance due</p>
             {{INVPDF}}
@@ -433,6 +432,9 @@
             document.getElementById('defaultBank').addEventListener("change", checked);
             document.getElementById('saveBank').addEventListener("change", checked);
         }
+        //todo - add some logic for resizing from the config!
+        document.getElementById( "bigimg" ).height = 150;
+
 
         function checked(event)
         {

@@ -23,8 +23,8 @@
  *
  * */
 
-define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/encode', 'N/url', 'N/config', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
-    function (require, exports, runtime, file, crypto, format, encode, url, config, _,  authNet) {
+define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/encode', 'N/url', 'N/config', 'N/record', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
+    function (require, exports, runtime, file, crypto, format, encode, url, config, record, _,  authNet) {
 
 
 
@@ -114,7 +114,9 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                 //now switch the object to the correct sub config!
                 if (o_config2.mode === 'subsidiary'){
                     o_config2 = authNet.getSubConfig(o_record.getValue({fieldId : 'subsidiary'}), o_config2);
+                    log.debug('subsidiary o_config2', o_config2);
                 }
+
                 let logoFileId;
                 if (o_config2.custrecord_an_click2pay_logo.val)
                 {
@@ -122,10 +124,22 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                 }
                 else
                 {
-                    let o_company = config.load({
-                        type: config.Type.COMPANY_INFORMATION
-                    });
-                    logoFileId = o_company.getValue({fieldId: 'formlogo'})
+                    if (o_config2.isSubConfig)
+                    {
+                        let _subRec = record.load({
+                            type:'subsidiary',
+                            id : o_record.getValue({fieldId : 'subsidiary'}),
+                        });
+                        log.debug('_subRec', _subRec.getValue({fieldId:'logo'}));
+                        logoFileId = _subRec.getValue({fieldId:'logo'});
+                    }
+                    else
+                    {
+                        let o_company = config.load({
+                            type: config.Type.COMPANY_INFORMATION
+                        });
+                        logoFileId = o_company.getValue({fieldId: 'formlogo'});
+                    }
                 }
                 let logoFile = file.load({id:logoFileId});
                 o_config2.logofile = logoFile.getContents();

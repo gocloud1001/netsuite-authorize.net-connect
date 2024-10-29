@@ -19,7 +19,7 @@
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NModuleScope Public
  * @NScriptType ScheduledScript
  *
@@ -27,8 +27,8 @@
  *
  */
 
-define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "N/email", "N/cache", './AuthNet_lib'],
-    function (require, exports, record, runtime, config, search, email, cache, authNet) {
+define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "N/email", "N/cache", "N/file", './AuthNet_lib'],
+    function (require, exports, record, runtime, config, search, email, cache, file,  authNet) {
 
     function performConfig(){
         log.audit('Starting Install / Upgrade Config', 'Begining to apply any needed config changes based on Version '+authNet.VERSION);
@@ -180,6 +180,32 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             } catch (ex){
                 s_notesString += ex.name + ' : ' + ex.message + '<br>';
             }
+            try {
+                search.create({
+                    type: 'file',
+                    filters: [
+                        ['name', 'is', 'authnet_click2pay_onlinepayment_vaildation.js'],
+                    ],
+                    columns:
+                        [
+                            'url',
+                            'availablewithoutlogin',
+                        ]
+                }).run().each(function (result)
+                {
+
+                    if (!result.getValue('availablewithoutlogin')) {
+                        let _tmp = file.load({id: result.id});
+                        _tmp.isOnline = true;
+                        _tmp.save();
+                        log.audit('JS Click2Pay file updated', 'Click2Pay file has been updated to allow external access');
+                    }
+                    return true;
+                });
+            } catch (ex){
+                s_notesString += ex.name + ' : ' + ex.message + '<br>';
+            }
+
             o_configRecord.setValue({fieldId: 'custrecord_an_cim_allow_tokens', value: true});
             o_configRecord.setValue({fieldId: 'custrecord_an_skip_on_save', value: true});
             //added because sometimes the cache gets cranky on the creation of a new record.
@@ -212,17 +238,25 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
         //if Cloud 1001, LLC chooses to add any sort of future notification of releases or anything -
         //we will provide an opt-in to this at installation time
         var o_user = runtime.getCurrentUser();
-        var s_toEmail = 'Company : '+installationInfo.companyname +'<br />' +
-            'Admin Email : ' + installationInfo.email+'<br />' +
-            'Installed By : ' + o_user.name+'<br />' +
-            'Installed By Email : ' + o_user.email+'<br />' +
-            s_notesString;
-        email.send({
-            author: o_user.id,
-            recipients: 'suiteauthconnect@gocloud1001.com',
-            subject: 'SuiteAuthConnect SDF Config '+ s_oldVersionNumber + ' >> '+ authNet.VERSION,
-            body: s_toEmail
-        });
+        //log.debug('o_user',o_user);
+        if (o_user.id !== -4) {
+            var s_toEmail = 'Company : ' + installationInfo.companyname + '<br />' +
+                'Admin Email : ' + installationInfo.email + '<br />' +
+                'Installed By : ' + o_user.name + '<br />' +
+                'Installed By Email : ' + o_user.email + '<br />' +
+                s_notesString;
+            log.audit('Sending installation email from ID:' + o_user.id, o_user.name);
+            email.send({
+                author: o_user.id,
+                recipients: 'suiteauthconnect@gocloud1001.com',
+                subject: 'SuiteAuthConnect SDF Config ' + s_oldVersionNumber + ' >> ' + authNet.VERSION,
+                body: s_toEmail
+            });
+        }
+        else
+        {
+            log.audit('Can not send email', 'Run by system manaully, no user to send from');
+        }
     }
 
     return {

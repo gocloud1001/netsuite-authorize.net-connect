@@ -211,7 +211,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                     s_payPageHTML = s_payPageHTML.replace('{{INVPDF}}', s_pdfLink);
                     //DISPLAY OR NOT THE PDF OF THE STATEMENT
                     let s_statementLink = '';
-                    if (o_config2.custrecord_an_click2pay_allow_statement.val)
+                    if (o_config2.custrecord_an_click2pay_allow_statemen.val)
                     {
                         s_statementLink = suiteletURL + '&_sid=' + s_encodedID + '&st=true';
                         s_statementLink = '<p><a target="_blank" href="'+s_statementLink+'">Download Statement PDF</a></p>';
