@@ -3,7 +3,7 @@
  *
  * @copyright 2024 Cloud 1001, LLC
  *
- * Licensed under the Apache License, Version 2.0 w/ Common Clause (the "License");
+ * Licensed under the Apache License, Version 2.0 w/ Commons Clause (the "License");
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -25,10 +25,6 @@
  * @NApiVersion 2.0
  * @NModuleScope Public
  *
- * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
- *
- *
- *
  *
  *
  * //API Docs for Authorize.Net :
@@ -45,9 +41,9 @@
  *
  */
 
-define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'moment', 'lodash', './anlib/AuthorizeNetCodes'],
+define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2024.2.3';
+    exports.VERSION = '2024.4.1';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];

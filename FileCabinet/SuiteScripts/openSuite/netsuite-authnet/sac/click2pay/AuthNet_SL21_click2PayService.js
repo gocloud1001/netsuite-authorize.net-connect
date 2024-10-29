@@ -29,8 +29,8 @@
  * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
  *
  */
-define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format','lodash', 'moment', 'authNetC2P'],
-    function (record, serverWidget, http, render, crypto, error, file, runtime, url, encode, search, redirect, format, _, moment, authNetC2P) {
+define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/error', 'N/file', 'N/runtime', 'N/url', 'N/encode', 'N/search', 'N/redirect', 'N/format', 'N/config', 'lodash', 'moment', 'authNetC2P'],
+    function (record, serverWidget, http, render, crypto, error, file, runtime, url, encode, search, redirect, format, config, _, moment, authNetC2P) {
 
         const exports = {};
         function renderErrorPage(o_error)
@@ -182,7 +182,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
 
                     //lookup the total of open invoices off this record
                     let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(o_invoiceRec);
-                    log.debug('o_totalDue', o_totalDue)
+                    //log.debug('o_totalDue', o_totalDue)
                     if (+o_totalDue.asNumber === 0)
                     {
                         context.response.write(renderResultPage({code:'Paid In Full', message : 'This invoice has already been paid in full - Thank you'}));
@@ -195,30 +195,29 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                     s_payPageHTML = s_payPageHTML.replace('{{FORMLINK}}', suiteletURL);
                     s_payPageHTML = s_payPageHTML.replace('{{BALANCE}}', o_totalDue.asCurrency);
                     s_payPageHTML = s_payPageHTML.replace('{{COMPANY_NAME}}', o_config2.custrecord_an_txn_companyname.val);
-                    if (o_config2.logofile)
-                    {
-                        s_payPageHTML = s_payPageHTML.replace('{{FORM_LOGO}}', o_config2.logofile);
-                    }
-                    s_payPageHTML = s_payPageHTML.replace('{{FORM_LOGO}}', o_config2.custrecord_an_txn_companyname.val);
-                    let s_pdfLink = '';
+                    s_payPageHTML = s_payPageHTML.replace('{{FORM_LOGO}}', o_config2.logofile);
 
+                    //DISPLAY OR NOT THE PDF OF THE INVOICE
+
+                    let s_pdfLink = '';
                     let o_encryptedPDFId = authNetC2P.crypto.encrypt(recordId, 'custsecret_authnet_payment_link');
                     let s_encodedID = authNetC2P.crypto.encode64(JSON.stringify(o_encryptedPDFId));
-                    s_pdfLink = suiteletURL + '&_fid=' + s_encodedID + '&fl=true';
-                    if (s_pdfLink)
-                    {
-                        s_pdfLink = '<p><a target="_blank" href="'+s_pdfLink+'">Download Invoice PDF</a></p>'
+                    if (o_config2.custrecord_an_click2pay_allow_invoice.val) {
+                        s_pdfLink = suiteletURL + '&_fid=' + s_encodedID + '&fl=true';
+                        if (s_pdfLink) {
+                            s_pdfLink = '<p><a target="_blank" href="' + s_pdfLink + '">Download Invoice PDF</a></p>'
+                        }
                     }
-                    s_payPageHTML = s_payPageHTML.replace('{{CONSOLDPDF}}', s_pdfLink);
-
-
-                    let s_statementLink = suiteletURL + '&_sid=' + s_encodedID + '&st=true';
-                    if (s_statementLink)
+                    s_payPageHTML = s_payPageHTML.replace('{{INVPDF}}', s_pdfLink);
+                    //DISPLAY OR NOT THE PDF OF THE STATEMENT
+                    let s_statementLink = '';
+                    if (o_config2.custrecord_an_click2pay_allow_statement.val)
                     {
-                        s_statementLink = '<p><a target="_blank" href="'+s_statementLink+'">Download Statement PDF</a></p>'
+                        s_statementLink = suiteletURL + '&_sid=' + s_encodedID + '&st=true';
+                        s_statementLink = '<p><a target="_blank" href="'+s_statementLink+'">Download Statement PDF</a></p>';
+                        log.debug('s_statementLink',s_statementLink);
                     }
-                    log.debug('s_statementLink',s_statementLink);
-                    s_payPageHTML = s_payPageHTML.replace('{{CONSOLDCSV}}', s_statementLink);
+                    s_payPageHTML = s_payPageHTML.replace('{{CUSTSTATEMENT}}', s_statementLink);
                     //now lookup the validation.js file URL and embed it into the form
                     search.create({
                         type: 'file',
@@ -366,6 +365,14 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                     }
 
                     s_payPageHTML = s_payPageHTML.replace('{{ENCRYPTED}}', o_allParams.xkcd);
+                    s_payPageHTML = s_payPageHTML.replace('{{ECHEX_ON}}', o_config2.custrecord_an_click2pay_enable_echecks.val);
+
+                    //clear the echecks code
+                    if (!o_config2.custrecord_an_click2pay_enable_echecks.val) {
+                        var regex1 = new RegExp(`xechecks\\b[\\s\\S]*?\\bxechecks`, 'is');
+                        s_payPageHTML = s_payPageHTML.replace(regex1, '');
+                    }
+
                     context.response.write(s_payPageHTML);
                     o_invoiceRec.save({ignoreMandatoryFields: true});
                 }

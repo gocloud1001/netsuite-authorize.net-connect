@@ -563,10 +563,22 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                 if (o_config.hasMultiSubRuntime)
                 {
                     //allowedSub.id +':'+_allowedGateway.configid
-                    context.newRecord.setValue({fieldId : 'custrecord_an_token_subsidiary', value:context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':')[0]});
-                    context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway_sub', value:context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':')[1]});
+                    //log.debug('test', context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}))
+                    if (context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}))
+                    {
+                        var _split = context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':');
+                        if (_split[0]) {
+                            context.newRecord.setValue({
+                                fieldId: 'custrecord_an_token_subsidiary',
+                                value: _split[0]
+                            });
+                        }
+                        if (_split[1])
+                        {
+                            context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway_sub', value:_split[1]});
+                        }
+                    }
                 }
-
                 o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId: 'custrecord_an_token_subsidiary'}), o_config);
                 //log.debug('o_config', o_config);
             }

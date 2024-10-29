@@ -201,6 +201,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             //duration: 0
                         });
                     }
+                    /* Should not matter anymore with addition of logic
                     if(runtime.isFeatureInEffect({feature: 'paymentinstruments'}))
                     {
                         context.form.addPageInitMessage({
@@ -209,8 +210,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             message: 'Your system has Payment Instruments enabled (<i>Setup > Enable Features >> Transactions >>>  Payment Instruments</i>)<br>This feature support is currently in BETA and may not have been fully tested with SuiteAuthConnect as it\'s a specific extension used by NetSuite Payment Card Gateways to provide functionality already included in the Authorize.Net integration.  It is <b>SUGGESTED</b> you disable this feature to prevent unexpected issues.',
                             //duration: 0
                         });
-                    }
-
+                    }*/
                 }
 
                 if (context.type === 'view') {
@@ -495,34 +495,8 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 }
                                 else
                                 {
-                                    if (a_remote[0] > a_local[0])
-                                    {
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.WARNING,
-                                            title: 'Your version of SuiteAuthConnect is not the current version',
-                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should strongly consider updating your version as you are behind a major revision to ensure you have the latest bug fixes and added features.',
-                                            //duration: 60000
-                                        });
-                                    }
-                                    else if (a_remote[1] > a_local[1])
-                                    {
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.WARNING,
-                                            title: 'Your version of SuiteAuthConnect is not the current version',
-                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating as you are behind a minor revision to ensure you have the latest bug fixes and added features.',
-                                            //duration: 60000
-                                        });
-                                    }
-                                    else if (a_remote[2] > a_local[2])
-                                    {
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.INFORMATION,
-                                            title: 'Your version of SuiteAuthConnect is not the current version',
-                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating to receive the latest bug fixes and added features.',
-                                            //duration: 60000
-                                        });
-                                    }
-                                    else if (a_remote[0] < a_local[0] || a_remote[1] < a_local[1] || a_remote[2] < a_local[2])
+                                    log.debug(a_remote[0] , a_local[0])
+                                    if (+a_remote[0] < +a_local[0] || +a_remote[1] < +a_local[1] || +a_remote[2] < +a_local[2] || a_local[3])
                                     {
                                         context.form.addPageInitMessage({
                                             type: message.Type.CONFIRMATION,
@@ -531,6 +505,34 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                             //duration: 60000
                                         });
                                     }
+                                    else if (+a_remote[0] > +a_local[0])
+                                    {
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.WARNING,
+                                            title: 'Your version of SuiteAuthConnect is not the current version',
+                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should strongly consider updating your version as you are behind a major revision to ensure you have the latest bug fixes and added features.',
+                                            //duration: 60000
+                                        });
+                                    }
+                                    else if (+a_remote[1] > +a_local[1])
+                                    {
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.WARNING,
+                                            title: 'Your version of SuiteAuthConnect is not the current version',
+                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating as you are behind a minor revision to ensure you have the latest bug fixes and added features.',
+                                            //duration: 60000
+                                        });
+                                    }
+                                    else if (+a_remote[2] > +a_local[2])
+                                    {
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.INFORMATION,
+                                            title: 'Your version of SuiteAuthConnect is not the current version',
+                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating to receive the latest bug fixes and added features.',
+                                            //duration: 60000
+                                        });
+                                    }
+
                                 }
                             }
                         }

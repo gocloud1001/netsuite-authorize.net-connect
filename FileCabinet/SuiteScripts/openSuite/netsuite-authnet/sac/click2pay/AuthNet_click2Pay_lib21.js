@@ -23,15 +23,15 @@
  *
  * */
 
-define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/encode', 'N/url', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
-    function (require, exports, runtime, file, crypto, format, encode, url, _,  authNet) {
+define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/encode', 'N/url', 'N/config', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
+    function (require, exports, runtime, file, crypto, format, encode, url, config, _,  authNet) {
 
 
 
         exports.crypto = {
-            encrypt : (text, secret) => {
+            encrypt : (text) => {
                 const sKey = crypto.createSecretKey({
-                    secret: secret,
+                    secret: 'custsecret_authnet_payment_link',
                     encoding: encode.Encoding.UTF_8,
                 });
 
@@ -52,9 +52,9 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                 });
                 return cipherPayload;
             },
-            decrypt : (cipherPayload, secret) => {
+            decrypt : (cipherPayload) => {
                 const sKey = crypto.createSecretKey({
-                    secret: secret,
+                    secret: 'custsecret_authnet_payment_link',
                     encoding: encode.Encoding.UTF_8,
                 });
 
@@ -105,29 +105,6 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                         asNumber : +o_invoiceRec.getValue({fieldId:'amountremaining'}),
                         asCurrency : format.format({value:+o_invoiceRec.getValue({fieldId:'amountremaining'}), type: format.Type.CURRENCY})
                     };
-                    /*search.create({
-                        type:'transaction',
-                        filters : [
-                            ['appliedtotransaction', 'anyof', [recId]],
-                            "AND",
-                            ['mainline', 'is', true]
-                        ],
-                        columns :
-                            [
-                                'type',
-                                'amount',
-                                'amountremaining',
-                                'tranid',
-                                'statusref',
-                            ]
-                    }).run().each(function (result) {
-                        //log.debug('result: '+context.request.clientIpAddress, result);
-                        o_totalDue.asNumber += +result.getValue('amountremaining');
-                        return true;
-                    });
-                    //make it look human
-                    o_totalDue.asCurrency = format.format({value:o_totalDue.asNumber, type: format.Type.CURRENCY});
-                    */
                     return o_totalDue;
                 }
             }
@@ -138,11 +115,20 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                 if (o_config2.mode === 'subsidiary'){
                     o_config2 = authNet.getSubConfig(o_record.getValue({fieldId : 'subsidiary'}), o_config2);
                 }
+                let logoFileId;
                 if (o_config2.custrecord_an_click2pay_logo.val)
                 {
-                    let logoFile = file.load({id:o_config2.custrecord_an_click2pay_logo.val});
-                    o_config2.logofile = logoFile.getContents();
+                    logoFileId = o_config2.custrecord_an_click2pay_logo.val;
                 }
+                else
+                {
+                    let o_company = config.load({
+                        type: config.Type.COMPANY_INFORMATION
+                    });
+                    logoFileId = o_company.getValue({fieldId: 'formlogo'})
+                }
+                let logoFile = file.load({id:logoFileId});
+                o_config2.logofile = logoFile.getContents();
                 return o_config2;
             }
         }
