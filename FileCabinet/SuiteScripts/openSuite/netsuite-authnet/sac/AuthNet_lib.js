@@ -2831,6 +2831,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             //allow setting of an actual test of a CC when tokenizing!
             //o_paymentProfile.validationMode = 'liveMode' or 'testMode'
             o_newProfileRequest.createCustomerProfileRequest.validationMode = o_ccAuthSvcConfig.custrecord_an_cim_live_mode.val ? 'liveMode' : 'testMode';
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_usedlivemode'}))
+            {
+                o_newProfileRequest.createCustomerProfileRequest.validationMode = 'liveMode';
+            }
         }
         else
         {
