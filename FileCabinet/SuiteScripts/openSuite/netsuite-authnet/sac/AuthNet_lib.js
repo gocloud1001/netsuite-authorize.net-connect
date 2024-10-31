@@ -691,11 +691,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         return {exits : b_thisOneExists, number : i_numMethods, hasDefault : b_hasDefault};
     };
 
-    exports.parseHistory = function (txnid, txntype) {
-        var o_parsedHistory = {isValid : false, status : 'ERROR', message : ''};
+    exports.parseHistory = function (txnid, txntype, b_isAuthNet) {
+        var o_parsedHistory = {isAuthNetTransaction : b_isAuthNet, isValid : false, status : 'ERROR', message : ''};
         //would be undefined on a create that triggers this due to logic issue or on a copy or the transformation where there is no history but the record has some field set indicating there MIGHT be history
-        this.verboseLogging('parseHistory() '+txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype));
-        if (_.isNull(txnid) || _.isNull(txntype)){
+        this.verboseLogging('parseHistory() '+txnid + ' : ' + txntype, _.isUndefined(txnid) +','+ _.isUndefined(txntype) + ', is this authnet? '+ b_isAuthNet);
+        if (_.isNull(txnid) || _.isNull(txntype) || !o_parsedHistory.isAuthNetTransaction){
             o_parsedHistory.isValid = true;
             o_parsedHistory.status = 'OK';
         } else {
@@ -738,7 +738,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     o_parsedHistory.message += '<br>' + historyRec.getValue({fieldId: 'custrecord_an_response_ig_other'});
                 }
             } else {
-                o_parsedHistory.message = 'This transaction did not correctly complete and log the previous Authorize.Net call. (c9)'
+                o_parsedHistory.message = 'This transaction did not log any Authorize.Net call. (c9)'
             }
         }
         return o_parsedHistory;
