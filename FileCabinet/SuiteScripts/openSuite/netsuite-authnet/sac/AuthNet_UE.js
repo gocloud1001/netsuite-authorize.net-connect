@@ -232,8 +232,8 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 if (!_.includes([context.UserEventType.CREATE, context.UserEventType.DELETE], context.type) )
                 {
                     //moved the history parser here and if it's not good - run another status check / log generation
-                    var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type)
-                    if(!o_history.isValid) {
+                    var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type, (context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || !_.isEmpty(context.newRecord.getValue({fieldId :'custbody_authnet_refid'}))))
+                    if(!o_history.isValid && o_history.historyId) {
                         //will not rerun for customer payments...
                         try {
                             //make a new log with the current status check of this transaction
@@ -243,6 +243,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         }
                         //todo - make this do customer payments too?
                     }
+
                     //some general variables here
                     var b_overide = context.newRecord.getValue({fieldId :'custbody_authnet_override'}),
                         b_pendingAuthNoError = context.newRecord.getValue({fieldId :'orderstatus'}) === 'A' && (o_config2.custrecord_an_auth_so_on_approval && o_config2.custrecord_an_auth_so_on_approval.val),
@@ -260,7 +261,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //authNet.verboseLogging('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
                     if (b_pendingAuthNoError)
                     {
-                        log.audit('No Error Display', 'This SO is pending approval and the config has the setting "Perform Authorization On Approval of Sales Order Not Create/Save"')
+                        log.audit('No Error Display', 'This SO is pending approval and the config has the setting "Perform Authorization On Approval of Sales Order Not Create/Save"');
                     }
                     else if (!b_overide)
                     {
@@ -270,7 +271,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             if (context.newRecord.getValue({fieldId:'custbody_authnet_authcode'}) === '(IMPORTED)'){
                                 s_title = 'IMPORTED AUTH : ';
                             }
-                            s_title += o_history.status + ' ' + o_history.errorCode
+                            s_title += o_history.status + ' ' + o_history.errorCode;
                             context.form.addPageInitMessage({
                                 type: message.Type.ERROR,
                                 title: s_title,
