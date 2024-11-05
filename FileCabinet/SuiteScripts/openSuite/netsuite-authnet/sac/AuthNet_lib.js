@@ -49,6 +49,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     exports.CHECKBOXES = ['use', 'override'];
     exports.SETTLEMENT = ['batchid', 'settle_amount', 'settle_date', 'settle_markettype', 'settle_status'];
     exports.CCFIELDS = ['ccnumber', 'ccexp', 'ccv'];
+    exports.CLICK2PAY = ['most_recent_open', 'number_opens', 'url'];
     exports.CCENTRY = _.concat(exports.CCFIELDS);
     exports.CODES = ['datetime','authcode', 'refid', 'error_status', 'done'];
     exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES, exports.SETTLEMENT);

@@ -54,6 +54,19 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             //log.error('Field Not on Form', form + ' missing ' + fld)
                         }
                     });
+                    if (context.type === context.UserEventType.COPY) {
+
+                        _.forEach(authNet.CLICK2PAY, function (fd)
+                        {
+                            var fld = 'custbody_authnet_c2p_' + fd;
+                            log.debug(fd, fld)
+                            try {
+                                context.newRecord.setValue({fieldId: fld, value: ''});
+                            } catch (e) {
+                                //log.error('Field Not on Form', form + ' missing ' + fld)
+                            }
+                        });
+                    }
                     _.forEach(form.getTabs(), function(tabid){
                         var subtab = context.form.getTab({
                             id : tabid});
@@ -317,7 +330,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         });
                     }
-
                     if (context.type === context.UserEventType.COPY){
                         authNet.homeSysLog('CLEANING Auth values', 'This is a copy!');
                         var objRecord = context.newRecord;
@@ -340,7 +352,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         });
                         _.forEach(['custbody_authnet_use', 'paymentmethod', 'paymentoption', 'custbody_authnet_override'], function (fld) {
-
                             try {
                                 objRecord.setValue({fieldId: fld, value: ''});
                             } catch (e){
