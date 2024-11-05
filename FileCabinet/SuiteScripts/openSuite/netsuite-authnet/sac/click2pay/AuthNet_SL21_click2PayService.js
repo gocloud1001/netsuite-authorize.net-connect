@@ -45,7 +45,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
         }
         function renderResultPage(o_error)
         {
-            log.debug('renderResultPage', o_error)
+            //log.debug('renderResultPage', o_error)
             let errorPageHTML = file.load('SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/html/authnet_click2pay_onlinepayment_result.html');
             let s_contents = errorPageHTML.getContents();
             s_contents = s_contents.replace('{{CODE}}', o_error.code);
@@ -503,6 +503,13 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 isDynamic : true
                             });
                             o_newCard.setValue({fieldId:'custrecord_an_token_entity', value : i_entityId});
+                            if (o_invoiceRec.getValue({fieldId:'subsidiary'}))
+                            {
+                                let o_payload = {subsidiary : +o_invoiceRec.getValue({fieldId:'subsidiary'})}
+                                o_newCard.setValue({fieldId:'custrecord_an_token_click2pay_data', value : JSON.stringify(o_payload)});
+                                o_newCard.setValue({fieldId:'custrecord_an_token_subsidiary', value : +o_invoiceRec.getValue({fieldId:'subsidiary'})});
+                            }
+
                             o_newCard.setValue({fieldId:'custrecord_an_token_paymenttype', value : 1});
                             o_newCard.setValue({fieldId:'custpage_customertype', value : o_customerDetails.isperson ? 'individual' : 'business'});
                             //set card data
@@ -602,18 +609,16 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                         {
                             let i_payment;
                             try {
-                                let o_payment = record.create({
-                                    type: record.Type.CUSTOMER_PAYMENT,
+                                let o_payment = record.transform({
+                                    fromType : record.Type.INVOICE,
+                                    fromId : recordId,
+                                    toType: record.Type.CUSTOMER_PAYMENT,
                                     isDynamic: true,
-                                    entity: i_entityId
                                 });
-                                //should not have to set this next line but you do - something broken in the init
-                                o_payment.setValue({fieldId: 'customer', value: i_entityId});
                                 o_payment.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 o_payment.setValue({fieldId: 'undepfunds', value: 'T'});
                                 o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Click2Pay Link'});
                                 o_payment.setValue({fieldId: 'payment', value: o_totalDue.asNumber});
-                                o_payment.setValue({fieldId: 'payment', value :  1.12 });
                                 o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
                                 i_payment = o_payment.save({ignoreMandatoryFields: true});
                                 if (!context.request.parameters.existingmethod && _.isUndefined(context.request.parameters.saveCard) && _.isUndefined(context.request.parameters.saveBank)) {
