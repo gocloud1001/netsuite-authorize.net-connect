@@ -180,6 +180,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
             } catch (ex){
                 s_notesString += ex.name + ' : ' + ex.message + '<br>';
             }
+            /* NOT NEEDED - Embeded into html page
             try {
                 search.create({
                     type: 'file',
@@ -204,7 +205,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
                 });
             } catch (ex){
                 s_notesString += ex.name + ' : ' + ex.message + '<br>';
-            }
+            }*/
 
             o_configRecord.setValue({fieldId: 'custrecord_an_cim_allow_tokens', value: true});
             o_configRecord.setValue({fieldId: 'custrecord_an_skip_on_save', value: true});

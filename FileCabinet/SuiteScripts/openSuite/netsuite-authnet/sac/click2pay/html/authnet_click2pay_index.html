@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache">
+    <meta http-equiv="Pragma" content="no-cache">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>{{COMPANY_NAME}} Payment Center</title>
@@ -109,7 +111,7 @@
 
         <div class="py-5 text-center">
             <img id="bigimg" class="d-block mx-auto mb-4" src="data:image/png;base64,{{FORM_LOGO}}" alt="">
-            <h2>Invoice Payment Form</h2>
+            <h2>Invoice Payment for {{INVNUM}}</h2>
             <p class="lead">Please select how you would like to pay the ${{BALANCE}} balance due</p>
             {{INVPDF}}
             {{CUSTSTATEMENT}}
@@ -381,6 +383,7 @@
                     <button class="w-100 btn btn-primary btn-lg" id="submitbutton" type="submit">Pay Invoice</button>
                     <input type='hidden' name='kie' value={{ENCRYPTED}}>
                     <input type='hidden' name='echex' id="echex" value={{ECHEX_ON}}>
+                    <input type='hidden' id="sent" value='F'>
                 </form>
                 <p class="fs-6 fst-italic text-center">{{ACCESSNOTE}}</p>
             </div>
@@ -409,6 +412,34 @@
 <script type="application/javascript">
     (function ()
     {
+        const form = document.getElementById('payinvoice');
+        // prevent submission if validation fails
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+                document.getElementById("sent").value = 'F';
+                console.log('Please validate your selected fields on the form.');
+            }
+            else
+            {
+                document.getElementById('submitbutton').disabled = true;
+                document.getElementById('submitbutton').style.opacity='0.5';
+                console.log('Validation Successful, submitting');
+                if (document.getElementById("sent").value === 'F')
+                {
+                    document.getElementById("sent").value = 'T';
+                    form.submit();
+                }
+                else
+                {
+                    alert('You only need to submit this payment request once.');
+                }
+            }
+
+            form.classList.add('was-validated');
+        }, false);
+
         //check all 3 sections to see if any are expanded and make that section mandatory fields
         let obj = document.getElementById('collapseOne');
 
@@ -432,11 +463,11 @@
             document.getElementById('defaultBank').addEventListener("change", checked);
             document.getElementById('saveBank').addEventListener("change", checked);
         }
-        //todo - add some logic for resizing from the config!
-        /*if (document.getElementById( "bigimg" ).width > 615)
+
+        if (document.getElementById( "bigimg" ).width > 615)
         {
             document.getElementById( "bigimg" ).width = 615;
-        }*/
+        }
         //document.getElementById( "bigimg" ).height = 150;
 
 
@@ -461,13 +492,25 @@
             }
         }
 
+        document.addEventListener('keydown', (event) => {
+            const key = event.key;
+            //console.log(key);
+            if (key === 'Enter')
+            {
+                console.log('ENTER!!!!!! - no way - use your mouse!');
+                //don't let Enter do anything
+                //const submitEvent = new Event('submit');
+                //document.getElementById('payinvoice').dispatchEvent(submitEvent);
+            }
+        });
+
     })();
 
     function toggle(info)
     {
-        //console.log(info);
-        //console.log(info.getAttribute('data-bs-target'));
-        //console.log(info.getAttribute('aria-expanded'));
+        console.log(info);
+        console.log(info.getAttribute('data-bs-target'));
+        console.log(info.getAttribute('aria-expanded'));
         let b_isExpanded = info.getAttribute('aria-expanded') === 'true';
         if (info.getAttribute('data-bs-target') === '#collapseOne') {
             if (b_isExpanded) {
@@ -518,7 +561,9 @@
         document.getElementById("cc-firstname").removeAttribute("required");
         document.getElementById("cc-lastname").removeAttribute("required");
         document.getElementById("address").removeAttribute("required");
+        document.getElementById("city").removeAttribute("required");
         document.getElementById("state").removeAttribute("required");
+        document.getElementById("zip").removeAttribute("required");
         document.getElementById("cc-number").removeAttribute("required");
         document.getElementById("cc-expiration").removeAttribute("required");
         document.getElementById("cc-cvv").removeAttribute("required");
@@ -535,7 +580,9 @@
         document.getElementById("cc-firstname").setAttribute("required", '');
         document.getElementById("cc-lastname").setAttribute("required", '');
         document.getElementById("address").setAttribute("required", '');
+        document.getElementById("city").setAttribute("required", '');
         document.getElementById("state").setAttribute("required", '');
+        document.getElementById("zip").setAttribute("required", '');
         document.getElementById("cc-number").setAttribute("required", '');
         document.getElementById("cc-expiration").setAttribute("required", '');
         document.getElementById("cc-cvv").setAttribute("required", '');
@@ -569,7 +616,5 @@
     }
 </script>
 
-<!--<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>-->
-<script src="{{VALIDATION_SCRIPT}}"></script>
 </body>
 </html>

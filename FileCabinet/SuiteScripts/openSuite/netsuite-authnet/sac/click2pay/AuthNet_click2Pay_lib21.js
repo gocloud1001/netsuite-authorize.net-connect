@@ -114,7 +114,7 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                 //now switch the object to the correct sub config!
                 if (o_config2.mode === 'subsidiary'){
                     o_config2 = authNet.getSubConfig(o_record.getValue({fieldId : 'subsidiary'}), o_config2);
-                    log.debug('subsidiary o_config2', o_config2);
+                    //log.debug('subsidiary o_config2', o_config2);
                 }
 
                 let logoFileId;
@@ -130,7 +130,7 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                             type:'subsidiary',
                             id : o_record.getValue({fieldId : 'subsidiary'}),
                         });
-                        log.debug('_subRec', _subRec.getValue({fieldId:'logo'}));
+                        //log.debug('_subRec', _subRec.getValue({fieldId:'logo'}));
                         logoFileId = _subRec.getValue({fieldId:'logo'});
                     }
                     else

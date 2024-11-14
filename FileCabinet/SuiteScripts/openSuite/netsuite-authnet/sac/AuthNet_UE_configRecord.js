@@ -212,6 +212,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         });
                     }*/
                     //this is stupid but needed because the SDF definition for the file does not mark it as an online file
+                    /* Now unneeded
                     if (context.newRecord.getValue({fieldId: 'custrecord_an_enable_click2pay_inv'})) {
                         search.create({
                             type: 'file',
@@ -234,7 +235,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             }
                             return true;
                         });
-                    }
+                    }*/
                 }
 
                 if (context.type === 'view') {

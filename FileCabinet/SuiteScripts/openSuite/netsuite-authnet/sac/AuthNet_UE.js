@@ -55,11 +55,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         }
                     });
                     if (context.type === context.UserEventType.COPY) {
-
                         _.forEach(authNet.CLICK2PAY, function (fd)
                         {
                             var fld = 'custbody_authnet_c2p_' + fd;
-                            log.debug(fd, fld)
                             try {
                                 context.newRecord.setValue({fieldId: fld, value: ''});
                             } catch (e) {
@@ -111,7 +109,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         ]
                                 }).run().each(function (result)
                                 {
-                                    log.debug('result', result);
+                                    //log.debug('result', result);
                                     if (counter < maxResults) {
                                         s_message += '<li>Viewed on : ' + result.getValue({
                                             name: "newvalue",
@@ -1334,6 +1332,30 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             authNet.homeSysLog('o_response', o_response)
                             //this is going to have to loop over the individual refund lines and refund EACH per transaction
                             authNet.handleResponse(o_response, context, false);
+                        }
+                        break;
+                    case 'invoice':
+                        if (o_config2.custrecord_an_enable_click2pay_inv.val)
+                        {
+                            if (_.isEmpty(context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_url'})))
+                            {
+                                log.audit('Generating Payment Link Now', 'Click 2 Pay Link being added to Invoice');
+                                try {
+                                    var suiteletURL = authNetC2P.paymentlink.serviceUrl();
+                                    var o_encryptedId = authNetC2P.crypto.encrypt(context.newRecord.id, 'custsecret_authnet_payment_link');
+                                    suiteletURL += '&xkcd=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedId));
+                                    record.submitFields({
+                                        type : 'invoice',
+                                        id : context.newRecord.id,
+                                        values : {'custbody_authnet_c2p_url' : suiteletURL},
+                                        options : {ignoreMandatoryFields:true}
+                                    });
+                                }
+                                catch(ex)
+                                {
+                                    log.emergency(ex.name, ex.message);
+                                }
+                            }
                         }
                         break;
                     default:
