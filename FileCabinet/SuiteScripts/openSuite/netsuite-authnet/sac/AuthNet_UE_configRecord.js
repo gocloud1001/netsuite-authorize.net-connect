@@ -565,7 +565,9 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         log.error('Failed to validate version')
                     }
                 }
-                if (context.newRecord.getValue({fieldId: 'custrecord_an_version'}) !== authNet.VERSION
+                //log.debug(context.type + ' : ' + context.newRecord.getValue({fieldId: 'custrecord_an_version'}), authNet.VERSION)
+                if (_.isUndefined(context.newRecord.getValue({fieldId: 'custrecord_an_version'})) &&
+                    context.newRecord.getValue({fieldId: 'custrecord_an_version'}) !== authNet.VERSION
                     &&
                     !_.includes(['xedit', 'delete', 'create', 'copy'], context.type)
                 ) {
@@ -584,7 +586,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             });
                             var scriptTaskId = scriptTask.submit();
                             //log.debug('scriptTaskId', scriptTaskId)
-                            log.audit('Process for intial setup is running ', task.checkStatus(scriptTaskId));
+                            log.audit('Process for intial setup / update is running ', task.checkStatus(scriptTaskId));
                         } catch (ex) {
                             log.emergency(ex.name, ex.message);
                         }
@@ -652,6 +654,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
             {
                 if (context.oldRecord.getValue({fieldId:'custrecord_an_all_sub'}) && !context.newRecord.getValue({fieldId:'custrecord_an_all_sub'}))
                 {
+                    log.audit('Multi Sub Activated', 'Multi Sub Behavior Was just ENABLED!');
                     //this account just flipped to a subsidiary configuration
                     //need to add a subsidiary record!
                     var o_subRec = record.create({
