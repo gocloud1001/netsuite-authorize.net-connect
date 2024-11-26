@@ -73,8 +73,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             type : 'invoice',
                             id : invoiceId
                         });
-                        //now get authnet config data to build the UI accordilngly
-                        let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
                         let invoicePDF = render.transaction({
                             entityId: +invoiceId,
                             printMode: render.PrintMode.PDF,
@@ -109,8 +107,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             type : 'invoice',
                             id : invoiceId
                         });
-                        //now get authnet config data to build the UI accordilngly
-                        let o_config2 = authNetC2P.authNet.getCache(o_invoiceRec);
                         let invoicePDF = render.statement({
                             entityId: +o_invoiceRec.getValue({fieldId:'entity'}),
                             printMode: render.PrintMode.PDF,
@@ -316,17 +312,23 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             ]
                     }).run().each(function (result)
                     {
-                        let _selectOption = ''
+                        let _selectOption = '', s_cardName = result.getValue('name');
+                        //if this is multi sub customer
+                        if (o_config2.hasMultiSubRuntime)
+                        {
+                            s_cardName = s_cardName.replace('('+o_config2.custrecord_an_card_prefix.val+') ', '');
+                        }
                         if (result.getValue('custrecord_an_token_default')) {
-                            _selectOption = '<option selected="" value="' + result.id + '">' + result.getValue('name') + '</option>';
+                            _selectOption = '<option selected="" value="' + result.id + '">' + s_cardName + '</option>';
                             b_hasDefault = true;
                         } else {
-                            _selectOption = '<option value="' + result.id + '">' + result.getValue('name') + '</option>';
+                            _selectOption = '<option value="' + result.id + '">' + s_cardName + '</option>';
                         }
                         s_cardOptions += _selectOption;
                         return true;
                     });
                     if (!b_hasDefault) {
+
                         s_cardOptions = '<option  value="">Choose...</option>' + s_cardOptions;
                     }
                     //log.debug('s_cardOptions - ' + b_hasDefault, s_cardOptions)

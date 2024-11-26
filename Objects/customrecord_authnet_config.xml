@@ -1387,7 +1387,7 @@ The increase will be a PERCENTAGE of the amount.  i.e. if you put in 10%, a $100
       <storevalue>T</storevalue>
       <subtab>[scriptid=customrecord_authnet_config.tab_authnet_click2pay]</subtab>
     </customrecordcustomfield>
-    <customrecordcustomfield scriptid="custrecordan_click2pay_allow_statemen">
+    <customrecordcustomfield scriptid="custrecord_an_click2pay_allow_statemen">
       <accesslevel>2</accesslevel>
       <allowquickadd>F</allowquickadd>
       <applyformatting>F</applyformatting>
