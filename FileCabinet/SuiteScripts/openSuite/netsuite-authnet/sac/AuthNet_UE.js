@@ -41,6 +41,21 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         message: 'This script deployment ('+runtime.getCurrentScript().deploymentId+') has "Enable Debugging Logs - NON-PCI Compliant!" enabled and may be logging non-PCI compliant data to the logs as well as other PII.  You should confirm you want this behavior enabled with an Administrator before entering any credit card or other sensitive data.'
                     });
                 }
+
+                var o_config2 = authNet.getConfigFromCache();
+                //now switch the object to the correct sub config!
+                if (o_config2.mode === 'subsidiary'){
+                    if (context.newRecord.getValue({fieldId : 'subsidiary'}))
+                    {
+                        o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
+                    }
+                }
+                form = authNetUI.notSetUpErrorCheck(form, o_config2);
+                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+                {
+                    return;
+                }
+
                 //if we have transaction records that the auth net fields appear on but shouldn't - do this
                 if(_.includes(['invoice'], context.newRecord.type))
                 {
@@ -143,7 +158,62 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         }
                     }
+                    if (!o_config2.custrecord_an_enable_click2pay_inv.val)
+                    {
+                        _.forEach(authNet.CLICK2PAY, function (fd) {
+                            var fld = 'custbody_authnet_c2p_' + fd;
+                            try {
+                                form.getField({id: fld}).updateDisplayType({
+                                    displayType: ui.FieldDisplayType.HIDDEN
+                                });
+                            } catch (e){
+                                log.error('Field Not on Form', form + ' missing ' + fld)
+                            }
+                        });
+                        /*try {
+                            form.addField({
+                                id: 'custpage_noclick2pay',
+                                label: 'test',
+                                type: ui.FieldType.EMAIL,
+                                container: 'custtab_authnet_clicktopay'
+                            });
+                        } catch(e)
+                        {
+                            log.error(e.name, e.message);
+                        }*/
+                    }
                     return;
+                }
+                else
+                {
+                    //find and hide the click 2 pay tab on anything except Invoices
+                    _.forEach(authNet.CLICK2PAY, function (fd) {
+                        var fld = 'custbody_authnet_c2p_' + fd;
+                        try {
+                            form.getField({id: fld}).updateDisplayType({
+                                displayType: ui.FieldDisplayType.HIDDEN
+                            });
+                        } catch (e){
+                            //log.error('Field Not on Form', form + ' missing ' + fld)
+                        }
+                    });
+                    /*_.forEach(form.getTabs(), function(tabid){
+                        var subtab = context.form.getTab({
+                            id : tabid});
+                        if (subtab.label === "Authorize.Net Click2Pay")
+                        {
+                            var fld_hideScript = context.form.addField({
+                                id : 'custpage_hide_sub_tab',
+                                type : ui.FieldType.INLINEHTML,
+                                label : '.'
+                            });
+                            fld_hideScript.defaultValue = "<script>jQuery(window).on('load', function() {\n" +
+                                " jQuery('#"+tabid+"_div').css('display', 'none');" +
+                                " jQuery('#"+tabid+"lnk').css('display', 'none');" +
+                                "});</script>"
+                            subtab.displayType = ui.SublistDisplayType.HIDDEN;
+                        }
+                    });*/
                 }
                 if(_.includes(['creditmemo'], context.newRecord.type))
                 {
@@ -158,17 +228,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         }
                     });
                     log.audit('This record has nothing to do with authorize.net','So all fields are hidden and it is skipped.')
-                    return;
-                }
-
-                var o_config2 = authNet.getConfigFromCache();
-                //now switch the object to the correct sub config!
-                if (o_config2.mode === 'subsidiary'){
-                    o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
-                }
-                form = authNetUI.notSetUpErrorCheck(form, o_config2);
-                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
-                {
                     return;
                 }
                 //set the auth free config objct in the custom field for the client scripts to know what to do!
@@ -1106,7 +1165,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 if (pluginResult.process) {
                                     //if there was a cc number, its auth.net and it's not already approved, let's do it!
                                     thisRec = authNet.getAuth(context.newRecord);
-                                    if (thisRec.getValue({fieldId:'custbody_authnet_settle_status'}) !== 'ERR')
+                                    if (thisRec.getValue({fieldId:'custbody_authnet_settle_status'}) !== 'ERR' && !thisRec.getValue({fieldId:'custbody_authnet_error_status'}))
                                     {
                                         if(!thisRec.getValue({fieldId :'custbody_authnet_refid'})){
                                             thisRec.setValue({fieldId :'custbody_authnet_use', value :false});
