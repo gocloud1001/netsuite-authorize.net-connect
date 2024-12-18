@@ -38,7 +38,7 @@ define(["require", "exports", 'N/log', 'N/ui/serverWidget', 'N/ui/message', './A
             form.addPageInitMessage({
                 type: message.Type.INFORMATION,
                 title: 'AUTHORIZE.NET setup is INCOMPLETE',
-                message: 'While this transaction may have nothing to do with Authorize.Net, the setup is incomplete and may cause unintended issues. An Administrator needs to complete the setup by navigating to Cloud 1001 > SuiteAuthConnect > SuiteAuthConnect Configuration and complete the setup.',
+                message: 'While this transaction may have nothing to do with Authorize.Net, the setup is incomplete and may cause unintended issues. An Administrator needs to complete the setup by navigating to <i>Cloud 1001 > SuiteAuthConnect > SuiteAuthConnect Configuration</i> and complete the setup.',
             });
             _.forEach(authNet.ALLAUTH, function (fldname) {
                 try {
@@ -46,7 +46,7 @@ define(["require", "exports", 'N/log', 'N/ui/serverWidget', 'N/ui/message', './A
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
                 } catch (e) {
-                    log.error('Field Not on Form anyhow!', form + ' missing and authNet Field - ' + fldname);
+                    log.error('UILIB.notSetUpErrorCheck() Field Not on Form anyhow!', form + ' missing and authNet Field - ' + fldname);
                 }
             });
         }
@@ -70,7 +70,7 @@ define(["require", "exports", 'N/log', 'N/ui/serverWidget', 'N/ui/message', './A
         });
         if (o_config2.mode === 'subsidiary')
         {
-            o_publicConfig.subs = {}
+            o_publicConfig.subs = {};
             _.forEach(o_config2.subs, function(val, kie){
                 o_publicConfig.subs[kie] = {};
                 _.forEach(val, function (obj, ki){
@@ -84,7 +84,6 @@ define(["require", "exports", 'N/log', 'N/ui/serverWidget', 'N/ui/message', './A
         fld_config.defaultValue = JSON.stringify(o_publicConfig);
         return form;
     }
-
 
     return exports;
 });

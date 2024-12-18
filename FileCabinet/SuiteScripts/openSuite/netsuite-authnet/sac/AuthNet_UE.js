@@ -47,7 +47,15 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 if (o_config2.mode === 'subsidiary'){
                     if (context.newRecord.getValue({fieldId : 'subsidiary'}))
                     {
-                        o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
+                        let o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
+                        if (!_.isEmpty(o_config))
+                        {
+                            o_config2 = o_config;
+                        }
+                        else
+                        {
+                            log.audit('Multi-Sub, non-participating sub or unknown sub', 'There will be no initial Auth.Net activity on this record because the sub does not match or it is unknown (like on a create)');
+                        }
                     }
                 }
                 form = authNetUI.notSetUpErrorCheck(form, o_config2);
@@ -158,7 +166,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         }
                     }
-                    if (!o_config2.custrecord_an_enable_click2pay_inv.val)
+                    if ((o_config2.custrecord_an_enable_click2pay_inv && !o_config2.custrecord_an_enable_click2pay_inv.val) || !o_config2.custrecord_an_enable_click2pay_inv)
                     {
                         _.forEach(authNet.CLICK2PAY, function (fd) {
                             var fld = 'custbody_authnet_c2p_' + fd;
@@ -867,6 +875,15 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             if (context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}))
                             {
                                 var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                                //todo - test this
+                                /*if (!o_status.isValid)
+                                {
+                                    throw error.create({
+                                        name: 'Unable to Validate transid '+context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}),
+                                        message: 'The following message was received from Authorize.Net when attempting to validate this transaction : '+JSON.stringify(o_status.messages.message),
+                                        notifyOff: true
+                                    });
+                                }*/
                                 context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 context.newRecord.setValue({
                                     fieldId: 'custbody_authnet_datetime',
