@@ -45,17 +45,29 @@ define(['N/record', 'N/search', 'N/url', 'N/currentRecord'],
                         id : context.currentRecord.getValue('custpage_configrec'),
                         columns : 'custrecord_ancs_subsidiary'
                     });
-                    var o_masterConfig = JSON.parse(context.currentRecord.getValue('custpage_rawconfig'));
-                    var o_newConfig = o_masterConfig.subs['subid' + o_sub.custrecord_ancs_subsidiary[0].value];
+                    console.log(o_sub)
+                    console.log(o_config)
+                    //var o_masterConfig = JSON.parse(context.currentRecord.getValue('custpage_rawconfig'));
+                    var o_newConfig = o_config.subs['subid' + o_sub.custrecord_ancs_subsidiary[0].value];
                     //context.currentRecord.setValue('custpage_currentconfig', JSON.stringify(o_newConfig));
-                    if (window.onbeforeunload) {
-                        window.onbeforeunload = function () { null; };
+                    if (!o_newConfig)
+                    {
+                        context.currentRecord.setValue({fieldId:'custpage_configrec', value: '', ignoreFieldChange:true});
+                        alert('That Subsidiary Configuration is not active - visit the record to enable it if you want to test with it');
                     }
-                    if (o_newConfig.isSubConfig) {
-                        location.replace(location.href + '&sub=true&config=' + o_newConfig.configid);
-                        //window.location.replace(window.location.href + '&sub=true&config=' + o_newConfig.configid);
-                    } else {
-                        location.replace(location.href + '&sub=false');
+                    else {
+                        if (window.onbeforeunload) {
+                            window.onbeforeunload = function ()
+                            {
+                                null;
+                            };
+                        }
+                        if (o_newConfig.isSubConfig) {
+                            location.replace(location.href + '&sub=true&config=' + o_newConfig.configid);
+                            //window.location.replace(window.location.href + '&sub=true&config=' + o_newConfig.configid);
+                        } else {
+                            location.replace(location.href + '&sub=false');
+                        }
                     }
                 }
             }

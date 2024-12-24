@@ -5,6 +5,23 @@
   <preferred>T</preferred>
   <storedWithRecord>F</storedWithRecord>
   <mainFields>
+    <fieldGroup scriptid="fieldgroup_6_9142824_sb1_922">
+      <label>Enable / Disable Subsidary Configuration</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_active]</id>
+          <label>Is Active When ENABLE CONFIGURATION Is Checked</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
     <fieldGroup scriptid="fieldgroup_2_5521729_sb1_388">
       <label>Subsidiary Config</label>
       <visible>T</visible>
@@ -12,46 +29,10 @@
       <singleColumn>F</singleColumn>
       <fields position="MIDDLE">
         <field>
-          <id>OWNER</id>
-          <label>Owner</label>
-          <visible>T</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>CREATED</id>
-          <label>Date Created</label>
-          <visible>T</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>LASTMODIFIED</id>
-          <label>Last Modified</label>
-          <visible>T</visible>
-          <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
           <id>NAME</id>
           <label>Name</label>
           <visible>T</visible>
           <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_active]</id>
-          <label>Is Active When ENABLE CONFIGURATION Is Checked</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
@@ -191,6 +172,41 @@
         </field>
       </fields>
     </fieldGroup>
+    <fieldGroup scriptid="fieldgroup_7_9142824_sb1_328">
+      <label>Audit</label>
+      <visible>T</visible>
+      <showTitle>T</showTitle>
+      <singleColumn>F</singleColumn>
+      <fields position="MIDDLE">
+        <field>
+          <id>LASTMODIFIED</id>
+          <label>Last Modified</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>CREATED</id>
+          <label>Date Created</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+        <field>
+          <id>OWNER</id>
+          <label>Owner</label>
+          <visible>T</visible>
+          <mandatory>T</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
+      </fields>
+    </fieldGroup>
     <defaultFieldGroup>
       <fields position="MIDDLE">
         <field>
@@ -224,6 +240,68 @@
     </defaultFieldGroup>
   </mainFields>
   <tabs>
+    <tab>
+      <id>[scriptid=customrecord_authnet_config_subsidiary.tab_732_9142824_sb1_840]</id>
+      <label>Click2Pay Configuration</label>
+      <visible>T</visible>
+      <fieldGroups>
+        <fieldGroup scriptid="fieldgroup_5_9142824_sb1_753">
+          <label>Click2Pay Options</label>
+          <visible>T</visible>
+          <showTitle>T</showTitle>
+          <singleColumn>F</singleColumn>
+          <fields position="MIDDLE">
+            <field>
+              <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_enable_click2pay_inv]</id>
+              <label>Enable Click2Pay Link On Invoices</label>
+              <visible>T</visible>
+              <mandatory>F</mandatory>
+              <displayType>NORMAL</displayType>
+              <columnBreak>F</columnBreak>
+              <sameRowAsPrevious>F</sameRowAsPrevious>
+            </field>
+            <field>
+              <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_click2pay_logo]</id>
+              <label>Logo to Display On Click2Pay Form</label>
+              <visible>T</visible>
+              <mandatory>F</mandatory>
+              <displayType>NORMAL</displayType>
+              <columnBreak>F</columnBreak>
+              <sameRowAsPrevious>F</sameRowAsPrevious>
+            </field>
+            <field>
+              <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_click2pay_allow_invoice]</id>
+              <label>Allow User Invoice Download</label>
+              <visible>T</visible>
+              <mandatory>F</mandatory>
+              <displayType>NORMAL</displayType>
+              <columnBreak>F</columnBreak>
+              <sameRowAsPrevious>F</sameRowAsPrevious>
+            </field>
+            <field>
+              <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_click2pay_allow_statemen]</id>
+              <label>Allow User Account Statement Download</label>
+              <visible>T</visible>
+              <mandatory>F</mandatory>
+              <displayType>NORMAL</displayType>
+              <columnBreak>F</columnBreak>
+              <sameRowAsPrevious>F</sameRowAsPrevious>
+            </field>
+            <field>
+              <id>[scriptid=customrecord_authnet_config_subsidiary.custrecord_ancs_click2pay_enable_echecks]</id>
+              <label>Allow EChecks as Payment Method for Click2Pay</label>
+              <visible>T</visible>
+              <mandatory>F</mandatory>
+              <displayType>NORMAL</displayType>
+              <columnBreak>F</columnBreak>
+              <sameRowAsPrevious>F</sameRowAsPrevious>
+            </field>
+          </fields>
+        </fieldGroup>
+        <defaultFieldGroup/>
+      </fieldGroups>
+      <subItems/>
+    </tab>
     <tab>
       <id>RECORDTRANSLATION</id>
       <label>Translation</label>

@@ -19,7 +19,7 @@
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
  *
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NScriptType UserEventScript
  * @NModuleScope Public
  *
@@ -27,8 +27,8 @@
  */
 
 
-define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWidget', 'N/ui/message', 'N/redirect', 'lodash', './AuthNet_lib', './AuthNet_UI_lib', 'moment'],
-    function (record, plugin, runtime, error, search, log, ui, message, redirect, _, authNet, authNetUI, moment) {
+define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWidget', 'N/ui/message', 'N/redirect', 'lodash', './AuthNet_lib', './AuthNet_UI_lib', 'moment', './click2pay/AuthNet_click2Pay_lib21'],
+    function (record, plugin, runtime, error, search, log, ui, message, redirect, _, authNet, authNetUI, moment, authNetC2P) {
         function authNetBeforeLoad(context) {
             log.audit('STARTING authNetBeforeLoad via : '+runtime.executionContext, context.type +' on '+context.newRecord.type);
             if (runtime.executionContext === runtime.ContextType.USER_INTERFACE) {
@@ -41,10 +41,33 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         message: 'This script deployment ('+runtime.getCurrentScript().deploymentId+') has "Enable Debugging Logs - NON-PCI Compliant!" enabled and may be logging non-PCI compliant data to the logs as well as other PII.  You should confirm you want this behavior enabled with an Administrator before entering any credit card or other sensitive data.'
                     });
                 }
+
+                var o_config2 = authNet.getConfigFromCache();
+                //now switch the object to the correct sub config!
+                if (o_config2.mode === 'subsidiary'){
+                    if (context.newRecord.getValue({fieldId : 'subsidiary'}))
+                    {
+                        let o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
+                        if (!_.isEmpty(o_config))
+                        {
+                            o_config2 = o_config;
+                        }
+                        else
+                        {
+                            log.audit('Multi-Sub, non-participating sub or unknown sub', 'There will be no initial Auth.Net activity on this record because the sub does not match or it is unknown (like on a create)');
+                        }
+                    }
+                }
+                form = authNetUI.notSetUpErrorCheck(form, o_config2);
+                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
+                {
+                    return;
+                }
+
                 //if we have transaction records that the auth net fields appear on but shouldn't - do this
                 if(_.includes(['invoice'], context.newRecord.type))
                 {
-                    _.forEach(_.concat(authNet.ALLAUTH, authNet.TOKEN, authNet.CHECKBOXES), function (fd) {
+                    _.forEach(_.concat(authNet.ALLAUTH,), function (fd) {
                         var fld = 'custbody_authnet_' + fd;
                         try {
                             form.getField({id: fld}).updateDisplayType({
@@ -54,8 +77,151 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             //log.error('Field Not on Form', form + ' missing ' + fld)
                         }
                     });
+                    if (context.type === context.UserEventType.COPY) {
+                        _.forEach(authNet.CLICK2PAY, function (fd)
+                        {
+                            var fld = 'custbody_authnet_c2p_' + fd;
+                            try {
+                                context.newRecord.setValue({fieldId: fld, value: ''});
+                            } catch (e) {
+                                //log.error('Field Not on Form', form + ' missing ' + fld)
+                            }
+                        });
+                    }
+                    _.forEach(form.getTabs(), function(tabid){
+                        var subtab = context.form.getTab({
+                            id : tabid});
+                        if (subtab.label === "Authorize.Net")
+                        {
+                            var fld_hideScript = context.form.addField({
+                                id : 'custpage_hide_sub_tab',
+                                type : ui.FieldType.INLINEHTML,
+                                label : '.'
+                            });
+                            fld_hideScript.defaultValue = "<script>jQuery(window).on('load', function() {\n" +
+                                " jQuery('#"+tabid+"_div').css('display', 'none');" +
+                                " jQuery('#"+tabid+"lnk').css('display', 'none');" +
+                                "});</script>"
+                            subtab.displayType = ui.SublistDisplayType.HIDDEN;
+                        }
+                    });
                     log.audit('This record has nothing to do with authorize.net','So all fields are hidden and it is skipped.')
+
+                    //add logic for the click 2 Pay behaviors here
+                    if (context.type === 'view' && context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_url'}))
+                    {
+                        if(context.newRecord.getValue({fieldId: 'status'}) === 'Open') {
+                            if (context.newRecord.getValue({fieldId: 'custbody_authnet_c2p_most_recent_open'})) {
+                                var maxResults = 6, counter = 0;
+                                var s_message = 'Most recent customer views:<p><ul style="list-style-type: circle;list-style-position: inside;">'
+                                search.create({
+                                    type: 'invoice',
+                                    filters: [
+                                        ['type', 'anyof', ["CustInvc"]],
+                                        "AND",
+                                        ['internalid', 'anyof', [context.newRecord.id]],
+                                        "AND",
+                                        ['systemnotes.field', 'anyof', ["CUSTBODY_AUTHNET_C2P_MOST_RECENT_OPEN"]],
+                                        "AND",
+                                        ['mainline', 'is', ["T"]]
+                                    ],
+                                    columns:
+                                        [
+                                            {name: "newvalue", join: "systemNotes"},
+                                            {name: "date", join: "systemNotes", sort: 'DESC'},
+                                        ]
+                                }).run().each(function (result)
+                                {
+                                    //log.debug('result', result);
+                                    if (counter < maxResults) {
+                                        s_message += '<li>Viewed on : ' + result.getValue({
+                                            name: "newvalue",
+                                            join: "systemNotes"
+                                        }) + '</li>';
+                                    }
+                                    counter++;
+                                    return true;
+                                });
+                                if (counter > maxResults) {
+                                    s_message += '<li>' + (counter - maxResults) + ' more results...</li></ul>'
+                                    s_message += 'View full history under Notes > System Notes'
+                                } else {
+                                    if (counter === 0) {
+                                        s_message += '<li>Viewed on : ' + context.newRecord.getValue({fieldId: 'custbody_authnet_c2p_most_recent_open'}) + '</li>'
+                                    }
+                                    s_message += '</ul>';
+                                }
+                                s_message += '</p>';
+                                context.form.addPageInitMessage({
+                                    type: message.Type.CONFIRMATION,
+                                    title: 'Invoice Click2Pay Viewing History',
+                                    message: s_message
+                                });
+                            } else {
+                                context.form.addPageInitMessage({
+                                    type: message.Type.INFORMATION,
+                                    title: 'Invoice has not been viewed',
+                                    message: 'The customer has not yet viewed this invoice'
+                                });
+                            }
+                        }
+                    }
+                    if ((o_config2.custrecord_an_enable_click2pay_inv && !o_config2.custrecord_an_enable_click2pay_inv.val) || !o_config2.custrecord_an_enable_click2pay_inv)
+                    {
+                        _.forEach(authNet.CLICK2PAY, function (fd) {
+                            var fld = 'custbody_authnet_c2p_' + fd;
+                            try {
+                                form.getField({id: fld}).updateDisplayType({
+                                    displayType: ui.FieldDisplayType.HIDDEN
+                                });
+                            } catch (e){
+                                log.error('Field Not on Form', form + ' missing ' + fld)
+                            }
+                        });
+                        /*try {
+                            form.addField({
+                                id: 'custpage_noclick2pay',
+                                label: 'test',
+                                type: ui.FieldType.EMAIL,
+                                container: 'custtab_authnet_clicktopay'
+                            });
+                        } catch(e)
+                        {
+                            log.error(e.name, e.message);
+                        }*/
+                    }
                     return;
+                }
+                else
+                {
+                    //find and hide the click 2 pay tab on anything except Invoices
+                    _.forEach(authNet.CLICK2PAY, function (fd) {
+                        var fld = 'custbody_authnet_c2p_' + fd;
+                        try {
+                            form.getField({id: fld}).updateDisplayType({
+                                displayType: ui.FieldDisplayType.HIDDEN
+                            });
+                        } catch (e){
+                            //log.error('Field Not on Form', form + ' missing ' + fld)
+                        }
+                    });
+                    /*_.forEach(form.getTabs(), function(tabid){
+                        var subtab = context.form.getTab({
+                            id : tabid});
+                        if (subtab.label === "Authorize.Net Click2Pay")
+                        {
+                            var fld_hideScript = context.form.addField({
+                                id : 'custpage_hide_sub_tab',
+                                type : ui.FieldType.INLINEHTML,
+                                label : '.'
+                            });
+                            fld_hideScript.defaultValue = "<script>jQuery(window).on('load', function() {\n" +
+                                " jQuery('#"+tabid+"_div').css('display', 'none');" +
+                                " jQuery('#"+tabid+"lnk').css('display', 'none');" +
+                                "});</script>"
+                            subtab.displayType = ui.SublistDisplayType.HIDDEN;
+                        }
+                    });*/
                 }
                 if(_.includes(['creditmemo'], context.newRecord.type))
                 {
@@ -70,13 +236,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                         }
                     });
                     log.audit('This record has nothing to do with authorize.net','So all fields are hidden and it is skipped.')
-                    return;
-                }
-
-                var o_config2 = authNet.getConfigFromCache();
-                form = authNetUI.notSetUpErrorCheck(form, o_config2);
-                if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
-                {
                     return;
                 }
                 //set the auth free config objct in the custom field for the client scripts to know what to do!
@@ -173,11 +332,11 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) )
                             && _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: (o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod')})));
                     //log.debug(context.newRecord.getValue({fieldId :'orderstatus'}), o_config2.custrecord_an_auth_so_on_approval.val)
-                    authNet.homeSysLog('history parsed', o_history);
-                    authNet.homeSysLog('b_isAuthNet', b_isAuthNet);
-                    //authNet.homeSysLog('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
-                    authNet.homeSysLog('b_responseFailure', b_responseFailure);
-                    //authNet.homeSysLog('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
+                    authNet.verboseLogging('history parsed', o_history);
+                    //authNet.verboseLogging('b_isAuthNet', b_isAuthNet);
+                    //authNet.verboseLogging('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
+                    //authNet.verboseLogging('b_responseFailure', b_responseFailure);
+                    //authNet.verboseLogging('custbody_authnet_done', context.newRecord.getValue({fieldId:'custbody_authnet_done'}));
                     if (b_pendingAuthNoError)
                     {
                         log.audit('No Error Display', 'This SO is pending approval and the config has the setting "Perform Authorization On Approval of Sales Order Not Create/Save"');
@@ -236,7 +395,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         });
                     }
-
                     if (context.type === context.UserEventType.COPY){
                         authNet.homeSysLog('CLEANING Auth values', 'This is a copy!');
                         var objRecord = context.newRecord;
@@ -259,7 +417,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             }
                         });
                         _.forEach(['custbody_authnet_use', 'paymentmethod', 'paymentoption', 'custbody_authnet_override'], function (fld) {
-
                             try {
                                 objRecord.setValue({fieldId: fld, value: ''});
                             } catch (e){
@@ -718,6 +875,15 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             if (context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}))
                             {
                                 var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                                //todo - test this
+                                /*if (!o_status.isValid)
+                                {
+                                    throw error.create({
+                                        name: 'Unable to Validate transid '+context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}),
+                                        message: 'The following message was received from Authorize.Net when attempting to validate this transaction : '+JSON.stringify(o_status.messages.message),
+                                        notifyOff: true
+                                    });
+                                }*/
                                 context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 context.newRecord.setValue({
                                     fieldId: 'custbody_authnet_datetime',
@@ -817,6 +983,23 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 {
                     context.newRecord.setValue('custbody_authnet_datetime','');
                 }
+                else if (context.newRecord.type === 'invoice' && o_config2.custrecord_an_enable_click2pay_inv.val)
+                {
+                    if (_.isEmpty(context.oldRecord.getValue({fieldId : 'custbody_authnet_c2p_url'})))
+                    {
+                        log.audit('Generating Payment Link Now', 'Click 2 Pay Link being added to Invoice');
+                        try {
+                            var suiteletURL = authNetC2P.paymentlink.serviceUrl();
+                            var o_encryptedId = authNetC2P.crypto.encrypt(context.newRecord.id, 'custsecret_authnet_payment_link');
+                            suiteletURL += '&xkcd=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedId));
+                            context.newRecord.setValue({fieldId: 'custbody_authnet_c2p_url', value: suiteletURL});
+                        }
+                        catch(ex)
+                        {
+                            log.emergency(ex.name, ex.message);
+                        }
+                    }
+                }
                 log.debug('ENDING authNetBeforeSubmit : '+runtime.executionContext, context.type +' on '+context.newRecord.type + ' COMPLETED');
             }
             else
@@ -848,7 +1031,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 o_config2 = authNet.getSubConfig(context.newRecord.getValue({fieldId : 'subsidiary'}), o_config2);
             }
 
-            authNet.homeSysLog('authNetAfterSubmit o_config2',o_config2);
+            authNet.verboseLogging('authNetAfterSubmit o_config2',o_config2);
 
             //Is any of this turned on?
             //if (!o_config.rec.getValue({fieldId: 'custrecord_an_enable'})) {
@@ -863,7 +1046,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             }
 
             //log.debug(licenceValidation, o_config)
-            log.debug('authNetAfterSubmit : ' + runtime.executionContext, context.type +' on '+context.newRecord.type);
+            //log.debug('authNetAfterSubmit : ' + runtime.executionContext, context.type +' on '+context.newRecord.type);
             //if (licenceValidation.valid && context.type !== context.UserEventType.DELETE && !context.newRecord.getValue('custbody_authnet_override')) {
             if (context.type !== context.UserEventType.DELETE && !context.newRecord.getValue('custbody_authnet_override')) {
                 //log.debug('newRecord.orderstatus', context.newRecord.getValue('orderstatus')); //B when just approved
@@ -999,7 +1182,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                 if (pluginResult.process) {
                                     //if there was a cc number, its auth.net and it's not already approved, let's do it!
                                     thisRec = authNet.getAuth(context.newRecord);
-                                    if (thisRec.getValue({fieldId:'custbody_authnet_settle_status'}) !== 'ERR')
+                                    if (thisRec.getValue({fieldId:'custbody_authnet_settle_status'}) !== 'ERR' && !thisRec.getValue({fieldId:'custbody_authnet_error_status'}))
                                     {
                                         if(!thisRec.getValue({fieldId :'custbody_authnet_refid'})){
                                             thisRec.setValue({fieldId :'custbody_authnet_use', value :false});
@@ -1227,8 +1410,32 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             authNet.handleResponse(o_response, context, false);
                         }
                         break;
+                    case 'invoice':
+                        if (o_config2.custrecord_an_enable_click2pay_inv.val)
+                        {
+                            if (_.isEmpty(context.newRecord.getValue({fieldId : 'custbody_authnet_c2p_url'})))
+                            {
+                                log.audit('Generating Payment Link Now', 'Click 2 Pay Link being added to Invoice');
+                                try {
+                                    var suiteletURL = authNetC2P.paymentlink.serviceUrl();
+                                    var o_encryptedId = authNetC2P.crypto.encrypt(context.newRecord.id, 'custsecret_authnet_payment_link');
+                                    suiteletURL += '&xkcd=' + authNetC2P.crypto.encode64(JSON.stringify(o_encryptedId));
+                                    record.submitFields({
+                                        type : 'invoice',
+                                        id : context.newRecord.id,
+                                        values : {'custbody_authnet_c2p_url' : suiteletURL},
+                                        options : {ignoreMandatoryFields:true}
+                                    });
+                                }
+                                catch(ex)
+                                {
+                                    log.emergency(ex.name, ex.message);
+                                }
+                            }
+                        }
+                        break;
                     default:
-                        log.emergency(context.newRecord.type, 'NOT CONFIGURED FOR ANY AUTHNET ACTIONS!')
+                        log.error(context.newRecord.type, 'NOT CONFIGURED FOR ANY AUTHNET ACTIONS!');
                         break;
                 }
             }

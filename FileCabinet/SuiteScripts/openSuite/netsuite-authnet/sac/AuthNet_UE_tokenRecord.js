@@ -559,16 +559,49 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
         function beforeSubmit(context) {
             //get the config for this token - incase we need it
             var o_config = authNet.getConfigFromCache();
+            authNet.verboseLogging('INITIAL', o_config);
             if (o_config.mode === 'subsidiary'){
                 if (o_config.hasMultiSubRuntime)
                 {
                     //allowedSub.id +':'+_allowedGateway.configid
-                    context.newRecord.setValue({fieldId : 'custrecord_an_token_subsidiary', value:context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':')[0]});
-                    context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway_sub', value:context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':')[1]});
+                    //log.debug('test', context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}))
+                    if (context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}))
+                    {
+                        var _split = context.newRecord.getValue({fieldId : 'custpage_an_token_subsidiary'}).split(':');
+                        if (_split[0]) {
+                            context.newRecord.setValue({
+                                fieldId: 'custrecord_an_token_subsidiary',
+                                value: _split[0]
+                            });
+                        }
+                        if (_split[1])
+                        {
+                            context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway_sub', value:_split[1]});
+                        }
+                    }
+                    else if (context.newRecord.getValue({fieldId:'custrecord_an_token_click2pay_data'}))
+                    {
+                        var o_payload = JSON.parse(context.newRecord.getValue({fieldId:'custrecord_an_token_click2pay_data'}));
+                        //Need to backfill data here for the subsidiary model
+                        search.create({
+                            type:'customrecord_authnet_config_subsidiary',
+                            filters : [
+                                ["custrecord_ancs_subsidiary", "anyof", context.newRecord.getValue({fieldId: 'custrecord_an_token_subsidiary'})]
+                            ],
+                            columns:
+                            [
+                                'name',
+                                'custrecord_ancs_subsidiary',
+                                'custrecord_ancs_parent_config'
+                            ]
+                        }).run().each(function(result){
+                            context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway_sub', value:result.id});
+                            context.newRecord.setValue({fieldId : 'custrecord_an_token_gateway', value:result.getValue('custrecord_ancs_parent_config')});
+                        });
+                    }
                 }
-
                 o_config = authNet.getSubConfig(context.newRecord.getValue({fieldId: 'custrecord_an_token_subsidiary'}), o_config);
-                //log.debug('o_config', o_config);
+                authNet.verboseLogging('FINAL o_config', o_config);
             }
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception

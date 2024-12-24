@@ -25,6 +25,7 @@
       <feature required="false">MULTILOCINVT</feature>
       <feature required="false">ACCOUNTING</feature>
       <feature required="false">CRM</feature>
+      <feature required="false">MATRIXITEMS</feature>
     </features>
     <files>
       </files>

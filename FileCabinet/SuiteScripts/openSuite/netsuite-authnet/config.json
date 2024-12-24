@@ -2,7 +2,8 @@
   "packages": [
   ],
   "paths": {
-    "moment": "../lib/moment.min.js",
-    "lodash": "../lib/lodash.min.js"
+    "moment": "/SuiteScripts/openSuite/netsuite-authnet/lib/moment.min.js",
+    "lodash": "/SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min.js",
+    "authNetC2P" : "/SuiteScripts/openSuite/netsuite-authnet/sac/click2pay/AuthNet_click2Pay_lib21.js"
   }
 }

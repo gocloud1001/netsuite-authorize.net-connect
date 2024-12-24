@@ -1,0 +1,5 @@
+<subtab scriptid="custtab_authnet_clicktopay">
+  <parent></parent>
+  <tabtype>TRANSACTION</tabtype>
+  <title>Authorize.Net Click2Pay</title>
+</subtab>

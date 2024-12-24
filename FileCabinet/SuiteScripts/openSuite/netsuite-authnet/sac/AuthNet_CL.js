@@ -32,10 +32,45 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
         var exports = {
             sac : [],
             refundMethods : [],
-            txninfo : {}
+            txninfo : {},
+            aNetFields : ['custbody_authnet_cim_token']
         };
 
-        exports.aNetFields = ['custbody_authnet_cim_token'];
+        function getApplyTxns (a_txnIds)
+        {
+            var a_filters = [
+                ['internalid', 'anyof', a_txnIds],
+                "AND",
+                ['mainline', 'is', true]
+            ];
+            search.create({
+                type: 'transaction',
+                filters: a_filters,
+                columns: [
+                    {name: 'internalid'},
+                    {name: 'tranid'},
+                    {name: 'type'},
+                    {name: 'custbody_authnet_refid'},
+                    {name: 'custbody_authnet_datetime'},
+                    {name: 'custbody_authnet_cim_token'},
+                    {name: 'custbody_authnet_cim_token_type'},
+                    {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
+                ]
+            }).run().each(function (result) {
+                if (result.getValue('custbody_authnet_refid')) {
+                    exports.sac.push(+result.getValue('internalid'));
+                    exports.refundMethods.push(result.getValue({name: 'custbody_authnet_cim_token_type'}));
+                    exports.txninfo[result.getValue('internalid')] =
+                        {
+                            tranid : result.getValue('tranid'),
+                            refid : result.getValue('custbody_authnet_refid'),
+                            type : result.getValue('type'),
+                        }
+                }
+                return true;
+            });
+            exports.refundMethods = _.uniq(exports.refundMethods);
+        }
 
         exports.test = function(context){
             //if(context.currentRecord.getValue({fieldId: 'custpage_c9_test'})) {
@@ -74,8 +109,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     'custrecord_an_token_paymenttype',
                     'custrecord_an_token_default',
                     'custrecord_an_token_gateway',
-
-                ]
+                ];
                 if (o_config.isSubConfig)
                 {
                     a_filters.push("AND");
@@ -175,16 +209,30 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 }
             } else if (_.includes(['customerrefund'], context.currentRecord.type)){
                 try {
-                    _.forEach([
-                        'custbody_authnet_ccnumber',
-                        'custbody_authnet_ccexp',
-                        'custbody_authnet_ccv',
-                        'custbody_authnet_refid',
-                        'custbody_authnet_authcode',
-                        'custbody_authnet_override',
-                        'custbody_authnet_cim_token',
-                        'custpage_authnet_cim_token',
-                    ],function(fld){
+                    var a_fieldsToHide;
+                    if(context.mode === 'edit')
+                    {
+                        a_fieldsToHide = [
+                            'custbody_authnet_ccnumber',
+                            'custbody_authnet_ccexp',
+                            'custbody_authnet_ccv',
+                            'custbody_authnet_override',
+                            'custbody_authnet_cim_token',
+                        ];
+                    }
+                    else
+                    {
+                        a_fieldsToHide = [
+                            'custbody_authnet_ccnumber',
+                            'custbody_authnet_ccexp',
+                            'custbody_authnet_ccv',
+                            'custbody_authnet_refid',
+                            'custbody_authnet_authcode',
+                            'custbody_authnet_override',
+                            'custbody_authnet_cim_token',
+                        ];
+                    }
+                    _.forEach(a_fieldsToHide,function(fld){
                         try
                         {
                             window.nlapiGetField(fld).setDisplayType('hidden');
@@ -209,39 +257,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         }
                         //console.log(a_toBeTouchedLines)
                         if(_.isEmpty(exports.sac) && !_.isEmpty(a_txnIds)) {
-                            var a_filters = [
-                                ['internalid', 'anyof', a_txnIds],
-                                "AND",
-                                ['mainline', 'is', true]
-                            ];
-                            search.create({
-                                type: 'transaction',
-                                filters: a_filters,
-                                columns: [
-                                    {name: 'internalid'},
-                                    {name: 'tranid'},
-                                    {name: 'type'},
-                                    {name: 'custbody_authnet_refid'},
-                                    {name: 'custbody_authnet_datetime'},
-                                    {name: 'custbody_authnet_cim_token'},
-                                    {name: 'custbody_authnet_cim_token_type'},
-                                    {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
-                                ]
-                            }).run().each(function (result) {
-                                if (result.getValue('custbody_authnet_refid')) {
-                                    exports.sac.push(+result.getValue('internalid'));
-                                    exports.refundMethods.push(result.getValue({name: 'custbody_authnet_cim_token_type'}));
-                                    exports.txninfo[result.getValue('internalid')] =
-                                        {
-                                            tranid : result.getValue('tranid'),
-                                            refid : result.getValue('custbody_authnet_refid'),
-                                            type : result.getValue('type'),
-                                        }
-                                }
-                                return true;
-                            });
-                            //console.log('exports.txninfo : ' + JSON.stringify(exports.txninfo));
-                            exports.refundMethods = _.uniq(exports.refundMethods);
+                            getApplyTxns (a_txnIds);
                         }
                     }
                 } catch (e){
@@ -312,29 +328,11 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         a_txnIds.push(context.currentRecord.getSublistValue({sublistId: 'apply' , fieldId: 'doc', line : j}));
                     }
                     if(_.isEmpty(exports.sac) && !_.isEmpty(a_txnIds)) {
-                        var a_filters = [
-                            ['internalid', 'anyof', a_txnIds],
-                            "AND",
-                            ['mainline', 'is', true]
-                        ];
-                        search.create({
-                            type: 'transaction',
-                            filters: a_filters,
-                            columns: [
-                                {name: 'internalid'},
-                                {name: 'custbody_authnet_refid'},
-                                {name: 'custbody_authnet_datetime'},
-                                {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
-                            ]
-                        }).run().each(function (result) {
-                            if (result.getValue('custbody_authnet_refid')) {
-                                exports.sac.push(+result.getValue('internalid'));
-                            }
-                            //console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
-                            return true;
-                        });
+                        //same as pageInit
+                        getApplyTxns (a_txnIds);
                     }
                 }
+
             }
             if (fieldName === 'custbody_authnet_cim_token' && context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'})){
                 try {
@@ -645,7 +643,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
 
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    console.log('running this here for setting stuff')
+                                    console.log('running this here for setting stuff');
                                     //this field is always required
                                     currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
                                     //this one is sometimes required
@@ -665,7 +663,6 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                             text: o_config.custrecord_an_paymentmethod.profileId,
                                             ignoreFieldChange: true
                                         });
-
                                     }
                                 } else {
                                     //this field is always required
@@ -809,31 +806,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             }));
                         }
                         if (_.isEmpty(exports.sac) && !_.isEmpty(a_txnIds)) {
-                            var a_filters = [
-                                ['internalid', 'anyof', a_txnIds],
-                                "AND",
-                                ['mainline', 'is', true]
-                            ];
-                            search.create({
-                                type: 'transaction',
-                                filters: a_filters,
-                                columns: [
-                                    {name: 'internalid'},
-                                    {name: 'custbody_authnet_refid'},
-                                    {name: 'custbody_authnet_datetime'},
-                                    {name: 'custbody_authnet_cim_token'},
-                                    {name: 'custbody_authnet_cim_token_type'},
-                                    {name: 'custbody_authnet_authcode', sort: search.Sort.DESC}
-                                ]
-                            }).run().each(function (result) {
-                                if (result.getValue('custbody_authnet_refid')) {
-                                    exports.sac.push(+result.getValue('internalid'));
-                                    exports.refundMethods.push(result.getValue({name: 'custbody_authnet_cim_token_type'}));
-                                }
-                                console.log(result.getValue('internalid') + ' : ' + result.getValue('custbody_authnet_refid'));
-                                return true;
-                            });
-                            exports.refundMethods = _.uniq(exports.refundMethods);
+                            getApplyTxns (a_txnIds);
                         }
 
                         if (currentRecord.getValue('custbody_authnet_use')) {
@@ -1050,7 +1023,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             {
                 if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}))
                 {
-                    //look to see if any other line is selected and itf it is and its a credit memo - stop it
+                    //look to see if any other line is selected and if it is, and it is a credit memo - stop it
                     var i_countCms = 0;
                     for (var i = context.currentRecord.getLineCount('apply') - 1; i >= 0; i--) {
                         if (context.currentRecord.getSublistValue({

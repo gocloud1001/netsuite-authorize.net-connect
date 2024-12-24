@@ -22,7 +22,7 @@
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NModuleScope Public
  * @NScriptType UserEventScript
  *
@@ -30,8 +30,8 @@
  */
 
 
-define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'N/search', 'lodash', 'moment', './AuthNet_lib'],
-    function (record, url, https, runtime, redirect, ui, message, cache, task, search, _, moment, authNet) {
+define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'N/search', 'lodash', 'moment', './AuthNet_lib', './click2pay/AuthNet_click2Pay_lib21'],
+    function (record, url, https, runtime, redirect, ui, message, cache, task, search, _, moment, authNet, authNetC2P) {
 
         function beforeLoad(context) {
             //make all this UI only
@@ -162,10 +162,24 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     else
                     {
                         //when checked - hide the whole subtab from view to make life simpler for everyone!
-                        var sublist = context.form.getSublist({
-                            id : 'recmachcustrecord_ancs_parent_config',
+                        //NS does not provide a real API for this - so DOM hack required
+                        _.forEach(context.form.getTabs(), function(tabid){
+                            var subtab = context.form.getTab({
+                                id : tabid});
+                            if (subtab.label === "Subsidiary Configuration")
+                            {
+                                var fld_hideScript = context.form.addField({
+                                    id : 'custpage_hide_sub_tab',
+                                    type : ui.FieldType.INLINEHTML,
+                                    label : '.'
+                                });
+                                fld_hideScript.defaultValue = "<script>jQuery(window).on('load', function() {\n" +
+                                    " jQuery('#"+tabid+"_div').css('display', 'none');" +
+                                    " jQuery('#"+tabid+"lnk').css('display', 'none');" +
+                                    "});</script>"
+                                subtab.displayType = ui.SublistDisplayType.HIDDEN;
+                            }
                         });
-                        sublist.displayType = ui.SublistDisplayType.HIDDEN;
                     }
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_enable'})) {
                         context.form.addPageInitMessage({
@@ -181,12 +195,13 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             type: message.Type.ERROR,
                             title: 'Your system is configured to allow Multi Subsidiary Customer',
                             message: 'Your system has Multi Subsidiary Customer enabled (<i>Setup > Enable Features >> Company >>> ERP General</i>)<br>This feature REQUIRES you to enable multiple subsidiary support in the Authorize.Net Configuration. (Sometimes this is set on accounts and never used, if you are not using this NetSuite feature, do yourself a favor and just disable it, return to this page, click the "Debug & Testing Tool" link at the bottom of this screen and select the Purge Cache" option)<br/>' +
-                                'To configure The SuiteAuth Connect Authorize.Net connector to operate in this environment, you must uncheck the box "Use for all Subsidaries" in the configuration on this screen and follow the prompts.<br/>' +
+                                'To configure The SuiteAuthConnect Authorize.Net connector to operate in this environment, you must uncheck the box "Use for all Subsidaries" in the configuration on this screen and follow the prompts.<br/>' +
                                 'You must fully configure at least one subsidary as well on this screen. You can use the same authorize.net credentails / processing gateway for all your subsadaries if you want, although that would be odd.<br/>' +
-                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguid subsidaries apart. This is purely cosmetic but may be confusing)',
+                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguish subsidaries apart. This is purely cosmetic but may be confusing for seelcting the correct cards.)',
                             //duration: 0
                         });
                     }
+                    /* Should not matter anymore with addition of logic
                     if(runtime.isFeatureInEffect({feature: 'paymentinstruments'}))
                     {
                         context.form.addPageInitMessage({
@@ -195,8 +210,32 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             message: 'Your system has Payment Instruments enabled (<i>Setup > Enable Features >> Transactions >>>  Payment Instruments</i>)<br>This feature support is currently in BETA and may not have been fully tested with SuiteAuthConnect as it\'s a specific extension used by NetSuite Payment Card Gateways to provide functionality already included in the Authorize.Net integration.  It is <b>SUGGESTED</b> you disable this feature to prevent unexpected issues.',
                             //duration: 0
                         });
-                    }
+                    }*/
+                    //this is stupid but needed because the SDF definition for the file does not mark it as an online file
+                    /* Now unneeded
+                    if (context.newRecord.getValue({fieldId: 'custrecord_an_enable_click2pay_inv'})) {
+                        search.create({
+                            type: 'file',
+                            filters: [
+                                ['name', 'is', 'authnet_click2pay_onlinepayment_vaildation.js'],
+                            ],
+                            columns:
+                                [
+                                    'url',
+                                    'availablewithoutlogin',
+                                ]
+                        }).run().each(function (result)
+                        {
 
+                            if (!result.getValue('availablewithoutlogin')) {
+                                let _tmp = file.load({id: result.id});
+                                _tmp.isOnline = true;
+                                _tmp.save();
+                                log.audit('JS Click2Pay file updated', 'Click2Pay file has been updated to allow external access');
+                            }
+                            return true;
+                        });
+                    }*/
                 }
 
                 if (context.type === 'view') {
@@ -481,34 +520,8 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 }
                                 else
                                 {
-                                    if (a_remote[0] > a_local[0])
-                                    {
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.WARNING,
-                                            title: 'Your version of SuiteAuthConnect is not the current version',
-                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should strongly consider updating your version as you are behind a major revision to ensure you have the latest bug fixes and added features.',
-                                            //duration: 60000
-                                        });
-                                    }
-                                    else if (a_remote[1] > a_local[1])
-                                    {
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.WARNING,
-                                            title: 'Your version of SuiteAuthConnect is not the current version',
-                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating as you are behind a minor revision to ensure you have the latest bug fixes and added features.',
-                                            //duration: 60000
-                                        });
-                                    }
-                                    else if (a_remote[2] > a_local[2])
-                                    {
-                                        context.form.addPageInitMessage({
-                                            type: message.Type.INFORMATION,
-                                            title: 'Your version of SuiteAuthConnect is not the current version',
-                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating to receive the latest bug fixes and added features.',
-                                            //duration: 60000
-                                        });
-                                    }
-                                    else if (a_remote[0] < a_local[0] || a_remote[1] < a_local[1] || a_remote[2] < a_local[2])
+                                    log.debug(a_remote[0] , a_local[0])
+                                    if (+a_remote[0] < +a_local[0] || +a_remote[1] < +a_local[1] || +a_remote[2] < +a_local[2] || a_local[3])
                                     {
                                         context.form.addPageInitMessage({
                                             type: message.Type.CONFIRMATION,
@@ -517,6 +530,34 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                             //duration: 60000
                                         });
                                     }
+                                    else if (+a_remote[0] > +a_local[0])
+                                    {
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.WARNING,
+                                            title: 'Your version of SuiteAuthConnect is not the current version',
+                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should strongly consider updating your version as you are behind a major revision to ensure you have the latest bug fixes and added features.',
+                                            //duration: 60000
+                                        });
+                                    }
+                                    else if (+a_remote[1] > +a_local[1])
+                                    {
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.WARNING,
+                                            title: 'Your version of SuiteAuthConnect is not the current version',
+                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating as you are behind a minor revision to ensure you have the latest bug fixes and added features.',
+                                            //duration: 60000
+                                        });
+                                    }
+                                    else if (+a_remote[2] > +a_local[2])
+                                    {
+                                        context.form.addPageInitMessage({
+                                            type: message.Type.INFORMATION,
+                                            title: 'Your version of SuiteAuthConnect is not the current version',
+                                            message: 'You are currently running version ' + authNet.VERSION + ' and the current released version is ' + s_remoteVersion + '.  You should consider updating to receive the latest bug fixes and added features.',
+                                            //duration: 60000
+                                        });
+                                    }
+
                                 }
                             }
                         }
@@ -524,7 +565,9 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         log.error('Failed to validate version')
                     }
                 }
-                if (context.newRecord.getValue({fieldId: 'custrecord_an_version'}) !== authNet.VERSION
+                //log.debug(context.type + ' : ' + context.newRecord.getValue({fieldId: 'custrecord_an_version'}), authNet.VERSION)
+                if (_.isUndefined(context.newRecord.getValue({fieldId: 'custrecord_an_version'})) &&
+                    context.newRecord.getValue({fieldId: 'custrecord_an_version'}) !== authNet.VERSION
                     &&
                     !_.includes(['xedit', 'delete', 'create', 'copy'], context.type)
                 ) {
@@ -543,13 +586,43 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             });
                             var scriptTaskId = scriptTask.submit();
                             //log.debug('scriptTaskId', scriptTaskId)
-                            log.audit('Process for intial setup is running ', task.checkStatus(scriptTaskId));
+                            log.audit('Process for intial setup / update is running ', task.checkStatus(scriptTaskId));
                         } catch (ex) {
                             log.emergency(ex.name, ex.message);
                         }
                     } else {
                         log.audit('Updated by upgrade script this one time!', 'Not tryint to re-upgrade!');
                     }
+                }
+                if (context.newRecord.getValue({fieldId: 'custrecord_an_enable_click2pay_inv'}))
+                {
+                    try {
+                        authNetC2P.crypto.encrypt(context.newRecord.id, 'custsecret_authnet_payment_link');
+                    }
+                    catch(ex)
+                    {
+                        log.error(ex.name, ex.message);
+                        log.error(ex.name, ex.name === 'INVALID_SECRET_KEY_LENGTH');
+                        if (ex.name === 'INVALID_SECRET_KEY_LENGTH') {
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'Error Enabling Click2Pay',
+                                message: 'Please update your API Secret via <a target="_blank" href="/app/common/scripting/secrets/settings.nl?whence=">Setup > Company > API Secrets.</a><br>' +
+                                    ex.message + '<br>Here is a 32 character string you could use as your password : '+_.times(32, () => _.random(35).toString(36)).join(''),
+                            });
+                        }
+                        else
+                        {
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'Click2Pay Configuration Error',
+                                message: 'Please update your API Secret via Setup > Company > API Secrets.<br>' +
+                                    ex.name + '<br>' + ex.message,
+                            });
+                        }
+                        context.newRecord.setValue({fieldId: 'custrecord_an_enable_click2pay_inv', value : false});
+                    }
+
                 }
             }
 
@@ -581,6 +654,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
             {
                 if (context.oldRecord.getValue({fieldId:'custrecord_an_all_sub'}) && !context.newRecord.getValue({fieldId:'custrecord_an_all_sub'}))
                 {
+                    log.audit('Multi Sub Activated', 'Multi Sub Behavior Was just ENABLED!');
                     //this account just flipped to a subsidiary configuration
                     //need to add a subsidiary record!
                     var o_subRec = record.create({
