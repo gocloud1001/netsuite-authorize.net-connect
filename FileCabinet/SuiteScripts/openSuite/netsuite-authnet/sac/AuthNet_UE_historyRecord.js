@@ -86,7 +86,6 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/cache', 'N/ui/message', 'N/error
 
                         }
                     }
-
                     else if (context.newRecord.getValue({fieldId: 'custrecord_an_response_status'}) === 'Ok')
                     {
                         if (context.newRecord.getValue({fieldId: 'custrecord_an_call_type'}) === 'authOnlyTransaction') {

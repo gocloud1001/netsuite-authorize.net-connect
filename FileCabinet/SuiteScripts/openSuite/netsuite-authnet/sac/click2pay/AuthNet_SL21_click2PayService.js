@@ -499,11 +499,14 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             log.audit('Tokenizing NEW Card', /^\d+$/.test(context.request.parameters['cc-expiration']));
                             if (!(/^\d+$/.test(context.request.parameters['cc-expiration'])))
                             {
+                                log.error('Card Date Format is Invalid', context.request.parameters['cc-expiration']);
                                 context.response.write(renderErrorPage({config: o_config2, code:'Invalid Date Format', message : 'Expiration date of '+context.request.parameters['cc-expiration']+ ' is invalid and must be in MMYY format.'}))
                                 return;
                             }
-                            if (moment(context.request.parameters['cc-expiration'], 'MMYY').isBefore(moment()))
+                            let dateTest = moment(context.request.parameters['cc-expiration'].toString(), 'MMYY').isBefore(moment().startOf('month'));
+                            if (dateTest)
                             {
+                                log.error('Card Date is Invalid', context.request.parameters['cc-expiration']);
                                 context.response.write(renderErrorPage({config: o_config2, code:'Invalid Card Date', message : 'Expiration date of '+context.request.parameters['cc-expiration']+ ' has passed and this card is expired.'}))
                                 return;
                             }

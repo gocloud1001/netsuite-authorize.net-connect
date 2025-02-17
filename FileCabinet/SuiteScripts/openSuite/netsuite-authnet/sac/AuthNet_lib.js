@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2024.4.1';
+    exports.VERSION = '2025.1.1';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -1106,7 +1106,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     }
                 );
             } catch (e){
-                log.error('cleanAuthNet . ', txn.type + ' missing ' + fld)
+                //log.error('cleanAuthNet . ', txn.type + ' missing ' + fld)
             }
 
         });
@@ -1121,7 +1121,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         }
                     );
                 } catch (e){
-                    log.error('cleanAuthNet . doall', txn.type + ' missing ' + fld)
+                    //log.error('cleanAuthNet . doall', txn.type + ' missing ' + fld)
                 }
             });
         }
@@ -2077,13 +2077,14 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     callCapture[1] = function(txn, o_ccAuthSvcConfig){
         exports.homeSysLog('Starting callCapture with this config', o_ccAuthSvcConfig);
         //var soId = txn.getValue('createdfrom') ? txn.getValue('createdfrom') : txn.id;
+        var f_authTotal = getBaseCurrencyTotal(txn);
+        //todo - if this f_authTotal is 0, do not send.
         var soId = txn.id;
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl;
         exports.AuthNetRequest.authorize.createTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         //note the order of how this object is built is critical
         exports.AuthNetRequest.authorize.createTransactionRequest.refId = soId;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.transactionType = 'priorAuthCaptureTransaction';
-        var f_authTotal = getBaseCurrencyTotal(txn);
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.amount = f_authTotal;
         exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = txn.getValue('custbody_authnet_refid');
         //now ensure all the prior auth data is GONE!
@@ -3037,7 +3038,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         exports.homeSysLog('importProfile(o_profile_JSON)', o_profile_JSON);
         //get the config value from cache that we are looking for
         var o_ccAuthSvcConfig = exports.getConfigFromCache();
-        log.debug('o_ccAuthSvcConfig', o_ccAuthSvcConfig)
+        log.debug('o_ccAuthSvcConfig', o_ccAuthSvcConfig);
         if (o_profile_JSON.fields.custrecord_an_token_gateway_sub)
         {
             o_ccAuthSvcConfig = _.find(o_ccAuthSvcConfig.subs, {'configid':o_profile_JSON.fields.custrecord_an_token_gateway_sub});
