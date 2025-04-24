@@ -1058,10 +1058,10 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         });
                         var scriptTaskId = scriptTask.submit();
                         //log.debug('scriptTaskId', scriptTaskId)
-                        log.audit('Process for intial setup is running ', task.checkStatus(scriptTaskId));
-                        context.response.write('Initial setup and configuraton is taking place - you may need to wait a moment and reload this page.');
+                        log.audit('Process for initial setup is running ', task.checkStatus(scriptTaskId));
+                        context.response.write('Initial setup and configuration is taking place - you may need to wait a moment and reload this page.');
                     } catch (ex){
-                        context.response.write('Initial setup and configuraton is STILL taking place - you may need to wait a moment and reload this page.');
+                        context.response.write('Initial setup and configuration is STILL taking place - you may need to wait a moment and reload this page.');
                     }
                 }
                 else

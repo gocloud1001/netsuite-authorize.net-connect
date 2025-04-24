@@ -1,22 +1,29 @@
 <transactionbodycustomfield scriptid="custbody_authnet_cim_token">
   <accesslevel>2</accesslevel>
   <applyformatting>F</applyformatting>
+  <bodyassemblybuild>F</bodyassemblybuild>
+  <bodybom>F</bodybom>
   <bodycustomerpayment>T</bodycustomerpayment>
+  <bodycustomtransactions></bodycustomtransactions>
   <bodydeposit>T</bodydeposit>
   <bodydepositapplication>F</bodydepositapplication>
+  <bodyexpensereport>F</bodyexpensereport>
   <bodyinventoryadjustment>F</bodyinventoryadjustment>
   <bodyitemfulfillment>F</bodyitemfulfillment>
   <bodyitemfulfillmentorder>F</bodyitemfulfillmentorder>
   <bodyitemreceipt>F</bodyitemreceipt>
   <bodyitemreceiptorder>F</bodyitemreceiptorder>
   <bodyjournal>F</bodyjournal>
+  <bodyopportunity>F</bodyopportunity>
   <bodyothertransaction>F</bodyothertransaction>
+  <bodypaycheck>F</bodypaycheck>
   <bodypickingticket>F</bodypickingticket>
   <bodyprintflag>F</bodyprintflag>
   <bodyprintpackingslip>F</bodyprintpackingslip>
   <bodyprintstatement>F</bodyprintstatement>
   <bodypurchase>F</bodypurchase>
   <bodysale>T</bodysale>
+  <bodystore>F</bodystore>
   <bodytransferorder>F</bodytransferorder>
   <bodyvendorpayment>F</bodyvendorpayment>
   <checkspelling>F</checkspelling>

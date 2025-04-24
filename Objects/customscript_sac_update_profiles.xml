@@ -61,19 +61,47 @@
       <setting></setting>
       <storevalue>T</storevalue>
     </scriptcustomfield>
+    <scriptcustomfield scriptid="custscript_change_sub_prefix">
+      <accesslevel>2</accesslevel>
+      <applyformatting>F</applyformatting>
+      <checkspelling>F</checkspelling>
+      <defaultchecked>F</defaultchecked>
+      <defaultselection></defaultselection>
+      <defaultvalue></defaultvalue>
+      <description></description>
+      <displayheight></displayheight>
+      <displaytype>NORMAL</displaytype>
+      <displaywidth></displaywidth>
+      <dynamicdefault></dynamicdefault>
+      <fieldtype>TEXT</fieldtype>
+      <help></help>
+      <isformula>F</isformula>
+      <ismandatory>F</ismandatory>
+      <label>New Sub Prefix</label>
+      <linktext></linktext>
+      <maxlength></maxlength>
+      <maxvalue></maxvalue>
+      <minvalue></minvalue>
+      <onparentdelete></onparentdelete>
+      <searchlevel>2</searchlevel>
+      <selectrecordtype></selectrecordtype>
+      <setting></setting>
+      <storevalue>T</storevalue>
+    </scriptcustomfield>
   </scriptcustomfields>
   <scriptdeployments>
-    <scriptdeployment scriptid="customdeploy_sac_update_profiles_up">
+    <scriptdeployment scriptid="customdeploy_sac_update_profiles">
       <buffersize>1</buffersize>
       <concurrencylimit>2</concurrencylimit>
       <custscript_an_gateway_sub></custscript_an_gateway_sub>
       <custscript_an_subsidiary></custscript_an_subsidiary>
+      <custscript_change_sub_prefix></custscript_change_sub_prefix>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <queueallstagesatonce>T</queueallstagesatonce>
       <runasrole>ADMINISTRATOR</runasrole>
       <status>NOTSCHEDULED</status>
-      <title>SuiteAuthConnect Update Profiles (Upgrade)</title>
+      <title>SuiteAuthConnect Update Profiles</title>
       <yieldaftermins>60</yieldaftermins>
       <recurrence>
         <single>
@@ -83,17 +111,18 @@
         </single>
       </recurrence>
     </scriptdeployment>
-    <scriptdeployment scriptid="customdeploy_sac_update_profiles">
+    <scriptdeployment scriptid="customdeploy_sac_update_profiles_up">
       <buffersize>1</buffersize>
       <concurrencylimit>2</concurrencylimit>
       <custscript_an_gateway_sub></custscript_an_gateway_sub>
       <custscript_an_subsidiary></custscript_an_subsidiary>
+      <custscript_change_sub_prefix></custscript_change_sub_prefix>
       <isdeployed>T</isdeployed>
       <loglevel>DEBUG</loglevel>
       <queueallstagesatonce>T</queueallstagesatonce>
       <runasrole>ADMINISTRATOR</runasrole>
       <status>NOTSCHEDULED</status>
-      <title>SuiteAuthConnect Update Profiles</title>
+      <title>SuiteAuthConnect Update Profiles (Upgrade)</title>
       <yieldaftermins>60</yieldaftermins>
       <recurrence>
         <single>

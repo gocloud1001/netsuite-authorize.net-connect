@@ -34,12 +34,15 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/ui/dialog', '../lib/lodash.mi
             // do nothing for now...
             try {
 
-                var _fld = context.currentRecord.getField({
-                    fieldId: 'custpage_change_sub'
+                _.forEach(['custpage_change_sub', 'custpage_change_sub_prefix'], function(value) {
+                    var _fld = context.currentRecord.getField({
+                        fieldId: value
+                    });
+                    _fld.isVisible = false;
+                    _fld.isDisplay = false;
+                    _fld.isDisabled = true;
                 });
-                _fld.isVisible = false;
-                _fld.isDisplay = false;
-                _fld.isDisabled = true;
+
             }
             catch (e)
             {
@@ -78,11 +81,18 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/ui/dialog', '../lib/lodash.mi
                         var _fld = context.currentRecord.getField({
                             fieldId: 'custpage_change_sub'
                         });
+                        var _fld2 = context.currentRecord.getField({
+                            fieldId: 'custpage_change_sub_prefix'
+                        });
                         if (+result === 1) {
                             _fld.isVisible = true;
                             _fld.isDisplay = true;
                             _fld.isDisabled = false;
                             _fld.isMandatory = true;
+                            _fld2.isVisible = true;
+                            _fld2.isDisplay = true;
+                            _fld2.isDisabled = false;
+                            _fld2.isMandatory = true;
                         }
                         else
                         {
@@ -91,7 +101,16 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/ui/dialog', '../lib/lodash.mi
                             _fld.isDisplay = false;
                             _fld.isDisabled = true;
                             _fld.isMandatory = false;
+                            _fld2.isVisible = false;
+                            _fld2.isDisplay = false;
+                            _fld2.isDisabled = true;
+                            _fld2.isMandatory = false;
                         }
+                        console.log('Skipping save flag - it\'s special - don\'t fret');
+                        context.currentRecord.setValue({
+                            fieldId: 'custrecord_an_skip_on_save',
+                            value: true,
+                        });
                         return true;
                     }
 
@@ -193,15 +212,24 @@ define(['N/record', 'N/url', 'N/currentRecord', 'N/ui/dialog', '../lib/lodash.mi
                 fieldId: 'custpage_change_sub'
             }).isVisible)
             {
+                function success(result) { console.log('Success with value: ' + result) }
+                function failure(reason) { console.log('Failure: ' + reason) }
+
                 if (!context.currentRecord.getValue({fieldId: 'custpage_change_sub'}))
                 {
-                    function success(result) { console.log('Success with value: ' + result) }
-                    function failure(reason) { console.log('Failure: ' + reason) }
                     dialog.alert({
                         title: 'Initial Subsidiary Setup is REQUIRED',
                         message: 'You MUST enter the subsidiary you are migrating this gateway to before saving in the field <b>Initial Subsidiary Setup</b>.  ' +
                             'That Subsidiary will be used to update all payment profiles / tokens already recorded against the active gateway configuration.  ' +
                             'If you have a lot of profiles / tokens already, you may want to disable the main <i>ENABLE CONFIGURATION</i> check box and do this upgrade during off hours.'
+                    }).then(success).catch(failure);
+                    b_return = false;
+                }
+                if (context.currentRecord.getValue({fieldId: 'custpage_change_sub_prefix'}).length > 4)
+                {
+                    dialog.alert({
+                        title: 'Initial Subsidiary Card Prefix Too Long',
+                        message: 'You can only have a card prefix up to 4 characters'
                     }).then(success).catch(failure);
                     b_return = false;
                 }

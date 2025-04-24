@@ -141,7 +141,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                 let o_payload = JSON.parse(authNetC2P.crypto.decode64(o_allParams.xkcd));
                 //log.debug('o_payload', o_payload);
                 let recordId =  authNetC2P.crypto.decrypt(o_payload, 'custsecret_authnet_payment_link');
-                log.debug('GET Decrypted recordId', recordId);
+                log.audit('GET Decrypted recordId', recordId);
                 if (!recordId)
                 {
                     log.error('Unable to decrypt xkcd', 'Value failed to decrypt so we can not proceed');

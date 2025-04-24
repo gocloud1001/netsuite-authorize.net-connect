@@ -606,7 +606,7 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
             //when context.type === create, hash things and add to the transaction so it matches
             //if the runtime is not suitelet - throw an exception
             if (!_.includes(['delete', 'create'], context.type)){
-                if (_.includes([runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT], runtime.executionContext) && !context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
+                if (_.includes([runtime.ContextType.SUITELET,runtime.ContextType.USER_INTERFACE, runtime.ContextType.CSV_IMPORT, runtime.ContextType.MAP_REDUCE], runtime.executionContext) && !context.oldRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
                 {
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_token_pblkchn'}))
                     {
@@ -619,7 +619,11 @@ define(['N/record', 'N/encode', 'N/runtime', 'N/search', 'N/url', 'N/crypto', 'N
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_token_uuid'}))
                     {
                         log.audit('Missing original UUID : '+context.newRecord.id, 'Generating and setting new UUID now!')
-                        context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()})
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
+                    }
+                    if (o_config.mode === 'single')
+                    {
+                        context.newRecord.setValue({fieldId: 'custrecord_an_token_gateway_sub', value :''});
                     }
                     //context.newRecord.setValue({fieldId: 'custrecord_an_token_uuid', value :authNet.buildUUID()});
                     //context.newRecord.setValue({fieldId: 'custrecord_an_token_pblkchn', value :authNet.mkpblkchain(context.newRecord, context.newRecord.id)});

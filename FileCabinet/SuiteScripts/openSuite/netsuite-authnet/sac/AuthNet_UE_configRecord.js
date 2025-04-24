@@ -35,6 +35,13 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
 
         function beforeLoad(context) {
             //make all this UI only
+            cache.getCache(
+                {
+                    name: 'config',
+                    scope: cache.Scope.PROTECTED
+                }
+            );
+            log.audit('Cache Gotten', 'Loading the config, so cache gotten for sure');
             if (runtime.executionContext === 'USERINTERFACE' ) {
                 if (runtime.getCurrentUser().role === 3) {
                     context.form.addFieldGroup({
@@ -90,13 +97,23 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     field: fld_subconfig,
                     nextfield: 'custrecord_an_all_sub'
                 });
+                var fld_subcprefix = context.form.addField({
+                    id: 'custpage_change_sub_prefix',
+                    label: 'Subsidiary Card Prefix (3 letters max)',
+                    type: ui.FieldType.TEXT,
+                });
+                context.form.insertField({
+                    field: fld_subcprefix,
+                    nextfield: 'custrecord_an_all_sub'
+                });
                 if (!context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'}) || context.type === 'view') {
                     fld_subconfig.updateDisplayType({
                         displayType: ui.FieldDisplayType.HIDDEN
                     });
+                    fld_subcprefix.updateDisplayType({
+                        displayType: ui.FieldDisplayType.HIDDEN
+                    });
                 }
-
-
                 if (context.type === 'edit' || context.type === 'view') {
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'}))
                     {
@@ -197,50 +214,22 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             message: 'Your system has Multi Subsidiary Customer enabled (<i>Setup > Enable Features >> Company >>> ERP General</i>)<br>This feature REQUIRES you to enable multiple subsidiary support in the Authorize.Net Configuration. (Sometimes this is set on accounts and never used, if you are not using this NetSuite feature, do yourself a favor and just disable it, return to this page, click the "Debug & Testing Tool" link at the bottom of this screen and select the Purge Cache" option)<br/>' +
                                 'To configure The SuiteAuthConnect Authorize.Net connector to operate in this environment, you must uncheck the box "Use for all Subsidaries" in the configuration on this screen and follow the prompts.<br/>' +
                                 'You must fully configure at least one subsidary as well on this screen. You can use the same authorize.net credentails / processing gateway for all your subsadaries if you want, although that would be odd.<br/>' +
-                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguish subsidaries apart. This is purely cosmetic but may be confusing for seelcting the correct cards.)',
+                                '<i>(If you are upgrading versions and now enabling this, all your existing tokens will be missing the new prefix used to distinguish subsidaries apart. This is purely cosmetic but may be confusing for selecting the correct cards.)',
                             //duration: 0
                         });
                     }
-                    /* Should not matter anymore with addition of logic
-                    if(runtime.isFeatureInEffect({feature: 'paymentinstruments'}))
+                    if (!runtime.isFeatureInEffect({ feature: 'extcrm' }))
                     {
                         context.form.addPageInitMessage({
                             type: message.Type.WARNING,
-                            title: 'Your system is configured to use Payment Instruments',
-                            message: 'Your system has Payment Instruments enabled (<i>Setup > Enable Features >> Transactions >>>  Payment Instruments</i>)<br>This feature support is currently in BETA and may not have been fully tested with SuiteAuthConnect as it\'s a specific extension used by NetSuite Payment Card Gateways to provide functionality already included in the Authorize.Net integration.  It is <b>SUGGESTED</b> you disable this feature to prevent unexpected issues.',
+                            title: 'Configuration Missing for Click2Pay Feature',
+                            message: 'Before enabling the Click 2 Pay feature, you must enable the Online Forms feature in NetSuite.  Navigate to Setup > Company > Enable Features >> CRM tab and select Online Forms under the Marketing section.',
                             //duration: 0
                         });
-                    }*/
-                    //this is stupid but needed because the SDF definition for the file does not mark it as an online file
-                    /* Now unneeded
-                    if (context.newRecord.getValue({fieldId: 'custrecord_an_enable_click2pay_inv'})) {
-                        search.create({
-                            type: 'file',
-                            filters: [
-                                ['name', 'is', 'authnet_click2pay_onlinepayment_vaildation.js'],
-                            ],
-                            columns:
-                                [
-                                    'url',
-                                    'availablewithoutlogin',
-                                ]
-                        }).run().each(function (result)
-                        {
-
-                            if (!result.getValue('availablewithoutlogin')) {
-                                let _tmp = file.load({id: result.id});
-                                _tmp.isOnline = true;
-                                _tmp.save();
-                                log.audit('JS Click2Pay file updated', 'Click2Pay file has been updated to allow external access');
-                            }
-                            return true;
-                        });
-                    }*/
+                    }
                 }
 
                 if (context.type === 'view') {
-
-
                     //make sure if the Subsidiary feature is enabled - that there is at least 1 record and that it is fully configured
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_all_sub'})) {
                         var b_majorIssue = false;
@@ -409,12 +398,8 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 });
                             }
                         }
-
-
                     }
                     //used to warn on upgrades of other needed processing
-
-
                     var a_activeDeployments = [];
                     var scriptdeploymentSearchObj = search.create({
                         type: "scheduledscriptinstance",
@@ -464,7 +449,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         });
                         context.form.removeButton({id:'edit'});
                     }
-                    else
+                    /*else
                     {
                         var results = search.create({
                             type: 'customrecord_authnet_tokens',
@@ -494,7 +479,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                     '<p>You should <a target="_blank" href="'+upgradeLink+'">click this link</a> to initiate the batch processing of token updates.  You can do this at a time when other processes will not be impacted.</p>',
                             });
                         });
-                    }
+                    }*/
 
 
                     try {
@@ -504,7 +489,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             });
                             var s_body = o_currentVersion.body;
                             var s_remoteVersion = s_body.match(/VERSION =(.*);/gm)[0].split("'")[1];
-                            //log.debug(s_remoteVersion, s_remoteVersion.split('.'));
+                            log.audit('Remote version on GitHub', s_remoteVersion);
                             if (authNet.VERSION !== s_remoteVersion) {
                                 //ok - not a match - now lets figure out which way
                                 var a_remote = s_remoteVersion.split('.');
@@ -557,7 +542,6 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                             //duration: 60000
                                         });
                                     }
-
                                 }
                             }
                         }
@@ -565,11 +549,14 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         log.error('Failed to validate version')
                     }
                 }
-                //log.debug(context.type + ' : ' + context.newRecord.getValue({fieldId: 'custrecord_an_version'}), authNet.VERSION)
-                if (_.isUndefined(context.newRecord.getValue({fieldId: 'custrecord_an_version'})) &&
-                    context.newRecord.getValue({fieldId: 'custrecord_an_version'}) !== authNet.VERSION
+                log.debug(context.type + ' : ' + context.newRecord.getValue({fieldId: 'custrecord_an_version'}).toString() +':'+_.isUndefined(context.newRecord.getValue({fieldId: 'custrecord_an_version'})), authNet.VERSION)
+                if (
+                    (!_.isUndefined(context.newRecord.getValue({fieldId: 'custrecord_an_version'})) && (context.newRecord.getValue({fieldId: 'custrecord_an_version'}).toString() !== authNet.VERSION))
                     &&
                     !_.includes(['xedit', 'delete', 'create', 'copy'], context.type)
+                    /*||
+                    //this is for a weird thing that happens when enabling multi sub
+                    _.isUndefined(context.newRecord.getValue({fieldId: 'custrecord_an_version'}))*/
                 ) {
                     if (!context.newRecord.getValue({fieldId: 'custrecord_an_skip_on_save'})) {
                         try {
@@ -586,7 +573,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             });
                             var scriptTaskId = scriptTask.submit();
                             //log.debug('scriptTaskId', scriptTaskId)
-                            log.audit('Process for intial setup / update is running ', task.checkStatus(scriptTaskId));
+                            log.audit('Process for initial setup / update is running ', task.checkStatus(scriptTaskId));
                         } catch (ex) {
                             log.emergency(ex.name, ex.message);
                         }
@@ -622,10 +609,8 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         }
                         context.newRecord.setValue({fieldId: 'custrecord_an_enable_click2pay_inv', value : false});
                     }
-
                 }
             }
-
         }
         function beforeSubmit(context) {
 
@@ -648,13 +633,22 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
 
         }
         function afterSubmit(context) {
-            log.debug('aftersubmit', context.type)
-            var triggerUpdate = false;
+            let o_config2 = authNet.getConfigFromCache();
+            authNet.verboseLogging('aftersubmit cache', o_config2);
+            let b_purgeCache = false;
             if (context.type === 'edit')
             {
-                if (context.oldRecord.getValue({fieldId:'custrecord_an_all_sub'}) && !context.newRecord.getValue({fieldId:'custrecord_an_all_sub'}))
+                //if (context.oldRecord.getValue({fieldId:'custrecord_an_all_sub'}) && !context.newRecord.getValue({fieldId:'custrecord_an_all_sub'}))
+                //load this record to see if the enable sub is checked
+                let o_configRec = record.load({
+                    type: 'customrecord_authnet_config',
+                    id: o_config2.id,
+                });
+                log.debug(context.oldRecord.getValue({fieldId:'custrecord_an_all_sub'}) , !o_configRec.getValue({fieldId:'custrecord_an_all_sub'}))
+                if (context.oldRecord.getValue({fieldId:'custrecord_an_all_sub'}) && !o_configRec.getValue({fieldId:'custrecord_an_all_sub'}) && o_config2.mode === 'single')
                 {
                     log.audit('Multi Sub Activated', 'Multi Sub Behavior Was just ENABLED!');
+                    b_purgeCache = true;
                     //this account just flipped to a subsidiary configuration
                     //need to add a subsidiary record!
                     var o_subRec = record.create({
@@ -678,6 +672,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     o_subRec.setValue({fieldId:'custrecord_ancs_trankey_sb', value : context.newRecord.getValue({fieldId:'custrecord_an_trankey_sb'})});
                     o_subRec.setValue({fieldId:'custrecord_ancs_txn_companyname', value : context.newRecord.getValue({fieldId:'custrecord_an_txn_companyname'})});
                     o_subRec.setValue({fieldId:'custrecord_ancs_subsidiary', value : context.newRecord.getValue({fieldId:'custpage_change_sub'})});
+                    o_subRec.setValue({fieldId:'custrecord_ancs_card_prefix', value : context.newRecord.getValue({fieldId:'custpage_change_sub_prefix'})});
                     var i_newSubGateway = o_subRec.save({ignoreMandatoryFields : true});
 
                     //need to then clear eveything on the main record to not confuse the matter
@@ -697,9 +692,10 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                     //now we need to update all the existing tokens in the system to this subsidiary
                     var o_params = {
                         custscript_an_gateway_sub : i_newSubGateway,
-                        custscript_an_subsidiary : context.newRecord.getValue({fieldId:'custpage_change_sub'})
+                        custscript_an_subsidiary : context.newRecord.getValue({fieldId:'custpage_change_sub'}),
+                        custscript_change_sub_prefix : context.newRecord.getValue({fieldId:'custpage_change_sub_prefix'}),
                     };
-                    log.debug('o_params',o_params);
+                    authNet.verboseLogging('o_params for map/reduce to update the payment methods',o_params);
                     //launch map/reduce task here
                     var scriptTask = task.create({
                         taskType : task.TaskType.MAP_REDUCE,
@@ -707,14 +703,16 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         deploymentId: 'customdeploy_sac_update_profiles',
                         params : o_params
                     });
+                    log.audit('Launching Token Update', 'Updating all the tokens with multi SUB');
                     scriptTask.submit();
-
                 }
             }
 
             if (_.includes(['create', 'edit', 'xedit'], context.type)
             &&
-                !context.newRecord.getValue({fieldId: 'custrecord_an_skip_on_save'})
+                (!context.newRecord.getValue({fieldId: 'custrecord_an_skip_on_save'})
+                    ||
+                    b_purgeCache)
             )
             {
                 var daCache = cache.getCache(

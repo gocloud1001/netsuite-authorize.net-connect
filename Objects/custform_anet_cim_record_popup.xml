@@ -389,7 +389,7 @@
     <tab>
       <id>RECORDNOTES</id>
       <label>Notes</label>
-      <visible>F</visible>
+      <visible>T</visible>
       <fieldGroups>
         <defaultFieldGroup/>
       </fieldGroups>
@@ -397,7 +397,7 @@
         <subList>
           <id>RECORDUSERNOTES</id>
           <label>User Notes</label>
-          <visible>T</visible>
+          <visible>F</visible>
           <neverEmpty>F</neverEmpty>
         </subList>
         <subList>

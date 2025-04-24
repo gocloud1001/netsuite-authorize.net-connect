@@ -311,6 +311,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                 {
                     //moved the history parser here and if it's not good - run another status check / log generation
                     var o_history = authNet.parseHistory(context.newRecord.id, context.newRecord.type, (context.newRecord.getValue({fieldId :'custbody_authnet_use'}) || !_.isEmpty(context.newRecord.getValue({fieldId :'custbody_authnet_refid'}))))
+                    authNet.verboseLogging('history parsed', o_history);
                     if(!o_history.isValid && o_history.historyId) {
                         //will not rerun for customer payments...
                         try {
@@ -332,7 +333,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             || context.newRecord.getValue({fieldId: 'custbody_authnet_error_status'}) )
                             && _.includes([o_config2.custrecord_an_paymentmethod.val, o_config2.custrecord_an_paymentmethod_echeck.val], context.newRecord.getValue({fieldId: (o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod')})));
                     //log.debug(context.newRecord.getValue({fieldId :'orderstatus'}), o_config2.custrecord_an_auth_so_on_approval.val)
-                    authNet.verboseLogging('history parsed', o_history);
+                    authNet.verboseLogging('final history to use', o_history);
                     //authNet.verboseLogging('b_isAuthNet', b_isAuthNet);
                     //authNet.verboseLogging('thisRecord.getValue(\'orderstatus\')', context.newRecord.getValue('orderstatus'));
                     //authNet.verboseLogging('b_responseFailure', b_responseFailure);
@@ -830,6 +831,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             var o_config2 = authNet.getConfigFromCache();
             if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
             {
+                log.error('SuiteAuthConnect is not SET UP', 'General Authorize.Net config not found!');
                 return;
             }
             //now switch the object to the correct sub config!
@@ -839,7 +841,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
             //check for EMPTY config on setup
             if (_.isUndefined(o_config2) || _.isEmpty(o_config2))
             {
-                log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net setup has not been complete!');
+                log.error('SuiteAuthConnect is not SET UP', 'Authorize.Net Subsidiary config not found!');
                 return;
             }
             else if (o_config2.custrecord_an_enable.val)
@@ -870,20 +872,29 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
 
                     //var o_config = JSON.parse(runtime.getCurrentSession().get({name: "anetConfig"}));
                     if (context.newRecord.type === 'salesorder') {
-                        if (o_config2.custrecord_an_external_auth_allowed.val) {
-                            //if (o_config.rec.getValue({fieldId: 'custrecord_an_external_auth_allowed'})){
+                        if (o_config2.custrecord_an_external_auth_allowed.val && runtime.executionContext !== runtime.ContextType.USER_INTERFACE) {
+                            log.audit('Validating an External Auth Event', 'TRANSID : '+context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
                             if (context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}))
                             {
                                 var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
-                                //todo - test this
-                                /*if (!o_status.isValid)
+
+                                authNet.verboseLogging('o_status on '+ context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}), o_status)
+                                if (!o_status.isValidAuth)
                                 {
+                                    let s_error = 'Unable to parse error'
+                                    try {
+                                        s_error = JSON.stringify(o_status.messages.message);
+                                    }
+                                    catch (e)
+                                    {
+                                        log.emergency('o_status on '+ context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}), o_status);
+                                    }
                                     throw error.create({
                                         name: 'Unable to Validate transid '+context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}),
-                                        message: 'The following message was received from Authorize.Net when attempting to validate this transaction : '+JSON.stringify(o_status.messages.message),
+                                        message: 'The following message was received from Authorize.Net when attempting to validate this transaction : '+s_error,
                                         notifyOff: true
                                     });
-                                }*/
+                                }
                                 context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 context.newRecord.setValue({
                                     fieldId: 'custbody_authnet_datetime',
@@ -1218,13 +1229,49 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             isDynamic: true });
                         var o_response = {csissue : true};
                         var pluginResult;
+
                         if (thisCS.getValue({fieldId: 'createdfrom'})){
                             pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCSfromSO(thisCS);
                             if(pluginResult.process) {
-                                //so capture from the auth - use the full record
-                                o_response = authNet[pluginResult.type](thisCS);
-                                //log.debug('o_response', o_response)
-                                authNet.handleResponse(o_response, context, true);
+                                if (+thisCS.getValue({fieldId:'total'}) !== 0)
+                                {
+                                    //so capture from the auth - use the full record
+                                    o_response = authNet[pluginResult.type](thisCS);
+                                    //log.debug('o_response', o_response)
+                                    authNet.handleResponse(o_response, context, true);
+                                }
+                                else
+                                {
+                                    log.audit('Not capturing funds on '+thisCS.getValue({fieldId:'tranid'}), 'Need to Void This Auth because the capture was $0 ');
+                                    let o_clear = {}
+                                    _.forEach(_.concat(authNet.CCENTRY,authNet.CODES, authNet.SETTLEMENT, authNet.CHECKBOXES), function(fld){
+                                        o_clear['custbody_authnet_'+fld] = '';
+                                    });
+                                    record.submitFields({
+                                        type : record.Type.CASH_SALE,
+                                        id: context.newRecord.id,
+                                        values : o_clear
+                                    });
+                                    try {
+                                        let o_so = record.load({
+                                            type: record.Type.SALES_ORDER,
+                                            id: thisCS.getValue({fieldId: 'createdfrom'}),
+                                            isDynamic: true
+                                        });
+                                        authNet.doVoid(o_so);
+                                        _.forEach(o_clear, function(val, kie){
+                                            log.debug('kie', kie);
+                                            o_so.setValue({fieldId: kie, value : ''});
+                                        });
+                                        o_so.save({ignoreMandatoryFields : true});
+                                        log.audit('Voided Auth on '+o_so.getValue({fieldId:'tranid'}), 'Because capture was $0, the original auth was voided.');
+                                    }
+                                    catch(ex)
+                                    {
+                                        log.error(ex.name, ex.message);
+                                        log.error(ex.name, ex.stack);
+                                    }
+                                }
                             }
                         } else {
                             pluginResult = plugin.loadImplementation({type: 'customscript_sac_txn_mgr_pi'}).testCSStandalone(thisCS);

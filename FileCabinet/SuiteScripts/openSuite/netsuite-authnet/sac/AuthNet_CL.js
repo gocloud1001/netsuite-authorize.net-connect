@@ -643,7 +643,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
 
                             try {
                                 if (+currentRecord.getValue({fieldId: 'custbody_authnet_cim_token_type'}) !== 2) {
-                                    console.log('running this here for setting stuff');
+                                    console.log('running this here for setting stuff - instruments? '+ o_config.hasPaymentInstruments);
+                                    console.log(o_config.custrecord_an_paymentmethod);
                                     //this field is always required
                                     currentRecord.setValue({fieldId :'paymentmethod', value: o_config.custrecord_an_paymentmethod.val,ignoreFieldChange: true});
                                     //this one is sometimes required
@@ -658,9 +659,11 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                             value: 'SAVE_ONLY',
                                             ignoreFieldChange: true
                                         });*/
+                                        console.log('setting profile id to '+ o_config.custrecord_an_paymentmethod.profileId);
                                         currentRecord.setValue({
                                             fieldId: 'paymentoption',
-                                            text: o_config.custrecord_an_paymentmethod.profileId,
+                                            //text: o_config.custrecord_an_paymentmethod.profileId,
+                                            value: o_config.custrecord_an_paymentmethod.profileId,
                                             ignoreFieldChange: true
                                         });
                                     }
@@ -681,7 +684,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                                         });*/
                                         currentRecord.setValue({
                                             fieldId: 'paymentoption',
-                                            text: o_config.custrecord_an_paymentmethod_echeck.profileId,
+                                            value: o_config.custrecord_an_paymentmethod_echeck.profileId,
+                                            //text: o_config.custrecord_an_paymentmethod_echeck.profileId,
                                             ignoreFieldChange: true
                                         });
                                     }
@@ -712,7 +716,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                             } catch (e) {
                                 log.debug('Native billing not enabled')
                             }
-                            //window.nlapiDisableField('bullshit')
+                            //window.nlapiDisableField('bullstuff')
                         } else {
                             console.log('Selecting to NOT use Authorize.Net as a payment method');
                             //this field is always required
@@ -997,14 +1001,32 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     //console.log(o_uidata)
                     //var i_cardId = context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'});
                     var o_usedCard = {id:context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}), subsidiary: context.currentRecord.getValue({fieldId: 'subsidiary'})};
-
                     if (!_.find(o_uidata.cards, o_usedCard))
                     {
-                        dialog.alert({
-                            title: 'Payment Token / Subsidiary Mismatch',
-                            message: 'You have selected a Customer Profile / Token that is incompatible with the subsidiary of the transaction.  Please review the card prefix and the transaction subsidiary.'
+                        var b_validCard = false;
+                        //now - see if this was just added as a new card -
+                        var o_unknownToken = search.lookupFields({
+                            type: 'customrecord_authnet_tokens',
+                            id: context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}),
+                            columns: ['custrecord_an_token_subsidiary']
                         });
-                        b_canSave = false;
+                        //console.log(o_unknownToken);
+                        if (o_unknownToken.custrecord_an_token_subsidiary.length > 0)
+                        {
+                            if (o_unknownToken.custrecord_an_token_subsidiary[0].value === context.currentRecord.getValue({fieldId: 'subsidiary'}))
+                            {
+                                b_validCard = true;
+                                console.info('New card entered and is valid for this subsidiary');
+                            }
+                        }
+                        if (!b_validCard)
+                        {
+                            dialog.alert({
+                                title: 'Payment Token / Subsidiary Mismatch',
+                                message: 'You have selected a Customer Profile / Token that is incompatible with the subsidiary of the transaction.  Please review the card prefix and the transaction subsidiary.'
+                            });
+                            b_canSave = false;
+                        }
                     }
                 }
                 else if (context.currentRecord.getValue({fieldId: 'custbody_authnet_use'}) && !context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}))

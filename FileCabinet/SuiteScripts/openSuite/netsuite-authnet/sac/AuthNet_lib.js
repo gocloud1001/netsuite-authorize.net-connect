@@ -22,7 +22,7 @@
  *
  *
  * AuthorizeNet_lib.js
- * @NApiVersion 2.0
+ * @NApiVersion 2.x
  * @NModuleScope Public
  *
  * @NAmdConfig /SuiteScripts/openSuite/netsuite-authnet/config.json
@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2025.1.1';
+    exports.VERSION = '2025.1.2';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -705,12 +705,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             var historyRec = this.getHistory({'txnid': txnid, 'txntype': txntype, 'isOK': false, 'mostrecent': true});
             if (_.isObject(historyRec)) {
                 o_parsedHistory = {
-                    showBanner : false,
+                    showBanner : _.toUpper(historyRec.getValue({fieldId: 'custrecord_an_response_status'})) === 'ERROR',
                     isValid: _.toUpper(historyRec.getValue({fieldId: 'custrecord_an_response_status'})) === 'OK',
                     historyId : historyRec.id,
                     status: historyRec.getValue({fieldId: 'custrecord_an_response_status'}),
                     responseCode: historyRec.getValue({fieldId: 'custrecord_an_response_code'}),
-                    responseCodeText : RESPONSECODES[historyRec.getValue({fieldId: 'custrecord_an_response_code'})],
+                    responseCodeText : RESPONSECODES[historyRec.getValue({fieldId: 'custrecord_an_response_code'})] ? RESPONSECODES[historyRec.getValue({fieldId: 'custrecord_an_response_code'})] : 'Authorize.Net Warning',
                     errorCode: historyRec.getValue({fieldId: 'custrecord_an_error_code'}),
                     message: ''
                 };
@@ -1374,7 +1374,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     };
 
     exports.generateANetTransactionRequestJSON = function (txn, b_isToken, request) {
-        log.audit('Building the transaction', 'Generating Authorize.Net order body payload!')
+        log.audit('Building the transaction', 'Generating Authorize.Net order body payload!');
         try {
             request.order = {};
             request.order.invoiceNumber = txn.getValue({fieldId: 'tranid'});
@@ -1383,7 +1383,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     type: 'salesorder',
                     id: txn.getValue({fieldId: 'salesorder'}),
                     isDynamic: true
-                })
+                });
             }
             var s_customer = '';
             try {

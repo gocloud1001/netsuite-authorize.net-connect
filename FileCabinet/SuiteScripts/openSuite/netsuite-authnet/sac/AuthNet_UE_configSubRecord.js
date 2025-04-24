@@ -22,7 +22,7 @@
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NModuleScope Public
  * @NScriptType UserEventScript
  *
@@ -30,8 +30,8 @@
  */
 
 
-define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'N/search', 'lodash', 'moment', './AuthNet_lib'],
-    function (record, url, https, runtime, redirect, ui, message, cache, task, search, _, moment, authNet) {
+define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverWidget', 'N/ui/message', 'N/cache', 'N/task', 'N/search', 'lodash', 'moment', './AuthNet_lib', './click2pay/AuthNet_click2Pay_lib21'],
+    function (record, url, https, runtime, redirect, ui, message, cache, task, search, _, moment, authNet, authNetC2P) {
 
         function beforeLoad(context) {
 
@@ -132,6 +132,35 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                             displayType: ui.FieldDisplayType.HIDDEN
                         });
                         log.audit('All Credential Fields were hidden', 'Only Administrator Role can see and edit theses fields');
+                    }
+                }
+                if (context.newRecord.getValue({fieldId: 'custrecord_ancs_enable_click2pay_inv'}))
+                {
+                    try {
+                        authNetC2P.crypto.encrypt(context.newRecord.id, 'custsecret_authnet_payment_link');
+                    }
+                    catch(ex)
+                    {
+                        log.error(ex.name, ex.message);
+                        log.error(ex.name, ex.name === 'INVALID_SECRET_KEY_LENGTH');
+                        if (ex.name === 'INVALID_SECRET_KEY_LENGTH') {
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'Error Enabling Click2Pay',
+                                message: 'Please update your API Secret via <a target="_blank" href="/app/common/scripting/secrets/settings.nl?whence=">Setup > Company > API Secrets.</a><br>' +
+                                    ex.message + '<br>Here is a 32 character string you could use as your password : '+_.times(32, () => _.random(35).toString(36)).join(''),
+                            });
+                        }
+                        else
+                        {
+                            context.form.addPageInitMessage({
+                                type: message.Type.ERROR,
+                                title: 'Click2Pay Configuration Error',
+                                message: 'Please update your API Secret via Setup > Company > API Secrets.<br>' +
+                                    ex.name + '<br>' + ex.message,
+                            });
+                        }
+                        context.newRecord.setValue({fieldId: 'custrecord_ancs_enable_click2pay_inv', value : false});
                     }
                 }
             }

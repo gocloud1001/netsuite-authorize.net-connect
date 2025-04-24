@@ -64,7 +64,8 @@ function (exports, record, search, runtime, _, authNet) {
                         id: +val.id,
                         source : this_Script.deploymentId,
                         gateway: this_Script.getParameter({name: 'custscript_an_gateway_sub'}),
-                        subsidiary: this_Script.getParameter({name: 'custscript_an_subsidiary'})
+                        subsidiary: this_Script.getParameter({name: 'custscript_an_subsidiary'}),
+                        prefix: this_Script.getParameter({name: 'custscript_change_sub_prefix'}),
                     };
                     a_profilesToUpdate.push(obj);
                     i_resultCount++;
@@ -120,7 +121,7 @@ function (exports, record, search, runtime, _, authNet) {
 
     exports.map = function (context) {
         var recToChange = JSON.parse(context.value);
-        log.debug('recToChange', recToChange)
+        //custrecord_an_token_gateway_sublog.debug('recToChange', recToChange)
         try {
             //load and save - xedit's will kill the hash and mark the token as tampered!
             var o_profile = record.load({
@@ -130,12 +131,10 @@ function (exports, record, search, runtime, _, authNet) {
             });
             if (recToChange.source === 'customdeploy_sac_update_profiles')
             {
-                if (+o_profile.setValue({fieldId:'custrecord_an_token_paymenttype'}) === 0 )
-                {
-                    o_profile.setValue({fieldId:'custrecord_an_token_paymenttype', value : 1});
-                }
+                //o_profile.setValue({fieldId: 'custrecord_an_token_pblkchn', value :authNet.mkpblkchain(o_profile, recToChange.id)});
                 o_profile.setValue({fieldId:'custrecord_an_token_gateway_sub', value : recToChange.gateway});
                 o_profile.setValue({fieldId:'custrecord_an_token_subsidiary', value : recToChange.subsidiary});
+                o_profile.setValue({fieldId:'name', value : '('+recToChange.prefix+') '+o_profile.getValue({fieldId:'name'}) });
                 log.audit('token / profile updated ', recToChange.id +' id was updated to support SUBSIDARIES');
             }
             else if (recToChange.source === 'customdeploy_sac_update_profiles_up')

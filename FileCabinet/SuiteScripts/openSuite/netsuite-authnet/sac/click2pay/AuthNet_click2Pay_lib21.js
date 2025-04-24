@@ -130,15 +130,17 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                             type:'subsidiary',
                             id : o_record.getValue({fieldId : 'subsidiary'}),
                         });
-                        //log.debug('_subRec', _subRec.getValue({fieldId:'logo'}));
                         logoFileId = _subRec.getValue({fieldId:'logo'});
+                        log.audit('Multi-sub config', 'Getting Subsidiary LogoID '+logoFileId);
                     }
-                    else
+                    //if the sub has no logo, use the whole company logo
+                    if (!logoFileId)
                     {
                         let o_company = config.load({
                             type: config.Type.COMPANY_INFORMATION
                         });
                         logoFileId = o_company.getValue({fieldId: 'formlogo'});
+                        log.audit('No Logo ID', 'Defaulting to company logoIC '+logoFileId);
                     }
                 }
                 let logoFile = file.load({id:logoFileId});

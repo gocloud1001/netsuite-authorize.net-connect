@@ -31,7 +31,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
     function (require, exports, record, runtime, config, search, email, cache, file,  authNet) {
 
     function performConfig(){
-        log.audit('Starting Install / Upgrade Config', 'Begining to apply any needed config changes based on Version '+authNet.VERSION);
+        log.audit('Starting Install / Upgrade Config', 'Beginning to apply any needed config changes based on Version '+authNet.VERSION);
         var companyInfo = config.load({ type: config.Type.COMPANY_INFORMATION });
         var installationInfo = {
             companyname: companyInfo.getValue({ fieldId: 'companyname' }),
@@ -91,7 +91,20 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
         } catch (e){
             s_notesString += e.name + ' : ' + e.message;
         }
-
+        //clean up .DS files from a SDF push off a Mac
+        search.create({
+            type: 'file',
+            filters: ['name', 'is', '.DS_Store'],
+            columns: [
+                {name: 'internalid', sort: search.Sort.DESC}
+            ]
+        }).run().each(function (result) {
+            //log.debug('result', result);
+            file.delete({
+                id: result.id
+            });
+            return true;
+        });
         var s_oldVersionNumber = 'NEW';
         try {
             //var o_config = authNet.getActiveConfig();
@@ -256,7 +269,7 @@ define(["require", "exports", "N/record", "N/runtime", "N/config", "N/search", "
         }
         else
         {
-            log.audit('Can not send email', 'Run by system manaully, no user to send from');
+            log.audit('Can not send email', 'Run by system manually, no user to send from');
         }
     }
 
