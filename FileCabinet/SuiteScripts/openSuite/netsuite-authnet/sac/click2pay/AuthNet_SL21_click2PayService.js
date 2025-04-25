@@ -485,7 +485,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                         let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(o_invoiceRec);
                         //log.debug('o_customerDetails',o_customerDetails);
                         let i_paymentTokenId = +context.request.parameters.existingmethod;
-
                         log.audit('Do we have a token to use? (or are we making a new one)', i_paymentTokenId);
 
                         if (i_paymentTokenId !== 0)
@@ -625,6 +624,10 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                         {
                             log.audit('Using Token to build Payment', 'New Payment being created');
                             try {
+                                let o_tokenRecord = record.load({
+                                    type:'customrecord_authnet_tokens',
+                                    id: i_paymentTokenId
+                                });
                                 let o_payment = record.transform({
                                     fromType : record.Type.INVOICE,
                                     fromId : recordId,
@@ -635,6 +638,13 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 o_payment.setValue({fieldId: 'undepfunds', value: 'T'});
                                 o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Click2Pay Link'});
                                 o_payment.setValue({fieldId: 'payment', value: o_totalDue.asNumber});
+                                o_payment.setValue({fieldId: 'payment', value: 4.25});
+                                o_payment.setValue({fieldId: 'autoapply', value: true});
+                                o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
+                                //for the lookup in the cached config
+                                let _fld = o_config2.hasPaymentInstruments ? 'profileId' : 'val';
+                                let _methodType = _.includes([0,1], +o_tokenRecord.getValue({fieldId:'custrecord_an_token_paymenttype'}))? o_config2.custrecord_an_paymentmethod[_fld] : o_config2.custrecord_an_paymentmethod_echeck[_fld];
+                                o_payment.setValue({fieldId: (o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value : _methodType});
                                 o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
                                 i_payment = o_payment.save({ignoreMandatoryFields: true});
                                 if (!context.request.parameters.existingmethod && _.isUndefined(context.request.parameters.saveCard) && _.isUndefined(context.request.parameters.saveBank)) {

@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2025.1.2';
+    exports.VERSION = '2025.1.3';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -1156,7 +1156,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
 
     //UPDATED on 7/1/2019
     //and again on 11/11/2022 - to understand fraud as best as we can...
-    parseANetResponse = function(histRec, txnRec, response){
+    parseANetResponse = function(histRec, txnRec, response, o_config)
+    {
         var result = {
             status : true
         };
@@ -2189,7 +2190,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             var realTxn = txn ;
             //realTxn.setValue('custbody_authnet_reqrefid', txn.id.toString());
 
-            var parsed = parseANetResponse(rec_response, realTxn, response);
+            var parsed = parseANetResponse(rec_response, realTxn, response, o_ccAuthSvcConfig);
             parsed.fromId = soId;
             //log.debug('parsed.status', parsed.status);
             //log.debug('parsed.history', parsed.history);
