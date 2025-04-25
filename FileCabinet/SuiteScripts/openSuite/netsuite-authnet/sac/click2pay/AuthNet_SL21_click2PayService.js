@@ -638,7 +638,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 o_payment.setValue({fieldId: 'undepfunds', value: 'T'});
                                 o_payment.setValue({fieldId: 'memo', value: 'Customer Generated via Click2Pay Link'});
                                 o_payment.setValue({fieldId: 'payment', value: o_totalDue.asNumber});
-                                o_payment.setValue({fieldId: 'payment', value: 4.25});
                                 o_payment.setValue({fieldId: 'autoapply', value: true});
                                 o_payment.setValue({fieldId: 'custbody_authnet_cim_token', value: i_paymentTokenId});
                                 //for the lookup in the cached config
