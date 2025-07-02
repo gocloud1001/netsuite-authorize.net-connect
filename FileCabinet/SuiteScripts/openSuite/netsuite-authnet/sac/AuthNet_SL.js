@@ -229,6 +229,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         historyRecord.save();
                         //now clear the transaction
                         txn.setValue({fieldId:'custbody_authnet_use', value: false});
+                        txn.setValue({fieldId: (o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value: ''});
                         txn.setValue({fieldId:'custbody_authnet_cim_token', value: ''});
                         txn.setValue({fieldId:'custbody_authnet_refid', value: ''});
                         txn.setValue({fieldId:'custbody_authnet_authcode', value: ''});
@@ -257,6 +258,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     historyRecord.save();
                     //now clear the transaction
                     txn.setValue({fieldId:'custbody_authnet_use', value: false});
+                    txn.setValue({fieldId: (o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value: ''});
                     txn.setValue({fieldId:'custbody_authnet_cim_token', value: ''});
                     txn.setValue({fieldId:'custbody_authnet_refid', value: ''});
                     txn.setValue({fieldId:'custbody_authnet_authcode', value: ''});
@@ -1163,12 +1165,12 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     if (!o_params.skipAuth) {
                         testSo.setValue({fieldId: 'custbody_authnet_use', value: true});
                         testSo.setValue({fieldId: 'custbody_authnet_cim_token', value: +o_params.token});
-                        testSo.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });;
+                        testSo.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.use });
                     }
                     else if(o_params.custpage_test ==='makeextso') {
                         testSo.setValue({fieldId: 'custbody_authnet_use', value: true});
                         testSo.setValue({fieldId: 'custbody_authnet_refid', value: o_params.refid});
-                        testSo.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                        testSo.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.use });
                         //todo - get config here to ensure the correct behavior
                         testSo.setValue({
                             fieldId: o_config2.custrecord_an_external_fieldid.val,
@@ -1267,7 +1269,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     testCS.setValue({fieldId: 'custbody_authnet_use', value : true });
                     testCS.setValue({fieldId: 'orderstatus', value : 'B' });
                     testCS.setValue({fieldId: 'custbody_authnet_cim_token', value : +o_params.token});
-                    testCS.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                    testCS.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.use });
                     try {
                         if (o_params.orderjson)
                         {
@@ -1393,7 +1395,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     }
                     o_custRefnd.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
                     o_custRefnd.setValue({fieldId: 'custbody_authnet_use', value : true });
-                    o_custRefnd.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                    o_custRefnd.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.use });
                     var i_crId = o_custRefnd.save({ignoreMandatoryFields:true});
                     o_response.customerRefundid = i_crId;
                     var _recordlink = url.resolveRecord({
@@ -1524,7 +1526,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                         o_customerDeposit.setValue({fieldId: 'memo', value: 'AuthNet Unit Test'});
                         //o_customerDeposit.setValue({fieldId:'payment', value: +testSo.getValue({fieldId: 'total'}) / 2 });
                         o_customerDeposit.setValue({fieldId: 'custbody_authnet_use', value : true });
-                        o_customerDeposit.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.val });
+                        o_customerDeposit.setValue({fieldId: 'paymentmethod', value : o_config2.custrecord_an_paymentmethod.use });
                         o_customerDeposit.setValue({fieldId: 'undepfunds', value : 'T' });
                         //o_customerDeposit.setValue({fieldId: 'account', value : 186 });
                         o_customerDeposit.setValue({fieldId: 'custbody_authnet_cim_token', value : +o_params.token });
@@ -1553,7 +1555,7 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                             o_custPayment.setValue({fieldId: 'custbody_authnet_cim_token', value: +o_params.token});
                             o_custPayment.setValue({
                                 fieldId: 'paymentmethod',
-                                value: o_config2.custrecord_an_paymentmethod.val
+                                value: o_config2.custrecord_an_paymentmethod.use
                             });
                             var i_numLines = +o_custPayment.getLineCount('apply');
                             //log.debug('if line count', i_numLines);

@@ -380,6 +380,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                     {
                         var o_matchedTranId, o_matchedCustomer;
                         if (o_missingTxn.fullResponse.order.invoiceNumber) {
+                            log.audit('Looking for missing transaction', o_missingTxn.fullResponse.order.invoiceNumber);
                             var a_filters = [
                                 ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
                                 "AND",
@@ -393,10 +394,10 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                                     [
                                         ['tranid', 'is', o_missingTxn.fullResponse.order.invoiceNumber],
                                         "OR",
-                                        [o_config2.custrecord_an_external_fieldid.val, 'is', o_missingTxn.fullResponse.order.invoiceNumber]
+                                        [o_config2.custrecord_an_external_fieldid.val, 'is', [o_missingTxn.fullResponse.order.invoiceNumber]]
                                     ],
                                     "AND",
-                                    ['type', 'anyof', [ "CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt", "CustCred"]],
+                                    ['type', 'anyof', ["SalesOrd", "CashRfnd", "CashSale", "CustDep", "CustRfnd", "CustPymt"]],
                                     "AND",
                                     ['mainline', 'is', 'T'],
                                 ]

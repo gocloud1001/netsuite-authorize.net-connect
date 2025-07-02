@@ -506,7 +506,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                 else
                                 {
                                     log.debug(a_remote[0] , a_local[0])
-                                    if (+a_remote[0] < +a_local[0] || +a_remote[1] < +a_local[1] || +a_remote[2] < +a_local[2] || a_local[3])
+                                    /*if (+a_remote[0] < +a_local[0] || +a_remote[1] < +a_local[1] || +a_remote[2] < +a_local[2] || a_local[3])
                                     {
                                         context.form.addPageInitMessage({
                                             type: message.Type.CONFIRMATION,
@@ -515,7 +515,7 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                                             //duration: 60000
                                         });
                                     }
-                                    else if (+a_remote[0] > +a_local[0])
+                                    else */if (+a_remote[0] > +a_local[0])
                                     {
                                         context.form.addPageInitMessage({
                                             type: message.Type.WARNING,

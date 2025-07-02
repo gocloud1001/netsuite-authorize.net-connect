@@ -484,12 +484,19 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                         let o_customerDetails = search.lookupFields({type : 'customer', id : i_entityId, columns :['isperson']});
                         let o_totalDue = authNetC2P.paymentlink.invoiceAmountDue(o_invoiceRec);
                         //log.debug('o_customerDetails',o_customerDetails);
-                        let i_paymentTokenId = +context.request.parameters.existingmethod;
-                        log.audit('Do we have a token to use? (or are we making a new one)', i_paymentTokenId);
-
-                        if (i_paymentTokenId !== 0)
+                        let i_paymentTokenId = 0;
+                        if (!_.isUndefined(context.request.parameters.existingmethod))
                         {
-                            log.audit('Ready to make payment with', 'Existing Method');
+                            i_paymentTokenId = +context.request.parameters.existingmethod;
+                        }
+                        log.audit('Do we have a token to use? (or are we making a new one)', 'ID: ' + i_paymentTokenId);
+
+                        /*context.response.write(renderErrorPage({config: o_config2,code:'Temporary Error', message : 'There is a temporary error in the processing network.  Please try this payment again in a few minutes.'}));
+                        return;*/
+
+                        if (i_paymentTokenId > 0)
+                        {
+                            log.audit('Ready to make payment with', 'Existing Method : '+i_paymentTokenId);
                             //context.response.write('Payment with Existing Method<br/>'+i_paymentId);
                         }
                         else if (context.request.parameters['cc-number'] && context.request.parameters['cc-expiration'] && context.request.parameters['cc-cvv'])
@@ -560,6 +567,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 let _error = e.message;
                                 _error = _error.substring(0,_error.lastIndexOf('<br>'));
                                 context.response.write(renderErrorPage({config: o_config2,code:'Processing Error', message : _error}));
+                                log.error('CARD Token Generation Error', e.message);
                                 return;
                             }
                             log.audit('Ready to make payment with', 'NEW Credit Card');
@@ -574,6 +582,12 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 isDynamic : true
                             });
                             o_newBank.setValue({fieldId:'custrecord_an_token_entity', value : i_entityId});
+                            if (o_invoiceRec.getValue({fieldId:'subsidiary'}))
+                            {
+                                let o_payload = {subsidiary : +o_invoiceRec.getValue({fieldId:'subsidiary'})}
+                                o_newBank.setValue({fieldId:'custrecord_an_token_click2pay_data', value : JSON.stringify(o_payload)});
+                                o_newBank.setValue({fieldId:'custrecord_an_token_subsidiary', value : +o_invoiceRec.getValue({fieldId:'subsidiary'})});
+                            }
                             o_newBank.setValue({fieldId:'custrecord_an_token_paymenttype', value : 2});
                             o_newBank.setValue({fieldId:'custpage_customertype', value : o_customerDetails.isperson ? 'individual' : 'business'});
                             if (!_.isUndefined(context.request.parameters.saveBank))
@@ -587,10 +601,10 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                     value: context.request.parameters.email
                                 });
                             }
-                            o_newBank.setValue({fieldId:'custrecord_an_token_bank_bankname', value : context.request.parameters['bankname']});
+                            o_newBank.setValue({fieldId:'custrecord_an_token_bank_bankname', value : _.truncate(context.request.parameters['bankname'], { length: 50, omission: '' })});
                             o_newBank.setValue({fieldId:'custrecord_an_token_bank_routingnumber', value : context.request.parameters['bankrouting']});
                             o_newBank.setValue({fieldId:'custrecord_an_token_bank_accountnumber', value : context.request.parameters['bankaccount']});
-                            o_newBank.setValue({fieldId:'custrecord_an_token_bank_nameonaccount', value : context.request.parameters['accountname']});
+                            o_newBank.setValue({fieldId:'custrecord_an_token_bank_nameonaccount', value : _.truncate(context.request.parameters['accountname'], { length: 22, omission: '' })});
                             //ach type information
                             let a_achParts = context.request.parameters['bankaccounttype'].split('-');
                             o_newBank.setValue({fieldId:'custpage_achtype', value : a_achParts[0]});
@@ -605,6 +619,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 let _error = e.message;
                                 _error = _error.substring(0,_error.lastIndexOf('<br>'));
                                 context.response.write(renderErrorPage({config: o_config2, code:'Processing Error', message : _error}));
+                                log.error('BANK Generation Error', e.message);
                                 return;
                             }
                             log.audit('Ready to make payment with',  'NEW Bank Account');
@@ -622,7 +637,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                         let i_payment;
                         if (i_paymentTokenId)
                         {
-                            log.audit('Using Token to build Payment', 'New Payment being created');
+                            log.audit('Using Token to build Payment', 'New Payment being created with token id: '+i_paymentTokenId);
                             try {
                                 let o_tokenRecord = record.load({
                                     type:'customrecord_authnet_tokens',
@@ -661,9 +676,11 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             }
                             catch (ex)
                             {
+                                log.error(ex.name, 'PAYMENT Generation Error');
                                 log.error(ex.name, ex.message);
                                 log.error(ex.name, ex.stack);
                                 context.response.write(renderErrorPage({config: o_config2, code:'Processing Error', message : 'There was an error while attempting to generate this payment unrealted to your inputs.<br/> If this persists, please contact AR for assistance.'}));
+
                                 return;
                             }
                             if(i_payment) {

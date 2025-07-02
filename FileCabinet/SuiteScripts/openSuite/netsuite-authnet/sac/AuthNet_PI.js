@@ -97,12 +97,16 @@ function(exports, log, _, SAC) {
         //log.debug('Plugin Validation - Cash Sale Standalone');
         SAC.pi_response.process = (
             !record.getValue({fieldId:'custbody_authnet_override'}) &&
-            !record.getValue({fieldId: 'createdfrom'}) &&
+            (!record.getValue({fieldId: 'createdfrom'})  || (record.getValue({fieldId: 'createdfrom'}) && record.getValue({fieldId: 'custbody_authnet_settle_status'}) === SAC.LOGIC_CODE.multicapture) ) &&
             record.getValue('custbody_authnet_use') &&
             !record.getValue({fieldId: 'custbody_authnet_refid'}) &&
             testPaymentPresent(record)
         );
-        log.audit('Plugin Validation - Cash Sale Standalone', SAC.pi_response);
+        /*log.debug('Plugin Validation - !record.getValue({fieldId:\'custbody_authnet_override\'})', !record.getValue({fieldId:'custbody_authnet_override'}));
+        log.debug('Plugin Validation - record.getValue({fieldId: \'custbody_authnet_refid\'})', !record.getValue({fieldId: 'custbody_authnet_refid'}));
+        log.debug('Plugin Validation - record.getValue({fieldId: \'createdfrom\'}) + settle test', (record.getValue({fieldId: 'createdfrom'}) && record.getValue({fieldId: 'custbody_authnet_settle_status'}) === SAC.LOGIC_CODE.multicapture));
+        log.debug('Plugin Validation - testPaymentPresent(record)', testPaymentPresent(record));
+        log.audit('Plugin Validation - Cash Sale Standalone', SAC.pi_response);*/
         return SAC.pi_response;
     };
 

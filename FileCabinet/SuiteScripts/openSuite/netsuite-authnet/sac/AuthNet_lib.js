@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2025.1.3';
+    exports.VERSION = '2025.1.5';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -59,6 +59,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     exports.ALLAUTH = _.concat(exports.CCENTRY,exports.CODES, exports.SETTLEMENT);
     exports.SERVICE_CREDENTIAL_FIELDS = ['custrecord_an_login', 'custrecord_an_login_sb', 'custrecord_an_trankey', 'custrecord_an_trankey_sb'];
 
+    exports.LOGIC_CODE =
+        {
+            multicapture : 'NEEDS AUTH CAPTURE'
+        };
     var RESPONSECODES = {
         "0" : "System Level Failure",
         "1" : "Approved",
@@ -123,6 +127,17 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         createCustomerProfileFromTransactionRequest: {
             "merchantAuthentication": {},
             "transId": null
+        }
+    };
+    exports.getCustomerPaymentProfileRequest = function(o_ccAuthSvcConfig,o_status) {
+        return {
+            getCustomerPaymentProfileRequest: {
+                "merchantAuthentication": o_ccAuthSvcConfig.auth,
+                "customerProfileId": o_status.fullResponse.profile.customerProfileId,
+                "customerPaymentProfileId": o_status.fullResponse.profile.customerPaymentProfileId,
+                "unmaskExpirationDate": true,
+                "includeIssuerInfo": "true"
+            }
         }
     };
     //create NEW profile from card / bank data
@@ -291,6 +306,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                         val: rec.getValue(fld),
                         txt: rec.getText(fld)
                     }
+                    if(_.includes(['custrecord_an_paymentmethod', 'custrecord_an_paymentmethod_echeck'], fld))
+                    {
+                        o_masterConfig[fld].use = rec.getValue(fld);
+                    }
                 }
             });
             //need to get the payment instrument ID which is different from the method id, thanks NS
@@ -309,10 +328,12 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     if (+o_masterConfig.custrecord_an_paymentmethod.val === +result.id)
                     {
                         o_masterConfig.custrecord_an_paymentmethod.profileId = result.getValue({name: 'paymentoptionid'});
+                        o_masterConfig.custrecord_an_paymentmethod.use = result.getValue({name: 'paymentoptionid'});
                     }
                     else if (+o_masterConfig.custrecord_an_paymentmethod_echeck.val === +result.id)
                     {
                         o_masterConfig.custrecord_an_paymentmethod_echeck.profileId = result.getValue({name: 'paymentoptionid'});
+                        o_masterConfig.custrecord_an_paymentmethod_echeck.use = result.getValue({name: 'paymentoptionid'});
                     }
                     return true;
                 });
@@ -913,7 +934,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             isDynamic: true });
         var o_ccAuthSvcConfig = this.getConfigFromCache(txn);
         this.verboseLogging('getAuthCapture.getConfig is ', o_ccAuthSvcConfig.type);
-        return callAuthCapture[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
+        //return callAuthCapture[o_ccAuthSvcConfig.type](txn, o_ccAuthSvcConfig);
+        return getAuthCapture(txn, o_ccAuthSvcConfig);
     };
     exports.doCapture = function (txn) {
         log.audit('doCapture. 3rd Party Call', 'doCapture()');
@@ -937,14 +959,36 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         log.audit('getCIM. calling AUTH.Net', 'getCIM()');
         if (config.mode === 'subsidiary')
         {
-            config = this.getSubConfig(txn.getValue({fieldId: 'subsidiary'}), config)
+            config = this.getSubConfig(txn.getValue({fieldId: 'subsidiary'}), config);
         }
         var o_profile = mngCustomerProfile.createProfileFromTxn(txn, config);
         var o_tokenResponse;
-        if (o_profile.success){
+        if (o_profile.success)
+        {
             o_tokenResponse = mngCustomerProfile.getAndBuildProfile(o_profile, config);
         }
         return o_tokenResponse;
+    };
+
+    /**
+     * @param txn
+     *        {Object} loaded transaction
+     * @param config
+     *        {Object} core config Object
+     *
+     * @param o_status
+     * @return {Object} Built token response
+     *
+     * @static
+     * @function getExistingCIM
+     */
+    exports.getExistingCIM = function (txn, config,o_status) {
+        log.audit('getExistingCIM. calling AUTH.Net', 'getExistingCIM()');
+        if (config.mode === 'subsidiary')
+        {
+            config = this.getSubConfig(txn.getValue({fieldId: 'subsidiary'}), config);
+        }
+        return mngCustomerProfile.buildProfileFromExistingProfile(txn, config, o_status);
     };
 
     exports.createNewProfile = function (o_profile, filteredConfig) {
@@ -1037,6 +1081,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     exports.makeIntegrationHistoryRec = function(txn, config, o_status){
         var b_isValid = true;
         if (config.custrecord_an_validate_external_txn.val){
+            //todo - pass in the status object here and use that instead of looking up AGAIN!
             b_isValid = exports.getStatus(txn);
         } else {
             var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
@@ -1156,7 +1201,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
 
     //UPDATED on 7/1/2019
     //and again on 11/11/2022 - to understand fraud as best as we can...
-    parseANetResponse = function(histRec, txnRec, response, o_config)
+    var parseANetResponse = function(histRec, txnRec, response, o_config)
     {
         var result = {
             status : true
@@ -1364,10 +1409,18 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             histRec.setValue({ fieldId:'custrecord_an_response', value :JSON.stringify(exports.fauxResponse)});
             result.status =  false;
         }
-        if (!result.status){
+        if (!result.status)
+        {
             txnRec.setValue({fieldId: 'custbody_authnet_error_status', value : histRec.getValue({fieldId: 'custrecord_an_error_code'}) });
-        } else {
+        }
+        else
+        {
             txnRec.setValue({fieldId: 'custbody_authnet_error_status', value: ''});
+        }
+        //used when allowing subsequent cash sales to do their own authCapture
+        if (txnRec.getValue({fieldId: 'custbody_authnet_settle_status'}) === 'NEEDS AUTH CAPTURE')
+        {
+            txnRec.setValue({fieldId: 'custbody_authnet_settle_status', value: ''});
         }
         result.history = histRec;
         result.txn = txnRec;
@@ -1752,7 +1805,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 }
             }
         } catch (e) {
-            log.error(e);
+            log.error(e.name, e.message);
+            log.error(e.name, e.statck);
         } finally {
             rec_response.save({ignoreMandatoryFields : true});
             if (!b_canContinue){
@@ -1782,7 +1836,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     var doCheckStatus = {};
     doCheckStatus[1] = function (o_ccAuthSvcConfig, tranid, configId)
     {
-        exports.homeSysLog('ALL o_ccAuthSvcConfig',o_ccAuthSvcConfig);
+        //exports.homeSysLog('ALL o_ccAuthSvcConfig',o_ccAuthSvcConfig);
         if (configId)
         {
             o_ccAuthSvcConfig = _.find(o_ccAuthSvcConfig.subs, {"configid":configId.toString()})
@@ -1831,7 +1885,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             });
 
         }
-        exports.homeSysLog('USING o_ccAuthSvcConfig',o_ccAuthSvcConfig);
+        //exports.homeSysLog('USING o_ccAuthSvcConfig',o_ccAuthSvcConfig);
         var o_summaryStatus = {isValidAuth : false};
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         exports.AuthNetGetTxnStatus.getTransactionDetailsRequest.transId = tranid;
@@ -2136,8 +2190,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         return parsed;
     };
 
-    var callAuthCapture = {};
-    callAuthCapture[1] = function(txn, o_ccAuthSvcConfig){
+    var getAuthCapture = function(txn, o_ccAuthSvcConfig){
         var soId = (txn.type === 'customerdeposit') ? txn.getValue('salesorder') : txn.id;
         var authSvcUrl = o_ccAuthSvcConfig.authSvcUrl, o_token = {}, b_isToken = false;
         //exports.homeSysLog('o_token', o_token);
@@ -2691,10 +2744,211 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
     *
     *
     * */
-
+    function buildProfileRecord(entityId, o_profileResponse, o_ccAuthSvcConfig)
+    {
+        var o_currentTokenHistory = exports.findExistingProfile(entityId, o_profileResponse.customerProfileId, o_profileResponse.customerPaymentProfileId);
+        log.debug('o_currentTokenHistory', o_currentTokenHistory);
+        //{exits : b_thisOneExists, number : i_numMethods, hasDefault : b_hasDefault}
+        if (!o_currentTokenHistory.exits) {
+            log.debug('building a new profile CIM', o_profileResponse);
+            var rec_cimProfile = record.create({type: 'customrecord_authnet_tokens', isDynamic: true});
+            //manage the setting of values if there's a subconfig issue here!
+            if (o_ccAuthSvcConfig.isSubConfig) {
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_gateway',
+                    value: o_ccAuthSvcConfig.masterid
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_gateway_sub',
+                    value: o_ccAuthSvcConfig.configid
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_subsidiary',
+                    value: o_ccAuthSvcConfig.subid
+                });
+            } else {
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_gateway',
+                    value: o_ccAuthSvcConfig.id
+                });
+            }
+            rec_cimProfile.setValue({
+                fieldId: 'custrecord_an_token_entity',
+                value: entityId
+            });
+            rec_cimProfile.setValue({
+                fieldId: 'custrecord_an_token_customerid',
+                value: o_profileResponse.customerProfileId
+            });
+            rec_cimProfile.setValue({
+                fieldId: 'custrecord_an_token_token',
+                value: o_profileResponse.customerPaymentProfileId
+            });
+            //validate email pattern
+            var s_email = '';
+            if (o_profileResponse.email)
+            {
+                o_profileResponse.email.replace(/\s/g, '');
+            }
+            //thank you https://www.w3resource.com/javascript/form/email-validation.php
+            if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(s_email))
+            {
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_entity_email',
+                    value:s_email
+                });
+            }
+            if (!_.isUndefined(o_profileResponse.payment.creditCard)) {
+                rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value: 1});
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_type',
+                    value: o_profileResponse.payment.creditCard.cardType
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_last4',
+                    value: o_profileResponse.payment.creditCard.cardNumber
+                });
+                //todo - is this where we an option to save the exp date off config setting
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_expdate',
+                    value: o_profileResponse.payment.creditCard.expirationDate
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'name',
+                    value: o_profileResponse.payment.creditCard.cardType + ' (' + o_profileResponse.payment.creditCard.cardNumber + ')'
+                });
+            } else if (o_profileResponse.payment.bankAccount) {
+                //bankAccount
+                rec_cimProfile.setValue({fieldId: 'custrecord_an_token_paymenttype', value: 2});
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_type',
+                    value: o_profileResponse.payment.bankAccount.accountType
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_last4',
+                    value: o_profileResponse.payment.bankAccount.accountNumber
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_bank_routingnumber',
+                    value: o_profileResponse.payment.bankAccount.routingNumber
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_bank_nameonaccount',
+                    value: o_profileResponse.payment.bankAccount.nameOnAccount
+                });
+                rec_cimProfile.setValue({fieldId: 'custrecord_an_token_expdate', value: ''});
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_bank_accounttype',
+                    value: o_profileResponse.payment.bankAccount.accountType
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_bank_echecktype',
+                    value: o_profileResponse.payment.bankAccount.echeckType
+                });
+                rec_cimProfile.setValue({
+                    fieldId: 'name',
+                    value: 'Bank Account (' + o_profileResponse.payment.bankAccount.accountNumber + ')'
+                });
+            } else {
+                rec_cimProfile.setValue({fieldId: 'name', value: o_profileResponse.description});
+            }
+            if (!o_currentTokenHistory.hasDefault) {
+                //if none of the found tokens is default, make this one default
+                rec_cimProfile.setValue({
+                    fieldId: 'custrecord_an_token_default',
+                    value: true
+                });
+            }
+            o_profileResponse.id = rec_cimProfile.save({ignoreMandatoryFields: true});
+            exports.homeSysLog('NEW CIM ID', o_profileResponse.id);
+            //becasue UE's can't call UE's - this needs to self run here, otherwise the record will take care of itself!
+            if (runtime.executionContext === runtime.ContextType.USER_INTERFACE) {
+                log.debug('making the pblkchain', o_profileResponse.id)
+                record.submitFields({
+                    type: rec_cimProfile.type,
+                    id: o_profileResponse.id,
+                    values: {
+                        custrecord_an_token_pblkchn: exports.mkpblkchain(rec_cimProfile, o_profileResponse.id)
+                    },
+                    options: {
+                        enableSourcing: false,
+                        ignoreMandatoryFields: true
+                    }
+                });
+            }
+            o_profileResponse.success = true;
+        } else {
+            log.audit('This profile exists', 'It will not be re-imported');
+            o_profileResponse.success = true;
+        }
+        return o_profileResponse;
+    }
 
     var mngCustomerProfile = {};
-    mngCustomerProfile.createNewProfile = function(o_profile, o_ccAuthSvcConfig) {
+    mngCustomerProfile.buildProfileFromExistingProfile = function(txn, o_ccAuthSvcConfig, o_status)
+    {
+        var o_createNewProfileResponse = {success:true, customerProfileId:null, txn : txn, histId:null};
+        var o_newProfileRequest = exports.getCustomerPaymentProfileRequest(o_ccAuthSvcConfig, o_status);
+        var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
+        rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
+        rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});
+        rec_response.setValue({fieldId: 'custrecord_an_cim_iscim', value: true});
+        rec_response.setValue({fieldId: 'custrecord_an_txn', value : txn.id});
+        rec_response.setValue({fieldId: 'custrecord_an_calledby', value : txn.type});
+        rec_response.setValue({fieldId: 'custrecord_an_customer', value : _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer')});
+        rec_response.setValue({fieldId: 'custrecord_an_call_type', value : 'getCustomerPaymentProfileRequest'});
+        try {
+            var response = https.post({
+                headers: {'Content-Type': 'application/json'},
+                url: o_ccAuthSvcConfig.authSvcUrl,
+                body: JSON.stringify(o_newProfileRequest)
+            });
+            exports.homeSysLog('getCIM(createProfileFromTxn) request', o_newProfileRequest);
+            exports.homeSysLog('getCIM(createProfileFromTxn) response.body', response.body);
+            var profileResponse = JSON.parse(response.body.replace('\uFEFF', ''));
+            rec_response.setValue({fieldId: 'custrecord_an_response', value : JSON.stringify(profileResponse)});
+            //log.debug('response.body.messages', profileResponse.messages)
+
+            rec_response.setValue({fieldId: 'custrecord_an_response_status', value : profileResponse.messages.resultCode});
+
+            rec_response.setValue({fieldId: 'custrecord_an_message_code', value : profileResponse.messages.message[0].code});
+            rec_response.setValue({fieldId: 'custrecord_an_response_message', value : profileResponse.messages.message[0].text});
+
+            if (_.toUpper(profileResponse.messages.resultCode) !== 'OK'){
+                var errorObj = _.find(codes.anetCodes, {'code':profileResponse.messages.message[0].code});
+                var s_suggestion = errorObj.integration_suggestions.replace(/&amp;lt;br \/&amp;gt;/g, '<br>');
+                var s_otherSuggestions = errorObj.other_suggestions.replace(/&amp;lt;br \/&amp;gt;/g, '<br>');
+                rec_response.setValue({fieldId: 'custrecord_an_response_ig_advice', value: s_suggestion});
+                rec_response.setValue({fieldId: 'custrecord_an_response_ig_other', value: s_otherSuggestions});
+                o_createNewProfileResponse.success = false;
+            } else {
+                var i_entity = _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer');
+
+                o_createNewProfileResponse.nsEntityId = _.isEmpty(txn.getValue('customer')) ? txn.getValue('entity'): txn.getValue('customer');
+                o_createNewProfileResponse.profileId = profileResponse.customerProfileId;
+                //todo - if this is valid, then return the id
+                o_createNewProfileResponse.customerPaymentProfileIdList = buildProfileRecord(i_entity, profileResponse.paymentProfile, o_ccAuthSvcConfig);
+            }
+        } catch (e) {
+            log.emergency(e.name, e.message);
+            log.emergency(e.name, e.stack);
+            o_createNewProfileResponse.success = false;
+            rec_response.setValue({fieldId: 'custrecord_an_response_status', value: 'Error'});
+            rec_response.setValue({fieldId: 'custrecord_an_response_code', value : 0});
+            rec_response.setValue({fieldId: 'custrecord_an_error_code', value: e.name});
+            rec_response.setValue({fieldId: 'custrecord_an_response_message', value: 'Authorize.Net <> NetSuite: '+e.message});
+            rec_response.setValue({fieldId: 'custrecord_an_response_ig_advice', value: 'A NetSuite based exception was caught but the transaction did not process correctly.'});
+        } finally {
+            o_createNewProfileResponse.histId = rec_response.save({ignoreMandatoryFields : true})
+        }
+        if (!o_createNewProfileResponse.success)
+        {
+            log.error('createProfileFromTxn UNSUCCESSFUL - '+txn.getValue({fieldId:'tranid'}), o_createProfileResponse);
+        }
+        return o_createNewProfileResponse;
+    };
+    mngCustomerProfile.createNewProfile = function(o_profile, o_ccAuthSvcConfig)
+    {
         var o_createNewProfileResponse = {success:true, histId:null};
         var o_newProfileRequest = exports.AuthNetGetNewProfile(o_ccAuthSvcConfig);
 
@@ -2832,7 +3086,10 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             o_paymentProfile.creditCard = {};
             o_paymentProfile.creditCard.cardNumber = o_profile.getValue({fieldId: 'custrecord_an_token_cardnumber'});
             o_paymentProfile.creditCard.expirationDate = o_profile.getValue({fieldId: 'custrecord_an_token_expdate'});
-            o_paymentProfile.creditCard.cardCode = o_profile.getValue({fieldId: 'custrecord_an_token_cardcode'});
+            if (o_profile.getValue({fieldId: 'custrecord_an_token_cardcode'}))
+            {
+                o_paymentProfile.creditCard.cardCode = o_profile.getValue({fieldId: 'custrecord_an_token_cardcode'});
+            }
             //allow setting of an actual test of a CC when tokenizing!
             //o_paymentProfile.validationMode = 'liveMode' or 'testMode'
             o_newProfileRequest.createCustomerProfileRequest.validationMode = o_ccAuthSvcConfig.custrecord_an_cim_live_mode.val ? 'liveMode' : 'testMode';
@@ -2851,6 +3108,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             if (o_profile.getValue({fieldId: 'custrecord_an_token_bank_bankname'})){
                 o_paymentProfile.bankAccount.bankName = o_profile.getValue({fieldId: 'custrecord_an_token_bank_bankname'});
             }
+            //eChecks MUST use livemode regardless of the overall settings
+            o_newProfileRequest.createCustomerProfileRequest.validationMode = 'liveMode';
         }
         o_newProfileRequest.createCustomerProfileRequest.profile.paymentProfiles.payment = o_paymentProfile;
         exports.homeSysLog('getCIM(createNewProfile) REQUEST', o_newProfileRequest);
@@ -2926,7 +3185,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         exports.AuthNetGetProfileFromTxn.createCustomerProfileFromTransactionRequest.merchantAuthentication = o_ccAuthSvcConfig.auth;
         exports.AuthNetGetProfileFromTxn.createCustomerProfileFromTransactionRequest.transId = txn.getValue({fieldId: 'custbody_authnet_refid'});
         exports.AuthNetGetProfileFromTxn.createCustomerProfileFromTransactionRequest.customer = { merchantCustomerId : 'NSeId-'+(txn.getValue({fieldId: 'entity'}) ? txn.getValue({fieldId: 'entity'}) : txn.getValue({fieldId: 'customer'}) ) };
-
+        //exports.AuthNetGetProfileFromTxn.createCustomerProfileFromTransactionRequest.customer = { merchantCustomerId : 'Ivan Drago!' };
         var rec_response = record.create({type: 'customrecord_authnet_history', isDynamic: true});
         rec_response.setValue({fieldId: 'custrecord_an_parent_config', value: o_ccAuthSvcConfig.masterid});
         rec_response.setValue({fieldId: 'custrecord_an_sub_config', value: o_ccAuthSvcConfig.configid});

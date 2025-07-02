@@ -19,7 +19,7 @@
  *
  * @author Cloud 1001, LLC <suiteauthconnect@gocloud1001.com>
  *
- *@NApiVersion 2.0
+ *@NApiVersion 2.1
  *@NScriptType ClientScript
  * @NModuleScope Public
  *
@@ -27,8 +27,8 @@
  */
 
 
-define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 'moment'],
-    function(currentRecord, search, message, dialog, _, moment) {
+define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 'moment', 'swal'],
+    function(currentRecord, search, message, dialog, _, moment, Swal) {
         var exports = {
             sac : [],
             refundMethods : [],
@@ -131,7 +131,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     a_filters.push(['custrecord_an_token_gateway', search.Operator.ANYOF, o_config.id.toString()]);
                 }
                 //log.debug('token search filters', a_filters);
-                search.create({
+
+                /*search.create({
                     type: 'customrecord_authnet_tokens',
                     filters: a_filters,
                     columns: a_columns
@@ -152,7 +153,69 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                         o_uidata.cards.push(_card);
                     }
                     return true;
+                });*/
+                Swal.fire({
+                    title: 'Getting Customer Payment Methods...',
+                    html: "Looking Up Saved Customer Payment Methods.",
+                    allowEscapeKey: false,
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading(); // Start the spinner
+                    },
+                    didDestroy: () => {
+                        // Manually set focus here if needed
+                        document.querySelector(`[name="${'inpt_custbody_authnet_cim_token'}"]`).scrollIntoView();
+                    }
                 });
+                try {
+                    search.create.promise({
+                        type: 'customrecord_authnet_tokens',
+                        filters: a_filters,
+                        columns: a_columns
+                    }).then(function (searchObj)
+                    {
+                        searchObj.run().each(function (result)
+                        {
+                            if (result.getValue('custrecord_an_token_default'))
+                            {
+                                currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id, ignoreFieldChange:true});
+                                var tokenTypeId = result.getValue('custrecord_an_token_paymenttype') ? result.getValue('custrecord_an_token_paymenttype') : 1;
+                                currentRecord.setValue({
+                                    fieldId: 'custbody_authnet_cim_token_type',
+                                    value: tokenTypeId
+                                });
+                            }
+                            if (o_config.isSubConfig)
+                            {
+                                var _card = {id : result.id, subsidiary : result.getValue('custrecord_an_token_subsidiary')};
+                                o_uidata.cards.push(_card);
+                            }
+                            return true;
+                        });
+                        Swal.close();
+
+
+                    }).catch(function (reason) {
+                        console.log(reason);
+                        Swal.close();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: 'Something went really wrong!',
+                        }).then((result) => {});
+                    });
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    // Close the loading dialog and show an error message
+                    Swal.close();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Something went very wrong!',
+                    }).then((result) => {});
+                }
+
                 if (o_config.isSubConfig)
                 {
                     console.log(o_uidata)
