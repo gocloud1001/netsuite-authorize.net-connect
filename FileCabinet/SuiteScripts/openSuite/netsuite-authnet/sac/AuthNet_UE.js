@@ -730,9 +730,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                             //two options - 1 - cash nad cary - single auth net transaction OR from a SO
                             if (i_createdfrom )
                             {
-                                log.debug('cash sale', 'created from ' + i_createdfrom)
+                                log.debug('cash sale', 'created from ' + i_createdfrom);
                                 //support for a config option allowing MULTIPLE cash sales - each subsequent one a auth/capture off token or card
-                                if (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}))
+                                if (context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}) || context.newRecord.getValue({fieldId: 'custbody_authnet_use'}))
                                 {
                                     //see if this is the first or a subsequent Cash Sale
                                     let b_isFirstCS = true;
@@ -753,8 +753,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     {
                                         b_isFirstCS = false;
                                     });
+                                    log.debug('b_isFirstCS', b_isFirstCS);
                                     if (b_isFirstCS)
                                     {
+                                        log.audit('cash sale', 'First Cash Sale');
                                         form.getField({id: 'custbody_authnet_use'}).updateDisplayType({
                                             displayType: ui.FieldDisplayType.DISABLED
                                         });
@@ -899,6 +901,10 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                             log.error('No prior transaction found', 'Something weird happened with this transaction!')
                                         }
                                     }
+                                }
+                                else
+                                {
+                                    log.audit('No value in custbody_authnet_refid', 'So nothing special done.')
                                 }
                             }
                             else
@@ -1699,7 +1705,6 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         });
                                         authNet.doVoid(o_so);
                                         _.forEach(o_clear, function(val, kie){
-                                            //log.debug('kie', kie);
                                             o_so.setValue({fieldId: kie, value : ''});
                                         });
                                         o_so.save({ignoreMandatoryFields : true});

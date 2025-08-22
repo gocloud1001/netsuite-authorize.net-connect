@@ -473,6 +473,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                         //if (o_missingTxn.fullResponse.customer.email || o_missingTxn.fullResponse.customer.id) {
                         var a_filters = [['isinactive', 'is', 'F'], "AND"];
                         var a_subFilter = [];
+                        //todo - test
                         if (o_missingTxn.fullResponse.customer.email)
                         {
                             a_subFilter.push(['email', 'is', o_missingTxn.fullResponse.customer.email]);
@@ -490,7 +491,7 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                             a_subFilter.push("OR");
                         }
                         a_subFilter.push(['altname', 'is', o_missingTxn.fullResponse.billTo.firstName + ' ' + o_missingTxn.fullResponse.billTo.lastName])
-                        a_filters.push(a_subFilter)
+                        a_filters.push(a_subFilter);
                         //log.debug('a_filters', a_filters);
                         search.create({
                             type: 'customer',
@@ -678,8 +679,8 @@ define(['N/record', 'N/search','N/encode', 'N/log', 'N/file', 'N/format', 'N/red
                         });
                     }
                 }
-                else {
-
+                else
+                {
                     //get the config and determine if this is sub or not
                     var o_config = AUTHNET.getConfigFromCache();
                     if (o_config.mode === 'subsidiary') {

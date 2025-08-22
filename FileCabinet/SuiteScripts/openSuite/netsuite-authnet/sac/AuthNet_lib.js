@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2025.1.5';
+    exports.VERSION = '2025.2.1';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -1069,10 +1069,20 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 }
             });
             if(doDelete){
-                record.delete({
+                https.requestSuitelet({
+                    scriptId: "customscript_c9_authnet_screen_svc",
+                    deploymentId: "customdeploy_sac_authnet_screen_svc",
+                    method:'DELETE',
+                    urlParams: {
+                        type: context.newRecord.type,
+                        id : context.newRecord.id
+                    }
+                });
+                //removed direct delete because sometimes a userevent needs to fire on the deleting transaction!
+                /*record.delete({
                     type: context.newRecord.type,
                     id : context.newRecord.id
-                });
+                });*/
             }
         }
     };
@@ -1212,7 +1222,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
         histRec.setValue('custrecord_an_customer', _.isEmpty(txnRec.getText('customer')) ? txnRec.getValue('entity'): txnRec.getValue('customer'));
         histRec.setValue('custrecord_an_response', JSON.stringify(o_body));
         exports.verboseLogging('parseANetResponse response : '+response.code, response.body);
-        if (response.code === 200){
+        if (response.code === 200)
+        {
             var messages = '';
             var s_suggestion = '', s_otherSuggestions = '', a_errorCodes = [];
             //some resononses have some data based on the TYPE of failure
@@ -1271,8 +1282,15 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                             });
                         }
                         histRec.setValue({fieldId: 'custrecord_an_error_code', value: a_errorCodes.toString()});
+                        if(!_.isUndefined(o_body.transactionResponse.responseReasonDescription))
+                        {
+                            histRec.setValue('custrecord_an_response_ig_other', o_body.transactionResponse.responseReasonDescription);
+                        }
+                        else
+                        {
+                            histRec.setValue('custrecord_an_response_ig_other', s_otherSuggestions);
+                        }
                         histRec.setValue('custrecord_an_response_ig_advice', s_suggestion);
-                        histRec.setValue('custrecord_an_response_ig_other', s_otherSuggestions);
                         if (!_.isUndefined(o_body.transactionResponse.refTransID)) {
                             histRec.setValue('custrecord_an_refid', o_body.transactionResponse.refTransID);
                         }
@@ -1401,7 +1419,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             } else {
                 result.status =  false;
             }
-        } else {
+        }
+        else
+        {
             exports.fauxResponse.httpCode = response.code;
             exports.fauxResponse.codeZeroResponse = o_body;
             log.error('error issues', exports.fauxResponse);

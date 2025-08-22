@@ -8,7 +8,7 @@ We currently have a valid workaround for this issue. It requires API access to y
 
 ## READ THIS BEFORE PROCEEDING
 
-Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) makes this as clear as we can make it - it needs to be reiterated : **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In Framework**, because it is not allowed to, per Oracle. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.      
+Although [our FAQ's](https://www.gocloud1001.com/suiteauthconnect-faq/) makes this as clear as we can make it - it needs to be reiterated: **THIS SOLUTION DOES NOT USE THE NetSuite Payment Gateway Plug-In Framework**, because it is not allowed to, per Oracle. This solution offers an approximation of credit card payment processing following the native NetSuite flow via the Authorize.Net payment gateway. While it uses only native NetSuite API calls inside of NetSuite - it is NOT a "NetSuite Payment Gateway" - and because of this there are some inherent limitations to it's functionality.      
 Here's a checklist and grades of things it does and does not do based on the current version:
 - [**A+**] Allows for processing of authorizations or authorizations+captures created in an *external webstore like Magento, ~~Shopify,~~ WooCommerce, BigCommerce, etc* inside of NetSuite
 - [**B**] *Shopify* currently is breaking this from being "seamless" - see above note about the current workaround we have developed that works in several high volume instances.

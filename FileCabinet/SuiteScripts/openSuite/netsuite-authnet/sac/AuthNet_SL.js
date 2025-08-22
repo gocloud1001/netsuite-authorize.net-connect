@@ -1040,57 +1040,48 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                 }
                 else
                 {
-                /*template = template.replace(/%%MESSAGES%%/g, 'TRANSACTION HAS BEEN CHARGED - CAN NOT DELETE');
-                template = template.replace(/%%ERROR%%/g, 'Deletion Not Allowed');
-                template = template.replace(/%%CODE%%/g, 'Already Charged');
-                template = template.replace(/%%transHash%%/g, '');
-                template = template.replace(/%%cardData%%/g, '');
-                template = template.replace(/%%LOG%%/g, '');
-                context.response.write(template);*/
-
-                //SETUP stage here
-                //var o_config = authNet.getActiveConfig();
-                if (_.isEmpty(o_config2)){
-                    //autorun the config script
-                    try {
-                        var scriptTask = task.create({
-                            taskType: task.TaskType.SCHEDULED_SCRIPT,
-                            scriptId: 'customscript_sac_ss2_update_cfg',
-                            deploymentId: 'customdeploy_sac_ss2_update_cfg_o'
-                        });
-                        var scriptTaskId = scriptTask.submit();
-                        //log.debug('scriptTaskId', scriptTaskId)
-                        log.audit('Process for initial setup is running ', task.checkStatus(scriptTaskId));
-                        context.response.write('Initial setup and configuration is taking place - you may need to wait a moment and reload this page.');
-                    } catch (ex){
-                        context.response.write('Initial setup and configuration is STILL taking place - you may need to wait a moment and reload this page.');
+                    if (_.isEmpty(o_config2)){
+                        //autorun the config script
+                        try {
+                            var scriptTask = task.create({
+                                taskType: task.TaskType.SCHEDULED_SCRIPT,
+                                scriptId: 'customscript_sac_ss2_update_cfg',
+                                deploymentId: 'customdeploy_sac_ss2_update_cfg_o'
+                            });
+                            var scriptTaskId = scriptTask.submit();
+                            //log.debug('scriptTaskId', scriptTaskId)
+                            log.audit('Process for initial setup is running ', task.checkStatus(scriptTaskId));
+                            context.response.write('Initial setup and configuration is taking place - you may need to wait a moment and reload this page.');
+                        } catch (ex){
+                            context.response.write('Initial setup and configuration is STILL taking place - you may need to wait a moment and reload this page.');
+                        }
                     }
-                }
-                else
-                {
-                    try {
-                        redirect.toRecord({
-                            type: 'customrecord_authnet_config',
-                            id: o_config2.id,
-                            isEditMode: !o_config2.custrecord_an_enable.val,
-                            parameters: {'custparam_issetup': 'true'}
-                        });
-                    }
-                    catch(ex)
+                    else
                     {
-                        log.emergency(ex.name, ex.message);
-                        log.emergency(ex.name, ex.stack);
-                        redirect.toRecord({
-                            type: 'customrecord_authnet_config',
-                            id: o_config2.id,
-                            parameters: {'custparam_issetup': 'true'}
-                        });
+                        try {
+                            redirect.toRecord({
+                                type: 'customrecord_authnet_config',
+                                id: o_config2.id,
+                                isEditMode: !o_config2.custrecord_an_enable.val,
+                                parameters: {'custparam_issetup': 'true'}
+                            });
+                        }
+                        catch(ex)
+                        {
+                            log.emergency(ex.name, ex.message);
+                            log.emergency(ex.name, ex.stack);
+                            redirect.toRecord({
+                                type: 'customrecord_authnet_config',
+                                id: o_config2.id,
+                                parameters: {'custparam_issetup': 'true'}
+                            });
+                        }
                     }
-                }
 
                 }
-
-            } else {
+            }
+            else if (context.request.method === 'POST')
+            {
                 log.debug('POST');
                 log.debug('context.request.parameters', context.request.parameters);
                 var o_params = context.request.parameters;
@@ -1699,6 +1690,13 @@ define(['N/record', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/ui/serverWid
                     break;
                 }
                 context.response.write(JSON.stringify(o_response));
+            }
+            else if (context.request.method === 'DELETE')
+            {
+                record.delete({
+                    type: context.request.parameters.type,
+                    id : context.request.parameters.id
+                });
             }
         }
         return {

@@ -79,7 +79,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             inCustLocale: true
                         });
                         context.response.addHeader({
-                            name: 'Content-Type:',
+                            name: 'Content-Type',
                             value: 'application/pdf'
                         });
                         context.response.addHeader({
@@ -113,7 +113,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             inCustLocale: true
                         });
                         context.response.addHeader({
-                            name: 'Content-Type:',
+                            name: 'Content-Type',
                             value: 'application/pdf'
                         });
                         context.response.addHeader({
@@ -447,7 +447,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                     }
                     else
                     {
-                        log.audit('STARTING PAYMENT PROCESSING', 'LOADING the invoice and beginig the process!');
+                        log.audit('STARTING PAYMENT PROCESSING', 'LOADING the invoice and beginning the process!');
                         let o_invoiceRec = record.load({
                             type: 'invoice',
                             id: recordId
@@ -671,8 +671,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                     o_newCard.setValue({fieldId: 'isinactive', value: true});
                                     o_newCard.save({ignoreMandatoryFields:true});
                                 }
-
-
                             }
                             catch (ex)
                             {
@@ -680,7 +678,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 log.error(ex.name, ex.message);
                                 log.error(ex.name, ex.stack);
                                 context.response.write(renderErrorPage({config: o_config2, code:'Processing Error', message : 'There was an error while attempting to generate this payment unrealted to your inputs.<br/> If this persists, please contact AR for assistance.'}));
-
                                 return;
                             }
                             if(i_payment) {
@@ -757,7 +754,6 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             log.audit('Payment was NOT Successful', 'Rendering General FAILURE');
                             context.response.write(renderErrorPage({config: o_config2, code:'NOT PAID', message : 'A payment was not generated - this invoice remains unpaid'}));
                         }
-
                     }
                 }
             }
