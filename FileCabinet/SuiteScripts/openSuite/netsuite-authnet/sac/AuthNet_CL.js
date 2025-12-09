@@ -117,6 +117,8 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     a_filters.push("AND");
                     a_filters.push(['custrecord_an_token_gateway_sub', search.Operator.ANYOF, o_config.configid.toString()]);
                     a_filters.push("AND");
+                    a_filters.push(['custrecord_an_token_gateway_sub.isinactive', search.Operator.IS, "F"]);
+                    a_filters.push("AND");
                     a_filters.push(['custrecord_an_token_subsidiary', search.Operator.ANYOF, o_config.subid.toString()]);
                     //a_filters.push(['custrecord_an_token_subsidiary', search.Operator.ANYOF, currentRecord.getValue({fieldId: 'subsidiary'})]);
                     a_columns.push('custrecord_an_token_gateway_sub');
@@ -165,7 +167,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     },
                     didDestroy: () => {
                         // Manually set focus here if needed
-                        document.querySelector(`[name="${'inpt_custbody_authnet_cim_token'}"]`).scrollIntoView();
+                        //document.querySelector(`[name="${'inpt_custbody_authnet_cim_token'}"]`).scrollIntoView();
                     }
                 });
                 try {
@@ -177,6 +179,7 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     {
                         searchObj.run().each(function (result)
                         {
+                            //log.debug('Token Search result', result);
                             if (result.getValue('custrecord_an_token_default'))
                             {
                                 currentRecord.setValue({fieldId: 'custbody_authnet_cim_token', value: result.id, ignoreFieldChange:true});
@@ -232,6 +235,9 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                 else
                 {
                     alert('Unable to retrieve customer CIM profiles / card tokens - this is a '+e.name+' error.');
+                    console.error(e.name);
+                    console.error(e.message);
+                    console.error(e.stack);
                 }
                 //log.error(e.name, e.stack);
             }
@@ -337,8 +343,9 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
             {
                 if (o_config.mode === 'subsidiary') {
                     if (context.currentRecord.getValue({fieldId: 'subsidiary'})) {
-                        log.debug('source sub change >>'+context.currentRecord.getValue({fieldId: 'subsidiary'}));
+                        //log.debug('source sub change >>'+context.currentRecord.getValue({fieldId: 'subsidiary'}));
                         o_config = o_config.subs['subid' + context.currentRecord.getValue({fieldId: 'subsidiary'})];
+                        log.debug('source sub change >>'+context.currentRecord.getValue({fieldId: 'subsidiary'}), o_config);
                         if (!o_config)
                         {
                             //add a blank config because this sub is not supported.

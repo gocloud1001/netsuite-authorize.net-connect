@@ -20,6 +20,15 @@
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
+        <field>
+          <id>ISINACTIVE</id>
+          <label>Inactive</label>
+          <visible>T</visible>
+          <mandatory>F</mandatory>
+          <displayType>NORMAL</displayType>
+          <columnBreak>F</columnBreak>
+          <sameRowAsPrevious>F</sameRowAsPrevious>
+        </field>
       </fields>
     </fieldGroup>
     <fieldGroup scriptid="fieldgroup_2_5521729_sb1_388">
@@ -223,15 +232,6 @@
           <label>ID</label>
           <visible>T</visible>
           <mandatory>T</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
-          <id>ISINACTIVE</id>
-          <label>Inactive</label>
-          <visible>F</visible>
-          <mandatory>F</mandatory>
           <displayType>NORMAL</displayType>
           <columnBreak>F</columnBreak>
           <sameRowAsPrevious>F</sameRowAsPrevious>

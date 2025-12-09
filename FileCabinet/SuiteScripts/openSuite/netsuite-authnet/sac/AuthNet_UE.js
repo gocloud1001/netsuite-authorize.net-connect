@@ -1078,12 +1078,20 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                     //var o_config = JSON.parse(runtime.getCurrentSession().get({name: "anetConfig"}));
                     if (context.newRecord.type === 'salesorder')
                     {
-                        if (o_config2.custrecord_an_external_auth_allowed.val && runtime.executionContext !== runtime.ContextType.USER_INTERFACE) {
+                        if (o_config2.custrecord_an_external_auth_allowed.val && runtime.executionContext !== runtime.ContextType.USER_INTERFACE)
+                        {
                             log.audit('Validating an External Auth Event', 'TRANSID : '+context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
                             if (context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}))
                             {
-                                var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
-
+                                var o_status;
+                                if (o_config2.isSubConfig)
+                                {
+                                    o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}), o_config2.configid);
+                                }
+                                else
+                                {
+                                    o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                                }
                                 authNet.verboseLogging('o_status on '+ context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}), o_status)
                                 if (!o_status.isValidAuth)
                                 {
@@ -1100,6 +1108,11 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                         message: 'The following message was received from Authorize.Net when attempting to validate this transaction : '+s_error,
                                         notifyOff: true
                                     });
+                                }
+                                if(o_status.transactionStatus === 'capturedPendingSettlement' && !o_config2.custrecord_an_make_deposit.val)
+                                {
+                                    log.emergency('THIS SHOULD NOT HAPPEN', 'Sales Order BEING CREATED WITH A CAPTURED TRANSACTION AND NO DEPOSIT PATHWAY CONFIGURED - POOR ACCOUNTING PRACTICE VIOLATION!');
+                                    throw error.create({name:'Imported transaction '+ context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) +' blocked', message: 'This transaction is attempting to create a Sales Order but using a '+o_status.transactionStatus+ ' transaction. You need to configure the creation of deposits in your Authorize.net Connector to follow proper accoutning guidelines for a posting transaction.'});
                                 }
                                 context.newRecord.setValue({fieldId: 'custbody_authnet_use', value: true});
                                 context.newRecord.setValue({
@@ -1500,7 +1513,16 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                     if (context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}) && context.newRecord.getValue({fieldId : 'custbody_authnet_refid'}))
                                     {
                                         //log.debug('the field is ' + o_config2.custrecord_an_external_fieldid.val, context.newRecord.getValue({fieldId : o_config2.custrecord_an_external_fieldid.val}));
-                                        var o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                                        var o_status;
+                                        if (o_config2.isSubConfig)
+                                        {
+                                            o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}), o_config2.configid);
+                                        }
+                                        else
+                                        {
+                                            o_status = authNet.getStatusCheck(context.newRecord.getValue({fieldId: 'custbody_authnet_refid'}));
+                                        }
+
                                         authNet.verboseLogging('o_status from EXTERNAL AUTH', o_status);
                                         if(o_status.transactionStatus === 'capturedPendingSettlement' && !o_config2.custrecord_an_make_deposit.val)
                                         {
@@ -1585,9 +1607,9 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                         //rec_deposit.setValue({fieldId:'payment', value: context.newRecord.getValue({fieldId:'total'})});
                                                         rec_deposit.setValue({fieldId:(o_config2.hasPaymentInstruments ? 'paymentoption' : 'paymentmethod'), value: o_config2.custrecord_an_paymentmethod.use});
                                                         rec_deposit.setValue({fieldId:'custbody_authnet_use', value: true});
-                                                        rec_deposit.setValue({fieldId:'custbody_authnet_refid', value: context.newRecord.getValue({fieldId: 'custbody_authnet_refid'})});
-                                                        rec_deposit.setValue({fieldId:'custbody_authnet_authcode', value: context.newRecord.getValue({fieldId: 'custbody_authnet_authcode'})});
-                                                        rec_deposit.setValue({fieldId:'custbody_authnet_datetime', value: moment(context.newRecord.getValue({fieldId: 'custbody_authnet_datetime'})).toDate()});
+                                                        rec_deposit.setValue({fieldId:'custbody_authnet_refid', value: o_status.fullResponse.transId});
+                                                        rec_deposit.setValue({fieldId:'custbody_authnet_authcode', value: o_status.fullResponse.authCode});
+                                                        rec_deposit.setValue({fieldId:'custbody_authnet_datetime', value: moment(o_status.fullResponse.submitTimeLocal).toDate()});
                                                         rec_deposit.setValue({fieldId:'memo', value: 'WebStore Auth+Capture Deposit'});
                                                         var i_depositId = rec_deposit.save({ignoreMandatoryFields:true});
                                                         authNet.getStatus(record.load({
@@ -1611,6 +1633,7 @@ define(['N/record', 'N/plugin', 'N/runtime', 'N/error', 'N/search', 'N/log', 'N/
                                                         });
                                                     }
                                                 } catch (ex) {
+                                                    log.error('DEPOSIT failed for imported transaction '+ context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}), ex.name + " :: " + ex.message);
                                                     log.error('DEPOSIT failed for imported transaction '+ context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}), ex.name + " :: " + ex.message);
                                                     throw 'DEPOSIT CREATION failed for imported transaction '+ context.newRecord.getValue({fieldId: o_config2.custrecord_an_external_fieldid.val}) +' '+ ex.name + " :: " + ex.message;
 
