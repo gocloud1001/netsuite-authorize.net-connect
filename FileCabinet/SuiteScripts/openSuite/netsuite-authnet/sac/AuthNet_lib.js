@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2025.2.2';
+    exports.VERSION = '2025.2.3';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -148,7 +148,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 "profile": {
                     "merchantCustomerId": ''
                 },
-                "validationMode": "testMode" //liveMode
+                "validationMode": "testMode" //liveMode //todo - should make this a parameter in the config
             }
         }
     };
@@ -1474,7 +1474,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             //todo - on payment - look back at invoice / invoices for apply lines (see lookup below)
             request.lineItems = {lineItem: []};
             var i_numLine = +txn.getLineCount({sublistId: 'item'}) > 29 ? 29 : +txn.getLineCount({sublistId: 'item'});
-            for (var i = 0; i < i_numLine; i++) {
+            for (var i = 0; i < i_numLine; i++)
+            {
                 //txn.selectLine({ sublistId: 'item', line: i});
                 var s_description = 'Terrific Item';
                 var s_desc = txn.getSublistValue({sublistId: 'item', fieldId: 'description', line: i});
@@ -1499,7 +1500,6 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     //without this - BAD bug if a line on a SO is an item - but quantity is 0
                     s_lineQuantity = (_lineQty === '0' || _lineQty === '' || _lineQty === ' ') ? '1' : _lineQty;
                 }
-
                 var obj = {
                     'itemId': (i + 1).toString(),
                     'name': txn.getSublistText({sublistId: 'item', fieldId: 'item', line: i}).substring(0, 29),
@@ -2395,9 +2395,9 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             {
                 //unitPrice = txn.getSublistValue({sublistId: 'item', fieldId: 'amount', line : i});
             }
-            else if (txn.getSublistValue({sublistId: 'item', fieldId: 'itemtype', line : i}) === 'Subtotal')
+            else if (_.includes(['Description', 'Subtotal'], txn.getSublistValue({sublistId: 'item', fieldId: 'itemtype', line : i})) )
             {
-                log.audit('No Refund on a', 'Subtotal line!');
+                log.audit('No Refund on a', txn.getSublistValue({sublistId: 'item', fieldId: 'itemtype', line : i})+ ' line!');
                 b_skipLine = true;
             }
             else
@@ -2450,7 +2450,8 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
             //log.debug('parsed.status', parsed.status);
             //log.debug('parsed.history', parsed.history);
             //log.debug('parsed.txn', parsed.txn);
-            if (!exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId){
+            if (!exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId)
+            {
                 parsed.history.setValue({fieldId: 'custrecord_an_response_message', value:'No valid TranId / RefId was found, you may need to manually look up a previous transaction and paste the TranId / RefId on this transaction to target the refund.'})
                 parsed.history.setValue({fieldId: 'custrecord_an_error_code', value:''})
                 parsed.history.setValue({fieldId: 'custrecord_an_cardnum', value:''})
