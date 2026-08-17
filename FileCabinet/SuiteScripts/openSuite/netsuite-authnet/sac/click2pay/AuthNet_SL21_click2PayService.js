@@ -405,7 +405,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                             ]
                     }).run().each(function (result) {
                         //log.debug('result: '+context.request.clientIpAddress, result);
-                        context.response.write(renderResultPage({config: o_config2, code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of $'+result.getValue('amount')}));
+                        context.response.write(renderResultPage({config: o_config2, code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of '+result.getValue('amount')}));
                         //context.response.write(JSON.stringify(result));
                         return true;
                     });
@@ -473,7 +473,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                     ]
                             }).run().each(function (result) {
                                 //log.debug('result: '+context.request.clientIpAddress, result);
-                                context.response.write(renderResultPage({config: o_config2, code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of $'+o_invoiceRec.getValue({fieldId: 'total'})}));
+                                context.response.write(renderResultPage({config: o_config2, code:'Paid In Full', message : 'This invoice was paid on '+result.getValue('trandate')+ ' in the amount of '+o_invoiceRec.getValue({fieldId: 'total'})}));
                                 //context.response.write(JSON.stringify(result));
                                 return false;
                             });
@@ -708,7 +708,7 @@ define(['N/record', 'N/ui/serverWidget', 'N/http', 'N/render', 'N/crypto', 'N/er
                                 context.response.write(renderResultPage({
                                     config: o_config2,
                                     code: 'Successfully Paid',
-                                    message: 'Thank you for your payment of $' + o_totalDue.asCurrency + '<br>The payment ID for your records is ' + o_completedPayment.getValue({fieldId: 'tranid'}) + ' (' + o_completedPayment.getValue({fieldId: 'custbody_authnet_refid'}) + ')' +
+                                    message: 'Thank you for your payment of ' + o_totalDue.asCurrency + '<br>The payment ID for your records is ' + o_completedPayment.getValue({fieldId: 'tranid'}) + ' (' + o_completedPayment.getValue({fieldId: 'custbody_authnet_refid'}) + ')' +
                                         '<p class="h4">(You may close this browser tab now)</p>'
                                 }));
                             }

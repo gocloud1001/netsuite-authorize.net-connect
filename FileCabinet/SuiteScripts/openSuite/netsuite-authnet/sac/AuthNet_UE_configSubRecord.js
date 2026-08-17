@@ -166,7 +166,6 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
             }
         }
         function beforeSubmit(context) {
-
             if (_.includes(['create', 'copy'], context.type)){
                 //look for the SAME sub already in play - inactivate them!
                 search.create({
@@ -183,10 +182,9 @@ define(['N/record', 'N/url', 'N/https', 'N/runtime', 'N/redirect', 'N/ui/serverW
                         recordType: 'customrecord_authnet_config_subsidiary',
                         recordId: result.id
                     });
-                    throw 'You can not create more than 1 Authorize.Net Subsidiary configuration witin your account for the same subsidiary.<br /><br />   The configuration <i><a href="'+_recordlink+'">' + result.getValue('name') + '</a></i> already exists - for the subsidiary <i>'+result.getText('custrecord_ancs_subsidiary')+'</i> click the link to review that configuration and/or update it.';
+                    throw 'You can not create more than 1 Authorize.Net Subsidiary configuration with in your account for the same subsidiary.<br /><br />   The configuration <i><a href="'+_recordlink+'">' + result.getValue('name') + '</a></i> already exists - for the subsidiary <i>'+result.getText('custrecord_ancs_subsidiary')+'</i> click the link to review that configuration and/or update it.';
                 });
             }
-
         }
         function afterSubmit(context) {
             log.debug('aftersubmit', context.type)

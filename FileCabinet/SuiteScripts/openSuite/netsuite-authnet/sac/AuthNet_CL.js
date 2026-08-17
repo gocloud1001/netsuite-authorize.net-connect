@@ -1071,31 +1071,36 @@ define(['N/currentRecord', 'N/search', 'N/ui/message', 'N/ui/dialog', 'lodash', 
                     //console.log(o_uidata)
                     //var i_cardId = context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'});
                     var o_usedCard = {id:context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}), subsidiary: context.currentRecord.getValue({fieldId: 'subsidiary'})};
-                    if (!_.find(o_uidata.cards, o_usedCard))
+                    //console.log(o_uidata)
+                    //console.log(o_usedCard)
+                    if (!_.isEmpty(o_uidata))
                     {
-                        var b_validCard = false;
-                        //now - see if this was just added as a new card -
-                        var o_unknownToken = search.lookupFields({
-                            type: 'customrecord_authnet_tokens',
-                            id: context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}),
-                            columns: ['custrecord_an_token_subsidiary']
-                        });
-                        //console.log(o_unknownToken);
-                        if (o_unknownToken.custrecord_an_token_subsidiary.length > 0)
+                        if (!_.find(o_uidata.cards, o_usedCard))
                         {
-                            if (o_unknownToken.custrecord_an_token_subsidiary[0].value === context.currentRecord.getValue({fieldId: 'subsidiary'}))
-                            {
-                                b_validCard = true;
-                                console.info('New card entered and is valid for this subsidiary');
-                            }
-                        }
-                        if (!b_validCard)
-                        {
-                            dialog.alert({
-                                title: 'Payment Token / Subsidiary Mismatch',
-                                message: 'You have selected a Customer Profile / Token that is incompatible with the subsidiary of the transaction.  Please review the card prefix and the transaction subsidiary.'
+                            var b_validCard = false;
+                            //now - see if this was just added as a new card -
+                            var o_unknownToken = search.lookupFields({
+                                type: 'customrecord_authnet_tokens',
+                                id: context.currentRecord.getValue({fieldId: 'custbody_authnet_cim_token'}),
+                                columns: ['custrecord_an_token_subsidiary']
                             });
-                            b_canSave = false;
+                            //console.log(o_unknownToken);
+                            if (o_unknownToken.custrecord_an_token_subsidiary.length > 0)
+                            {
+                                if (o_unknownToken.custrecord_an_token_subsidiary[0].value === context.currentRecord.getValue({fieldId: 'subsidiary'}))
+                                {
+                                    b_validCard = true;
+                                    console.info('New card entered and is valid for this subsidiary');
+                                }
+                            }
+                            if (!b_validCard)
+                            {
+                                dialog.alert({
+                                    title: 'Payment Token / Subsidiary Mismatch',
+                                    message: 'You have selected a Customer Profile / Token that is incompatible with the subsidiary of the transaction.  Please review the card prefix and the transaction subsidiary.'
+                                });
+                                b_canSave = false;
+                            }
                         }
                     }
                 }

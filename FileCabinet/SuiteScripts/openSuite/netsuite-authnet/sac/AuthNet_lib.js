@@ -47,7 +47,7 @@
 
 define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/crypto', 'N/encode', 'N/log', 'N/record', 'N/search', 'N/format', 'N/error', 'N/config', 'N/cache', 'N/ui/message', 'SuiteScripts/openSuite/netsuite-authnet/lib/moment.min', 'SuiteScripts/openSuite/netsuite-authnet/lib/lodash.min', 'SuiteScripts/openSuite/netsuite-authnet/sac/anlib/AuthorizeNetCodes'],
     function (require, exports, url, runtime, https, redirect, crypto, encode, log, record, search, format, error, config, cache, message, moment, _, codes) {
-    exports.VERSION = '2025.2.3';
+    exports.VERSION = '2026.2.1';
     //all the fields that are custbody_authnet_ prefixed
     exports.TOKEN = ['cim_token'];
     exports.CHECKBOXES = ['use', 'override'];
@@ -209,6 +209,33 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 }
             }
         }
+    }
+    /**
+     * Sanitizes a string for Authorize.net CIM fields.
+     * Compatible with SuiteScript 2.0 and 2.1.
+     * * @param {string} value - The raw NetSuite field value.
+     * @param {number} limit - The character limit for the target field (default 50).
+     * @returns {string}
+     */
+    exports.sanitizeForAuthNet = function (value, limit) {
+        if (!value) {
+            return '';
+        }
+
+        var maxLength = limit || 50;
+
+        // Convert to string in case a number or null was passed
+        var str = value.toString();
+
+        // 1. Replace ampersands with 'and' to preserve meaning
+        str = str.replace(/&/g, 'and');
+
+        // 2. Remove all characters except letters, numbers, spaces, and dashes
+        // This strips #, <, >, (, ), and other potential trigger characters
+        str = str.replace(/[^a-zA-Z0-9\s-]/g, '');
+
+        // 3. Truncate to the API field limit and trim whitespace
+        return str.substring(0, maxLength).trim();
     }
 
     exports.normalizeRecType = function(type){
@@ -1525,7 +1552,7 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                     'description': 'Shipping Charges'
                 };
             }
-            request.poNumber = txn.getValue('otherrefnum');
+            request.poNumber = exports.sanitizeForAuthNet(txn.getValue('otherrefnum'), 50);
             //todo - make this search less and get everything if it's a direct in the address search!
             var o_lookedupCustomer = search.lookupFields({
                 type: search.Type.CUSTOMER,
@@ -2542,7 +2569,11 @@ define(["require", "exports", 'N/url', 'N/runtime', 'N/https', 'N/redirect', 'N/
                 exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.payment = o_paymentMethod;
                 exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.refTransId = toRefund.anetRefId;
                 exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order = {};
-                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = o_orgTxnResponse.fullResponse.order.invoiceNumber;
+                var invNumber = _.isUndefined(o_orgTxnResponse &&
+                    o_orgTxnResponse.fullResponse &&
+                    o_orgTxnResponse.fullResponse.order &&
+                    o_orgTxnResponse.fullResponse.order.invoiceNumber) ? 'NA' : o_orgTxnResponse.fullResponse.order.invoiceNumber;
+                exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.invoiceNumber = invNumber;
                 exports.AuthNetRequest.authorize.createTransactionRequest.transactionRequest.order.description = 'Customer Refund';
                 //does not use enhanced field data
                 log.error('REFUND CALL TO VALIDATE', exports.AuthNetRequest.authorize);

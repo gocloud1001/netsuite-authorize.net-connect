@@ -23,8 +23,8 @@
  *
  * */
 
-define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/encode', 'N/url', 'N/config', 'N/record', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
-    function (require, exports, runtime, file, crypto, format, encode, url, config, record, _,  authNet) {
+define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format/i18n', 'N/encode', 'N/url', 'N/config', 'N/record', 'lodash', 'SuiteScripts/openSuite/netsuite-authnet/sac/AuthNet_lib'],
+    function (require, exports, runtime, file, crypto, i18n,  encode, url, config, record, _,  authNet) {
 
 
 
@@ -101,11 +101,20 @@ define(["require", "exports", 'N/runtime', 'N/file', 'N/crypto', 'N/format', 'N/
                 },
                 invoiceAmountDue : (o_invoiceRec) =>
                 {
-                    let o_totalDue = {
+
+                    const currencyIso = o_invoiceRec.getValue({fieldId: 'currencysymbol'});
+                    log.debug('currencyIso',currencyIso)
+                    const amountRemaining = +o_invoiceRec.getValue({fieldId: 'amountremaining'});
+                    const cFormatter = i18n.getCurrencyFormatter({
+                        currency: currencyIso
+                    });
+                    const formattedAmount = cFormatter.format({
+                        number: amountRemaining
+                    });
+                    return  {
                         asNumber : +o_invoiceRec.getValue({fieldId:'amountremaining'}),
-                        asCurrency : format.format({value:+o_invoiceRec.getValue({fieldId:'amountremaining'}), type: format.Type.CURRENCY})
+                        asCurrency : formattedAmount
                     };
-                    return o_totalDue;
                 }
             }
         exports.authNet = {
